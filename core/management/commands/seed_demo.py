@@ -9,10 +9,10 @@ class Command(BaseCommand):
     help = "Create the default VerifySMS settings and a local admin account."
 
     def add_arguments(self, parser):
-        parser.add_argument("--email", default="admin@example.com")
-        parser.add_argument("--password", default="ChangeMe123!")
-        parser.add_argument("--test-email", default="testuser@example.com")
-        parser.add_argument("--test-password", default="TestUser123!")
+        parser.add_argument("--email", default="admin@dev.com")
+        parser.add_argument("--password", default="Admin_Dev")
+        parser.add_argument("--test-email", default="test@dev.com")
+        parser.add_argument("--test-password", default="Dev_user")
 
     def handle(self, *args, **options):
         defaults = {
