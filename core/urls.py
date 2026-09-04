@@ -8,6 +8,7 @@ urlpatterns = [
     path("register.html", views.register_page, name="register"),
     path("logout.html", views.logout_page, name="logout"),
     path("healthz/", views.health, name="health"),
+    path("deploy-setup/", views.deploy_setup, name="deploy-setup"),
     re_path(r"^user/(?P<page>[a-z]+)\.html$", views.user_page, name="user-page"),
     re_path(r"^admin/(?P<page>[a-z]+)\.html$", views.admin_page, name="admin-page"),
     path("admin/action/", views.admin_action, name="admin-action"),

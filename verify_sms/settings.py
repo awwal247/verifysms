@@ -91,6 +91,11 @@ STATIC_ROOT = BASE_DIR / "staticfiles"
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 SITE_URL = os.getenv("SITE_URL", "http://127.0.0.1:8000").rstrip("/")
+
+# Only used by the one-time /deploy-setup/ endpoint (see core/views.py).
+# Leave unset in normal operation; set it temporarily in Vercel's env vars
+# only while you need to trigger a remote migrate+seed, then remove it.
+DEPLOY_SETUP_TOKEN = os.getenv("DEPLOY_SETUP_TOKEN", "")
 FIVESIM_API_KEY = os.getenv("FIVESIM_API_KEY", "")
 PAYSTACK_PUBLIC_KEY = os.getenv("PAYSTACK_PUBLIC_KEY", "")
 PAYSTACK_SECRET_KEY = os.getenv("PAYSTACK_SECRET_KEY", "")

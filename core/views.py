@@ -491,3 +491,33 @@ def paystack_callback(request):
 
 def health(request):
     return _json({"ok": True, "service": "VerifySMS Django"})
+
+
+def deploy_setup(request):
+    """One-time remote setup endpoint: runs migrations + seed_demo.
+
+    Protected by a secret token so it can be triggered from a browser
+    without shell/SSH access (e.g. from a phone). Requires the
+    DEPLOY_SETUP_TOKEN env var to be set — if it isn't set, this endpoint
+    refuses to run at all, so it's inert until you deliberately turn it on.
+    Delete this view (and the URL route pointing to it) once you're done
+    with initial setup; it's not something to leave live long-term.
+    """
+    import io
+    from django.conf import settings as dj_settings
+    from django.core.management import call_command
+
+    expected_token = getattr(dj_settings, "DEPLOY_SETUP_TOKEN", "")
+    if not expected_token:
+        return _json({"success": False, "message": "DEPLOY_SETUP_TOKEN is not set on the server."}, 403)
+    if request.GET.get("token", "") != expected_token:
+        return _json({"success": False, "message": "Invalid or missing token."}, 403)
+
+    output = io.StringIO()
+    try:
+        call_command("migrate", interactive=False, stdout=output)
+        if request.GET.get("seed", "1") != "0":
+            call_command("seed_demo", stdout=output)
+    except Exception as exc:
+        return _json({"success": False, "message": str(exc), "log": output.getvalue()}, 500)
+    return _json({"success": True, "log": output.getvalue()})
