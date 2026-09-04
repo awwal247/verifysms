@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+
+<title>Site Settings — VerifySMS</title>
+<meta name="description" content="Buy temporary virtual phone numbers from 180+ countries instantly. No SIM needed. Pay with Paystack. Privacy-first SMS verification.">
+<meta name="author" content="VerifySMS">
+<meta name="robots" content="index,follow">
+<meta name="theme-color" content="#f97316">
+
+<link rel="icon" type="image/svg+xml" href="../assets/img/favicon.svg">
+<link rel="shortcut icon" href="../assets/img/favicon.svg">
+<link rel="apple-touch-icon" href="../assets/img/favicon.svg">
+
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="VerifySMS">
+<meta property="og:title" content="Site Settings — VerifySMS">
+<meta property="og:description" content="Buy temporary virtual phone numbers from 180+ countries instantly. No SIM needed. Pay with Paystack. Privacy-first SMS verification.">
+<meta property="og:image" content="../assets/img/og-image.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Site Settings — VerifySMS">
+<meta name="twitter:description" content="Buy temporary virtual phone numbers from 180+ countries instantly. No SIM needed. Pay with Paystack. Privacy-first SMS verification.">
+<meta name="twitter:image" content="../assets/img/og-image.png">
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<link rel="stylesheet" href="../assets/css/style.css">
+</head>
+<body class="is-admin">
+
+<div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
+
+<aside class="sidebar" id="sidebar">
+  <div class="sidebar-header">
+    <a href="../index.html" class="sidebar-logo">
+      <div class="sidebar-logo-icon"><i class="fa-solid fa-shield-halved"></i></div>
+      <span class="sidebar-logo-text">VerifySMS</span>
+    </a>
+    <button class="sidebar-close" onclick="closeSidebar()"><i class="fa-solid fa-xmark"></i></button>
+  </div>
+
+
+  <nav class="sidebar-nav">
+    <div class="nav-section-label">ADMIN</div>
+    <a href="dashboard.html" class="nav-item ">
+      <i class="fa-solid fa-gauge-high"></i>
+      <span>Dashboard</span>
+      
+    </a>
+    <a href="users.html" class="nav-item ">
+      <i class="fa-solid fa-users"></i>
+      <span>Users</span>
+      
+    </a>
+    <a href="transactions.html" class="nav-item ">
+      <i class="fa-solid fa-receipt"></i>
+      <span>Transactions</span>
+      
+    </a>
+    <a href="providers.html" class="nav-item ">
+      <i class="fa-solid fa-server"></i>
+      <span>Providers</span>
+      
+    </a>
+    <a href="payment.html" class="nav-item ">
+      <i class="fa-solid fa-credit-card"></i>
+      <span>Payments</span>
+      
+    </a>
+    <a href="coupons.html" class="nav-item ">
+      <i class="fa-solid fa-ticket"></i>
+      <span>Coupons</span>
+      
+    </a>
+    <a href="settings.html" class="nav-item active">
+      <i class="fa-solid fa-sliders"></i>
+      <span>Settings</span>
+      
+    </a>
+  </nav>
+
+  <div class="sidebar-footer">
+    <a href="../user/dashboard.html" class="nav-item nav-item-sm">
+      <i class="fa-solid fa-user"></i><span>User View</span>
+    </a>
+    <a href="../logout.html" class="nav-item nav-item-sm nav-item-danger">
+      <i class="fa-solid fa-arrow-right-from-bracket"></i><span>Sign Out</span>
+    </a>
+  </div>
+</aside>
+
+<div class="main-wrapper">
+  <header class="top-header">
+    <button class="hamburger" onclick="openSidebar()">
+      <span></span><span></span><span></span>
+    </button>
+    <div class="top-header-title">Site Settings</div>
+    <div class="top-header-right">
+      <button class="theme-toggle" id="themeToggleBtn" onclick="toggleTheme()" title="Toggle light/dark mode">
+        <i class="fa-solid fa-moon" id="themeIcon"></i>
+      </button>
+      <div class="avatar-btn" onclick="toggleProfileMenu()">
+        <div class="avatar">A</div>
+      </div>
+      <div class="profile-menu" id="profileMenu">
+        <div class="pm-user">
+          <div class="pm-name">Ada Lovelace</div>
+          <div class="pm-email">ada@example.com</div>
+        </div>
+        <a href="../user/settings.html" class="pm-item">
+          <i class="fa-solid fa-gear"></i> Settings
+        </a>
+        <a href="../user/dashboard.html" class="pm-item">
+          <i class="fa-solid fa-user"></i> User View
+        </a>
+        <a href="../logout.html" class="pm-item pm-item-danger">
+          <i class="fa-solid fa-arrow-right-from-bracket"></i> Sign Out
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <main class="page-content">
+<meta name="csrf" content="{{ csrf_token }}">
+
+<!-- ── Custom Confirm Modal ─────────────────────────────────────────────── -->
+<div class="vsms-modal-overlay" id="vsmsConfirmOverlay">
+  <div class="vsms-modal-box">
+    <div class="vsms-modal-icon" id="vsmsModalIcon"><i class="fa-solid fa-circle-question"></i></div>
+    <div class="vsms-modal-title" id="vsmsModalTitle">Confirm Action</div>
+    <div class="vsms-modal-msg" id="vsmsModalMsg"></div>
+    <div class="vsms-modal-actions">
+      <button class="btn btn-secondary" id="vsmsModalCancel">Cancel</button>
+      <button class="btn btn-primary" id="vsmsModalOk">Confirm</button>
+    </div>
+  </div>
+</div>
+<div class="page-hero">
+  <h2><i class="fa-solid fa-sliders" style="color:var(--orange)"></i> Site Settings</h2>
+  <p>General platform configuration.</p>
+</div>
+
+<div style="display:grid;gap:16px">
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title"><i class="fa-solid fa-globe text-orange"></i> Site Information</div>
+    </div>
+    <form method="POST" action="/admin/action/">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="site_info">
+      <div class="form-group">
+        <label class="form-label">Site Name</label>
+        <input class="form-control" type="text" name="site_name" value="VerifySMS">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Support Email</label>
+        <input class="form-control" type="email" name="support_email" value="support@verifysms.example">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Site Description</label>
+        <textarea class="form-control" name="site_description" rows="3">Buy temporary virtual phone numbers from 180+ countries instantly. No SIM needed. Pay with Paystack. Privacy-first SMS verification.</textarea>
+      </div>
+      <button type="submit" class="btn btn-primary"><i class="fa-solid fa-floppy-disk"></i> Save</button>
+    </form>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title"><i class="fa-solid fa-toggle-on text-orange"></i> Maintenance Mode</div>
+    </div>
+    <form method="POST" action="/admin/action/">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="maintenance">
+      <div class="form-group" style="display:flex;align-items:center;gap:10px">
+        <label class="switch">
+          <input type="checkbox" name="maintenance_mode">
+          <span class="slider"></span>
+        </label>
+        <span class="text-sm text-muted">When enabled, only admins can access the site.</span>
+      </div>
+      <button type="submit" class="btn btn-primary"><i class="fa-solid fa-floppy-disk"></i> Save</button>
+    </form>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title"><i class="fa-solid fa-user-shield text-orange"></i> Admin Account</div>
+    </div>
+    <form method="POST" action="/admin/action/">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="admin_password">
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">New Password</label>
+          <input class="form-control" type="password" name="new_password" minlength="6">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Confirm Password</label>
+          <input class="form-control" type="password" name="confirm_password">
+        </div>
+      </div>
+      <button type="submit" class="btn btn-primary"><i class="fa-solid fa-key"></i> Update Password</button>
+    </form>
+  </div>
+</div>
+
+    </main>
+
+    <footer class="page-footer">
+      <span>&copy; 2026 VerifySMS. All rights reserved.</span>
+      <span>v1.0.0</span>
+    </footer>
+</div><!-- /.main-wrapper -->
+<script src="../assets/js/app.js"></script>
+</body>
+</html>

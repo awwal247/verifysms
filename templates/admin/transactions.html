@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+
+<title>Transactions — VerifySMS</title>
+<meta name="description" content="Buy temporary virtual phone numbers from 180+ countries instantly. No SIM needed. Pay with Paystack. Privacy-first SMS verification.">
+<meta name="author" content="VerifySMS">
+<meta name="robots" content="index,follow">
+<meta name="theme-color" content="#f97316">
+
+<link rel="icon" type="image/svg+xml" href="../assets/img/favicon.svg">
+<link rel="shortcut icon" href="../assets/img/favicon.svg">
+<link rel="apple-touch-icon" href="../assets/img/favicon.svg">
+
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="VerifySMS">
+<meta property="og:title" content="Transactions — VerifySMS">
+<meta property="og:description" content="Buy temporary virtual phone numbers from 180+ countries instantly. No SIM needed. Pay with Paystack. Privacy-first SMS verification.">
+<meta property="og:image" content="../assets/img/og-image.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Transactions — VerifySMS">
+<meta name="twitter:description" content="Buy temporary virtual phone numbers from 180+ countries instantly. No SIM needed. Pay with Paystack. Privacy-first SMS verification.">
+<meta name="twitter:image" content="../assets/img/og-image.png">
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<link rel="stylesheet" href="../assets/css/style.css">
+</head>
+<body class="is-admin">
+
+<div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
+
+<aside class="sidebar" id="sidebar">
+  <div class="sidebar-header">
+    <a href="../index.html" class="sidebar-logo">
+      <div class="sidebar-logo-icon"><i class="fa-solid fa-shield-halved"></i></div>
+      <span class="sidebar-logo-text">VerifySMS</span>
+    </a>
+    <button class="sidebar-close" onclick="closeSidebar()"><i class="fa-solid fa-xmark"></i></button>
+  </div>
+
+
+  <nav class="sidebar-nav">
+    <div class="nav-section-label">ADMIN</div>
+    <a href="dashboard.html" class="nav-item ">
+      <i class="fa-solid fa-gauge-high"></i>
+      <span>Dashboard</span>
+      
+    </a>
+    <a href="users.html" class="nav-item ">
+      <i class="fa-solid fa-users"></i>
+      <span>Users</span>
+      
+    </a>
+    <a href="transactions.html" class="nav-item active">
+      <i class="fa-solid fa-receipt"></i>
+      <span>Transactions</span>
+      
+    </a>
+    <a href="providers.html" class="nav-item ">
+      <i class="fa-solid fa-server"></i>
+      <span>Providers</span>
+      
+    </a>
+    <a href="payment.html" class="nav-item ">
+      <i class="fa-solid fa-credit-card"></i>
+      <span>Payments</span>
+      
+    </a>
+    <a href="coupons.html" class="nav-item ">
+      <i class="fa-solid fa-ticket"></i>
+      <span>Coupons</span>
+      
+    </a>
+    <a href="settings.html" class="nav-item ">
+      <i class="fa-solid fa-sliders"></i>
+      <span>Settings</span>
+      
+    </a>
+  </nav>
+
+  <div class="sidebar-footer">
+    <a href="../user/dashboard.html" class="nav-item nav-item-sm">
+      <i class="fa-solid fa-user"></i><span>User View</span>
+    </a>
+    <a href="../logout.html" class="nav-item nav-item-sm nav-item-danger">
+      <i class="fa-solid fa-arrow-right-from-bracket"></i><span>Sign Out</span>
+    </a>
+  </div>
+</aside>
+
+<div class="main-wrapper">
+  <header class="top-header">
+    <button class="hamburger" onclick="openSidebar()">
+      <span></span><span></span><span></span>
+    </button>
+    <div class="top-header-title">Transactions</div>
+    <div class="top-header-right">
+      <button class="theme-toggle" id="themeToggleBtn" onclick="toggleTheme()" title="Toggle light/dark mode">
+        <i class="fa-solid fa-moon" id="themeIcon"></i>
+      </button>
+      <div class="avatar-btn" onclick="toggleProfileMenu()">
+        <div class="avatar">A</div>
+      </div>
+      <div class="profile-menu" id="profileMenu">
+        <div class="pm-user">
+          <div class="pm-name">Ada Lovelace</div>
+          <div class="pm-email">ada@example.com</div>
+        </div>
+        <a href="../user/settings.html" class="pm-item">
+          <i class="fa-solid fa-gear"></i> Settings
+        </a>
+        <a href="../user/dashboard.html" class="pm-item">
+          <i class="fa-solid fa-user"></i> User View
+        </a>
+        <a href="../logout.html" class="pm-item pm-item-danger">
+          <i class="fa-solid fa-arrow-right-from-bracket"></i> Sign Out
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <main class="page-content">
+<meta name="csrf" content="{{ csrf_token }}">
+
+<!-- ── Custom Confirm Modal ─────────────────────────────────────────────── -->
+<div class="vsms-modal-overlay" id="vsmsConfirmOverlay">
+  <div class="vsms-modal-box">
+    <div class="vsms-modal-icon" id="vsmsModalIcon"><i class="fa-solid fa-circle-question"></i></div>
+    <div class="vsms-modal-title" id="vsmsModalTitle">Confirm Action</div>
+    <div class="vsms-modal-msg" id="vsmsModalMsg"></div>
+    <div class="vsms-modal-actions">
+      <button class="btn btn-secondary" id="vsmsModalCancel">Cancel</button>
+      <button class="btn btn-primary" id="vsmsModalOk">Confirm</button>
+    </div>
+  </div>
+</div>
+<div class="page-hero">
+  <h2><i class="fa-solid fa-receipt" style="color:var(--orange)"></i> Transactions</h2>
+  <p>All orders and wallet transactions across the platform.</p>
+</div>
+
+<!-- Tabs -->
+<div style="display:flex;gap:4px;margin-bottom:16px;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-sm);padding:4px;width:fit-content">
+  <a href="transactions.html?tab=orders" class="btn btn-sm btn-primary" style="border:none">
+    <i class="fa-solid fa-mobile-screen"></i> Orders
+  </a>
+  <a href="transactions.html?tab=wallet" class="btn btn-sm btn-ghost" style="border:none">
+    <i class="fa-solid fa-wallet"></i> Wallet
+  </a>
+</div>
+
+<!-- Filter bar -->
+<form method="GET" action="/admin/transactions.html" class="filter-bar mb-3">
+  <input class="form-control" type="text" name="q" placeholder="Search user or phone...">
+  <select class="form-control" name="status" style="max-width:170px">
+    <option value="">All Statuses</option>
+    <option value="pending">Pending</option>
+    <option value="received">SMS Received</option>
+    <option value="finished">Finished</option>
+    <option value="expired">Expired</option>
+    <option value="cancelled">Cancelled</option>
+  </select>
+  <button type="submit" class="btn btn-secondary"><i class="fa-solid fa-filter"></i> Filter</button>
+</form>
+
+<div class="card">
+  <div class="table-wrap">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>#</th><th>User</th><th>Service</th><th>Phone</th><th>Country</th>
+          <th>Operator</th><th>Cost</th><th>Price</th><th>Status</th><th>Date</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="text-xs text-dim">1047</td>
+          <td class="text-sm">Ada Lovelace</td>
+          <td>Whatsapp</td>
+          <td><span class="number-chip">+234 812 345 6789</span></td>
+          <td>Nigeria</td>
+          <td class="text-muted text-sm">Mtn</td>
+          <td class="text-muted text-sm">₦230.40</td>
+          <td class="text-orange fw-bold">₦480.00</td>
+          <td><span class="badge badge-success">SMS Received</span></td>
+          <td class="text-xs text-muted">12m ago</td>
+        </tr>
+        <tr>
+          <td class="text-xs text-dim">1046</td>
+          <td class="text-sm">Kunle Adebayo</td>
+          <td>Telegram</td>
+          <td><span class="number-chip">+44 7911 123456</span></td>
+          <td>England</td>
+          <td class="text-muted text-sm">Any</td>
+          <td class="text-muted text-sm">₦300.00</td>
+          <td class="text-orange fw-bold">₦620.00</td>
+          <td><span class="badge badge-pending">Pending</span></td>
+          <td class="text-xs text-muted">38m ago</td>
+        </tr>
+        <tr>
+          <td class="text-xs text-dim">1045</td>
+          <td class="text-sm">Chidera Obi</td>
+          <td>Google</td>
+          <td><span class="number-chip">+1 415 555 0192</span></td>
+          <td>Usa</td>
+          <td class="text-muted text-sm">Any</td>
+          <td class="text-muted text-sm">₦450.00</td>
+          <td class="text-orange fw-bold">₦910.00</td>
+          <td><span class="badge badge-info">Finished</span></td>
+          <td class="text-xs text-muted">2h ago</td>
+        </tr>
+        <tr>
+          <td class="text-xs text-dim">1044</td>
+          <td class="text-sm">Ada Lovelace</td>
+          <td>Amazon</td>
+          <td><span class="number-chip">+234 703 210 8842</span></td>
+          <td>Nigeria</td>
+          <td class="text-muted text-sm">Glo</td>
+          <td class="text-muted text-sm">₦260.00</td>
+          <td class="text-orange fw-bold">₦540.00</td>
+          <td><span class="badge badge-warning">Expired</span></td>
+          <td class="text-xs text-muted">1d ago</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="pagination">
+    <a href="?tab=orders&page=1" class="page-btn active">1</a>
+    <a href="?tab=orders&page=2" class="page-btn">2</a>
+    <a href="?tab=orders&page=3" class="page-btn">3</a>
+    <a href="?tab=orders&page=2" class="page-btn">&#8594;</a>
+  </div>
+</div>
+
+    </main>
+
+    <footer class="page-footer">
+      <span>&copy; 2026 VerifySMS. All rights reserved.</span>
+      <span>v1.0.0</span>
+    </footer>
+</div><!-- /.main-wrapper -->
+<script src="../assets/js/app.js"></script>
+</body>
+</html>

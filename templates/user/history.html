@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+
+<title>History — VerifySMS</title>
+<meta name="description" content="Buy temporary virtual phone numbers from 180+ countries instantly. No SIM needed. Pay with Paystack. Privacy-first SMS verification.">
+<meta name="author" content="VerifySMS">
+<meta name="robots" content="index,follow">
+<meta name="theme-color" content="#f97316">
+
+<link rel="icon" type="image/svg+xml" href="../assets/img/favicon.svg">
+<link rel="shortcut icon" href="../assets/img/favicon.svg">
+<link rel="apple-touch-icon" href="../assets/img/favicon.svg">
+
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="VerifySMS">
+<meta property="og:title" content="History — VerifySMS">
+<meta property="og:description" content="Buy temporary virtual phone numbers from 180+ countries instantly. No SIM needed. Pay with Paystack. Privacy-first SMS verification.">
+<meta property="og:image" content="../assets/img/og-image.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="History — VerifySMS">
+<meta name="twitter:description" content="Buy temporary virtual phone numbers from 180+ countries instantly. No SIM needed. Pay with Paystack. Privacy-first SMS verification.">
+<meta name="twitter:image" content="../assets/img/og-image.png">
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<link rel="stylesheet" href="../assets/css/style.css">
+</head>
+<body class="">
+
+<div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
+
+<aside class="sidebar" id="sidebar">
+  <div class="sidebar-header">
+    <a href="../index.html" class="sidebar-logo">
+      <div class="sidebar-logo-icon"><i class="fa-solid fa-shield-halved"></i></div>
+      <span class="sidebar-logo-text">VerifySMS</span>
+    </a>
+    <button class="sidebar-close" onclick="closeSidebar()"><i class="fa-solid fa-xmark"></i></button>
+  </div>
+
+  <div class="sidebar-balance">
+    <div class="sb-label">Wallet Balance</div>
+    <div class="sb-amount">₦12,450.00</div>
+    <a href="topup.html" class="sb-topup-btn">
+      <i class="fa-solid fa-plus"></i> Top Up
+    </a>
+  </div>
+
+  <nav class="sidebar-nav">
+    <div class="nav-section-label">MENU</div>
+    <a href="dashboard.html" class="nav-item ">
+      <i class="fa-solid fa-gauge-high"></i>
+      <span>Dashboard</span>
+      
+    </a>
+    <a href="services.html" class="nav-item ">
+      <i class="fa-solid fa-mobile-screen"></i>
+      <span>Services</span>
+      
+    </a>
+    <a href="cart.html" class="nav-item ">
+      <i class="fa-solid fa-inbox"></i>
+      <span>Active</span>
+      <span class="nav-badge">2</span>
+    </a>
+    <a href="topup.html" class="nav-item ">
+      <i class="fa-solid fa-wallet"></i>
+      <span>Top Up</span>
+      
+    </a>
+    <a href="history.html" class="nav-item active">
+      <i class="fa-solid fa-clock-rotate-left"></i>
+      <span>History</span>
+      
+    </a>
+    <a href="settings.html" class="nav-item ">
+      <i class="fa-solid fa-gear"></i>
+      <span>Settings</span>
+      
+    </a>
+  </nav>
+
+  <div class="sidebar-footer">
+    <a href="../admin/dashboard.html" class="nav-item nav-item-sm">
+      <i class="fa-solid fa-shield-halved"></i><span>Admin Panel</span>
+    </a>
+    <a href="../logout.html" class="nav-item nav-item-sm nav-item-danger">
+      <i class="fa-solid fa-arrow-right-from-bracket"></i><span>Sign Out</span>
+    </a>
+  </div>
+</aside>
+
+<div class="main-wrapper">
+  <header class="top-header">
+    <button class="hamburger" onclick="openSidebar()">
+      <span></span><span></span><span></span>
+    </button>
+    <div class="top-header-title">History</div>
+    <div class="top-header-right">
+      <a href="topup.html" class="header-balance">
+        <i class="fa-solid fa-wallet"></i>
+        <span>₦12,450.00</span>
+      </a>
+      <button class="theme-toggle" id="themeToggleBtn" onclick="toggleTheme()" title="Toggle light/dark mode">
+        <i class="fa-solid fa-moon" id="themeIcon"></i>
+      </button>
+      <div class="avatar-btn" onclick="toggleProfileMenu()">
+        <div class="avatar">A</div>
+      </div>
+      <div class="profile-menu" id="profileMenu">
+        <div class="pm-user">
+          <div class="pm-name">Ada Lovelace</div>
+          <div class="pm-email">ada@example.com</div>
+        </div>
+        <a href="settings.html" class="pm-item">
+          <i class="fa-solid fa-gear"></i> Settings
+        </a>
+        <a href="../admin/dashboard.html" class="pm-item">
+          <i class="fa-solid fa-shield-halved"></i> Admin Panel
+        </a>
+        <a href="../logout.html" class="pm-item pm-item-danger">
+          <i class="fa-solid fa-arrow-right-from-bracket"></i> Sign Out
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <main class="page-content">
+<meta name="csrf" content="{{ csrf_token }}">
+
+<!-- ── Custom Confirm Modal ─────────────────────────────────────────────── -->
+<div class="vsms-modal-overlay" id="vsmsConfirmOverlay">
+  <div class="vsms-modal-box">
+    <div class="vsms-modal-icon" id="vsmsModalIcon"><i class="fa-solid fa-circle-question"></i></div>
+    <div class="vsms-modal-title" id="vsmsModalTitle">Confirm Action</div>
+    <div class="vsms-modal-msg" id="vsmsModalMsg"></div>
+    <div class="vsms-modal-actions">
+      <button class="btn btn-secondary" id="vsmsModalCancel">Cancel</button>
+      <button class="btn btn-primary" id="vsmsModalOk">Confirm</button>
+    </div>
+  </div>
+</div>
+<div class="page-hero">
+  <h2><i class="fa-solid fa-clock-rotate-left" style="color:var(--orange)"></i> History</h2>
+  <p>Your complete order and transaction history.</p>
+</div>
+
+<!-- Tabs -->
+<div style="display:flex;gap:4px;margin-bottom:16px;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-sm);padding:4px;width:fit-content">
+  <a href="history.html?tab=orders" class="btn btn-sm btn-primary" style="border:none">
+    <i class="fa-solid fa-mobile-screen"></i> Orders
+  </a>
+  <a href="history.html?tab=transactions" class="btn btn-sm btn-ghost" style="border:none">
+    <i class="fa-solid fa-receipt"></i> Transactions
+  </a>
+</div>
+
+<div class="card">
+  <div class="table-wrap">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>#</th><th>Service</th><th>Phone</th><th>Country</th>
+          <th>Operator</th><th>Price</th><th>Status</th><th>Date</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="text-dim text-xs">1047</td>
+          <td><strong>Whatsapp</strong></td>
+          <td><span class="number-chip">+234 812 345 6789</span></td>
+          <td>Nigeria</td>
+          <td class="text-muted text-sm">Mtn</td>
+          <td class="text-orange fw-bold">₦480.00</td>
+          <td><span class="badge badge-success">SMS Received</span></td>
+          <td class="text-sm text-muted">Aug 25, 2026 08:41</td>
+        </tr>
+        <tr>
+          <td class="text-dim text-xs">1046</td>
+          <td><strong>Telegram</strong></td>
+          <td><span class="number-chip">+44 7911 123456</span></td>
+          <td>England</td>
+          <td class="text-muted text-sm">Any</td>
+          <td class="text-orange fw-bold">₦620.00</td>
+          <td><span class="badge badge-pending">Pending</span></td>
+          <td class="text-sm text-muted">Aug 25, 2026 09:12</td>
+        </tr>
+        <tr>
+          <td class="text-dim text-xs">1045</td>
+          <td><strong>Google</strong></td>
+          <td><span class="number-chip">+1 415 555 0192</span></td>
+          <td>Usa</td>
+          <td class="text-muted text-sm">Any</td>
+          <td class="text-orange fw-bold">₦910.00</td>
+          <td><span class="badge badge-info">Finished</span></td>
+          <td class="text-sm text-muted">Aug 23, 2026 14:02</td>
+        </tr>
+        <tr>
+          <td class="text-dim text-xs">1044</td>
+          <td><strong>Amazon</strong></td>
+          <td><span class="number-chip">+234 703 210 8842</span></td>
+          <td>Nigeria</td>
+          <td class="text-muted text-sm">Glo</td>
+          <td class="text-orange fw-bold">₦540.00</td>
+          <td><span class="badge badge-warning">Expired</span></td>
+          <td class="text-sm text-muted">Aug 21, 2026 19:55</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="pagination">
+    <a href="?tab=orders&page=1" class="page-btn active">1</a>
+    <a href="?tab=orders&page=2" class="page-btn">2</a>
+    <a href="?tab=orders&page=3" class="page-btn">3</a>
+    <a href="?tab=orders&page=2" class="page-btn">&#8594;</a>
+  </div>
+</div>
+
+    </main>
+
+    <footer class="page-footer">
+      <span>&copy; 2026 VerifySMS. All rights reserved.</span>
+      <span>v1.0.0</span>
+    </footer>
+</div><!-- /.main-wrapper -->
+<script src="../assets/js/app.js"></script>
+</body>
+</html>

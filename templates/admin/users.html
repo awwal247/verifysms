@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+
+<title>Manage Users — VerifySMS</title>
+<meta name="description" content="Buy temporary virtual phone numbers from 180+ countries instantly. No SIM needed. Pay with Paystack. Privacy-first SMS verification.">
+<meta name="author" content="VerifySMS">
+<meta name="robots" content="index,follow">
+<meta name="theme-color" content="#f97316">
+
+<link rel="icon" type="image/svg+xml" href="../assets/img/favicon.svg">
+<link rel="shortcut icon" href="../assets/img/favicon.svg">
+<link rel="apple-touch-icon" href="../assets/img/favicon.svg">
+
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="VerifySMS">
+<meta property="og:title" content="Manage Users — VerifySMS">
+<meta property="og:description" content="Buy temporary virtual phone numbers from 180+ countries instantly. No SIM needed. Pay with Paystack. Privacy-first SMS verification.">
+<meta property="og:image" content="../assets/img/og-image.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Manage Users — VerifySMS">
+<meta name="twitter:description" content="Buy temporary virtual phone numbers from 180+ countries instantly. No SIM needed. Pay with Paystack. Privacy-first SMS verification.">
+<meta name="twitter:image" content="../assets/img/og-image.png">
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<link rel="stylesheet" href="../assets/css/style.css">
+</head>
+<body class="is-admin">
+
+<div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
+
+<aside class="sidebar" id="sidebar">
+  <div class="sidebar-header">
+    <a href="../index.html" class="sidebar-logo">
+      <div class="sidebar-logo-icon"><i class="fa-solid fa-shield-halved"></i></div>
+      <span class="sidebar-logo-text">VerifySMS</span>
+    </a>
+    <button class="sidebar-close" onclick="closeSidebar()"><i class="fa-solid fa-xmark"></i></button>
+  </div>
+
+
+  <nav class="sidebar-nav">
+    <div class="nav-section-label">ADMIN</div>
+    <a href="dashboard.html" class="nav-item ">
+      <i class="fa-solid fa-gauge-high"></i>
+      <span>Dashboard</span>
+      
+    </a>
+    <a href="users.html" class="nav-item active">
+      <i class="fa-solid fa-users"></i>
+      <span>Users</span>
+      
+    </a>
+    <a href="transactions.html" class="nav-item ">
+      <i class="fa-solid fa-receipt"></i>
+      <span>Transactions</span>
+      
+    </a>
+    <a href="providers.html" class="nav-item ">
+      <i class="fa-solid fa-server"></i>
+      <span>Providers</span>
+      
+    </a>
+    <a href="payment.html" class="nav-item ">
+      <i class="fa-solid fa-credit-card"></i>
+      <span>Payments</span>
+      
+    </a>
+    <a href="coupons.html" class="nav-item ">
+      <i class="fa-solid fa-ticket"></i>
+      <span>Coupons</span>
+      
+    </a>
+    <a href="settings.html" class="nav-item ">
+      <i class="fa-solid fa-sliders"></i>
+      <span>Settings</span>
+      
+    </a>
+  </nav>
+
+  <div class="sidebar-footer">
+    <a href="../user/dashboard.html" class="nav-item nav-item-sm">
+      <i class="fa-solid fa-user"></i><span>User View</span>
+    </a>
+    <a href="../logout.html" class="nav-item nav-item-sm nav-item-danger">
+      <i class="fa-solid fa-arrow-right-from-bracket"></i><span>Sign Out</span>
+    </a>
+  </div>
+</aside>
+
+<div class="main-wrapper">
+  <header class="top-header">
+    <button class="hamburger" onclick="openSidebar()">
+      <span></span><span></span><span></span>
+    </button>
+    <div class="top-header-title">Manage Users</div>
+    <div class="top-header-right">
+      <button class="theme-toggle" id="themeToggleBtn" onclick="toggleTheme()" title="Toggle light/dark mode">
+        <i class="fa-solid fa-moon" id="themeIcon"></i>
+      </button>
+      <div class="avatar-btn" onclick="toggleProfileMenu()">
+        <div class="avatar">A</div>
+      </div>
+      <div class="profile-menu" id="profileMenu">
+        <div class="pm-user">
+          <div class="pm-name">Ada Lovelace</div>
+          <div class="pm-email">ada@example.com</div>
+        </div>
+        <a href="../user/settings.html" class="pm-item">
+          <i class="fa-solid fa-gear"></i> Settings
+        </a>
+        <a href="../user/dashboard.html" class="pm-item">
+          <i class="fa-solid fa-user"></i> User View
+        </a>
+        <a href="../logout.html" class="pm-item pm-item-danger">
+          <i class="fa-solid fa-arrow-right-from-bracket"></i> Sign Out
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <main class="page-content">
+<meta name="csrf" content="{{ csrf_token }}">
+
+<!-- ── Custom Confirm Modal ─────────────────────────────────────────────── -->
+<div class="vsms-modal-overlay" id="vsmsConfirmOverlay">
+  <div class="vsms-modal-box">
+    <div class="vsms-modal-icon" id="vsmsModalIcon"><i class="fa-solid fa-circle-question"></i></div>
+    <div class="vsms-modal-title" id="vsmsModalTitle">Confirm Action</div>
+    <div class="vsms-modal-msg" id="vsmsModalMsg"></div>
+    <div class="vsms-modal-actions">
+      <button class="btn btn-secondary" id="vsmsModalCancel">Cancel</button>
+      <button class="btn btn-primary" id="vsmsModalOk">Confirm</button>
+    </div>
+  </div>
+</div>
+<div class="page-hero">
+  <h2><i class="fa-solid fa-users" style="color:var(--orange)"></i> Users</h2>
+  <p>Manage all registered user accounts.</p>
+</div>
+
+<!-- Search bar -->
+<form method="GET" action="/admin/users.html" class="filter-bar mb-3">
+  <input class="form-control" type="text" name="q" placeholder="Search name or email...">
+  <button type="submit" class="btn btn-secondary"><i class="fa-solid fa-magnifying-glass"></i></button>
+  <div style="margin-left:auto;color:var(--text-muted);font-size:0.82rem;white-space:nowrap">
+    1,284 users
+  </div>
+</form>
+
+<div class="card">
+  <div class="table-wrap">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>#</th><th>Name</th><th>Email</th><th>Balance</th>
+          <th>Orders</th><th>Status</th><th>Joined</th><th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="text-xs text-dim">1</td>
+          <td><strong>Ada Lovelace</strong></td>
+          <td class="text-muted text-sm">ada@example.com</td>
+          <td class="text-orange fw-bold">₦12,450.00</td>
+          <td>47</td>
+          <td><span class="badge badge-success">Active</span></td>
+          <td class="text-xs text-muted">Mar 4, 2025</td>
+          <td>
+            <div class="admin-table-actions">
+              <button class="btn btn-ghost btn-sm btn-icon" title="Adjust Balance"
+                      onclick="openBalanceModal(1, 'Ada Lovelace', '₦12,450.00')">
+                <i class="fa-solid fa-wallet"></i>
+              </button>
+              <form method="POST" action="/admin/action/" style="display:inline">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="ban">
+                <input type="hidden" name="user_id" value="1">
+                <button class="btn btn-danger btn-sm btn-icon" title="Ban User"
+                        onclick="confirmAndSubmit(event,'Ban this user? They will lose access immediately.',this,true)">
+                  <i class="fa-solid fa-ban"></i>
+                </button>
+              </form>
+            </div>
+          </td>
+        </tr>
+        <tr>
+          <td class="text-xs text-dim">2</td>
+          <td><strong>Kunle Adebayo</strong></td>
+          <td class="text-muted text-sm">kunle@example.com</td>
+          <td class="text-orange fw-bold">₦3,200.00</td>
+          <td>19</td>
+          <td><span class="badge badge-success">Active</span></td>
+          <td class="text-xs text-muted">Feb 21, 2025</td>
+          <td>
+            <div class="admin-table-actions">
+              <button class="btn btn-ghost btn-sm btn-icon" title="Adjust Balance"
+                      onclick="openBalanceModal(2, 'Kunle Adebayo', '₦3,200.00')">
+                <i class="fa-solid fa-wallet"></i>
+              </button>
+              <form method="POST" action="/admin/action/" style="display:inline">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="ban">
+                <input type="hidden" name="user_id" value="2">
+                <button class="btn btn-danger btn-sm btn-icon" title="Ban User"
+                        onclick="confirmAndSubmit(event,'Ban this user? They will lose access immediately.',this,true)">
+                  <i class="fa-solid fa-ban"></i>
+                </button>
+              </form>
+            </div>
+          </td>
+        </tr>
+        <tr>
+          <td class="text-xs text-dim">3</td>
+          <td><strong>Chidera Obi</strong></td>
+          <td class="text-muted text-sm">chidera@example.com</td>
+          <td class="text-orange fw-bold">₦0.00</td>
+          <td>6</td>
+          <td><span class="badge badge-danger">Banned</span></td>
+          <td class="text-xs text-muted">Jan 9, 2025</td>
+          <td>
+            <div class="admin-table-actions">
+              <button class="btn btn-ghost btn-sm btn-icon" title="Adjust Balance"
+                      onclick="openBalanceModal(3, 'Chidera Obi', '₦0.00')">
+                <i class="fa-solid fa-wallet"></i>
+              </button>
+              <form method="POST" action="/admin/action/" style="display:inline">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="activate">
+                <input type="hidden" name="user_id" value="3">
+                <button class="btn btn-success btn-sm btn-icon" title="Activate User">
+                  <i class="fa-solid fa-check"></i>
+                </button>
+              </form>
+            </div>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="pagination">
+    <a href="?page=1" class="page-btn active">1</a>
+    <a href="?page=2" class="page-btn">2</a>
+    <a href="?page=3" class="page-btn">3</a>
+    <a href="?page=2" class="page-btn">&#8594;</a>
+  </div>
+</div>
+
+<!-- Balance Adjust Modal -->
+<div id="balanceModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:2000;align-items:center;justify-content:center;padding:20px">
+  <div style="background:var(--bg-card);border:1px solid var(--border-light);border-radius:var(--radius);padding:24px;width:100%;max-width:360px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+      <h3 style="font-weight:700"><i class="fa-solid fa-wallet text-orange"></i> Adjust Balance</h3>
+      <button onclick="closeModal('balanceModal')" style="background:none;border:none;color:var(--text-muted);font-size:1.3rem;cursor:pointer">&times;</button>
+    </div>
+    <p class="text-muted text-sm mb-3">
+      User: <strong id="modal-user-name"></strong><br>
+      Current: <strong class="text-orange" id="modal-user-balance"></strong>
+    </p>
+    <form method="POST" action="/admin/action/">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="adjust_balance">
+      <input type="hidden" name="user_id" id="modal-user-id">
+      <div class="form-group">
+        <label class="form-label">Amount (NGN)</label>
+        <input class="form-control" type="number" name="amount" min="1" step="1" required>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Type</label>
+        <select class="form-control" name="adjust_type">
+          <option value="credit">Credit (Add)</option>
+          <option value="debit">Debit (Subtract)</option>
+        </select>
+      </div>
+      <button type="submit" class="btn btn-primary btn-block"><i class="fa-solid fa-floppy-disk"></i> Apply</button>
+    </form>
+  </div>
+</div>
+
+<script>
+function openBalanceModal(id, name, balance) {
+  document.getElementById('modal-user-id').value       = id;
+  document.getElementById('modal-user-name').textContent    = name;
+  document.getElementById('modal-user-balance').textContent = balance;
+  document.getElementById('balanceModal').style.display = 'flex';
+}
+function closeModal(id) { document.getElementById(id).style.display = 'none'; }
+document.getElementById('balanceModal').addEventListener('click', function(e) { if(e.target===this) closeModal('balanceModal'); });
+</script>
+
+    </main>
+
+    <footer class="page-footer">
+      <span>&copy; 2026 VerifySMS. All rights reserved.</span>
+      <span>v1.0.0</span>
+    </footer>
+</div><!-- /.main-wrapper -->
+<script src="../assets/js/app.js"></script>
+</body>
+</html>

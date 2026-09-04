@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+
+<title>SMS Inbox — VerifySMS</title>
+<meta name="description" content="Buy temporary virtual phone numbers from 180+ countries instantly. No SIM needed. Pay with Paystack. Privacy-first SMS verification.">
+<meta name="author" content="VerifySMS">
+<meta name="robots" content="index,follow">
+<meta name="theme-color" content="#f97316">
+
+<link rel="icon" type="image/svg+xml" href="../assets/img/favicon.svg">
+<link rel="shortcut icon" href="../assets/img/favicon.svg">
+<link rel="apple-touch-icon" href="../assets/img/favicon.svg">
+
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="VerifySMS">
+<meta property="og:title" content="SMS Inbox — VerifySMS">
+<meta property="og:description" content="Buy temporary virtual phone numbers from 180+ countries instantly. No SIM needed. Pay with Paystack. Privacy-first SMS verification.">
+<meta property="og:image" content="../assets/img/og-image.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="SMS Inbox — VerifySMS">
+<meta name="twitter:description" content="Buy temporary virtual phone numbers from 180+ countries instantly. No SIM needed. Pay with Paystack. Privacy-first SMS verification.">
+<meta name="twitter:image" content="../assets/img/og-image.png">
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<link rel="stylesheet" href="../assets/css/style.css">
+<style>
+.sms-inbox-card{background:var(--bg-input);border:1px solid var(--border);
+  border-radius:var(--radius-sm);padding:14px;margin-bottom:10px}
+.sms-sender-row{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px}
+.sms-sender{font-size:.78rem;color:var(--text-muted)}
+.sms-date{font-size:.72rem;color:var(--text-dim)}
+.sms-body{color:var(--text);font-size:.9rem;margin-bottom:8px;line-height:1.5;word-break:break-word}
+.otp-box{background:var(--bg-card);border:1px solid rgba(34,197,94,.3);
+  border-radius:var(--radius-sm);padding:12px;text-align:center;margin-top:8px}
+.otp-label{font-size:.68rem;text-transform:uppercase;letter-spacing:.08em;
+  color:var(--text-muted);margin-bottom:4px}
+.otp-code{font-size:2rem;font-weight:800;color:var(--success);letter-spacing:.12em;word-break:break-all}
+.live-wait{display:flex;align-items:center;gap:10px;
+  padding:18px;color:var(--text-muted);font-size:.88rem}
+.pulse-ring{width:12px;height:12px;border-radius:50%;
+  border:2px solid var(--warning);animation:pulse-r 1.4s ease-in-out infinite}
+@keyframes pulse-r{0%,100%{transform:scale(1);opacity:1}50%{transform:scale(1.3);opacity:.5}}
+.timer-bar{height:4px;background:var(--border);border-radius:2px;overflow:hidden;margin-top:8px}
+.timer-fill{height:100%;background:var(--warning);border-radius:2px;transition:width 1s linear}
+.timer-fill.urgent{background:var(--danger)}
+.timer-label{font-size:.7rem;color:var(--text-dim);margin-top:3px;text-align:right}
+.info-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px;margin-bottom:16px}
+.info-tile{background:var(--bg-input);border:1px solid var(--border);
+  border-radius:var(--radius-sm);padding:10px;text-align:center}
+.info-tile-lbl{font-size:.68rem;color:var(--text-muted);text-transform:uppercase;margin-bottom:3px}
+.info-tile-val{font-size:.85rem;font-weight:600;color:var(--text)}
+</style>
+</head>
+<body class="">
+
+<div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
+
+<aside class="sidebar" id="sidebar">
+  <div class="sidebar-header">
+    <a href="../index.html" class="sidebar-logo">
+      <div class="sidebar-logo-icon"><i class="fa-solid fa-shield-halved"></i></div>
+      <span class="sidebar-logo-text">VerifySMS</span>
+    </a>
+    <button class="sidebar-close" onclick="closeSidebar()"><i class="fa-solid fa-xmark"></i></button>
+  </div>
+
+  <div class="sidebar-balance">
+    <div class="sb-label">Wallet Balance</div>
+    <div class="sb-amount">₦12,450.00</div>
+    <a href="topup.html" class="sb-topup-btn">
+      <i class="fa-solid fa-plus"></i> Top Up
+    </a>
+  </div>
+
+  <nav class="sidebar-nav">
+    <div class="nav-section-label">MENU</div>
+    <a href="dashboard.html" class="nav-item ">
+      <i class="fa-solid fa-gauge-high"></i>
+      <span>Dashboard</span>
+      
+    </a>
+    <a href="services.html" class="nav-item ">
+      <i class="fa-solid fa-mobile-screen"></i>
+      <span>Services</span>
+      
+    </a>
+    <a href="cart.html" class="nav-item active">
+      <i class="fa-solid fa-inbox"></i>
+      <span>Active</span>
+      <span class="nav-badge">2</span>
+    </a>
+    <a href="topup.html" class="nav-item ">
+      <i class="fa-solid fa-wallet"></i>
+      <span>Top Up</span>
+      
+    </a>
+    <a href="history.html" class="nav-item ">
+      <i class="fa-solid fa-clock-rotate-left"></i>
+      <span>History</span>
+      
+    </a>
+    <a href="settings.html" class="nav-item ">
+      <i class="fa-solid fa-gear"></i>
+      <span>Settings</span>
+      
+    </a>
+  </nav>
+
+  <div class="sidebar-footer">
+    <a href="../admin/dashboard.html" class="nav-item nav-item-sm">
+      <i class="fa-solid fa-shield-halved"></i><span>Admin Panel</span>
+    </a>
+    <a href="../logout.html" class="nav-item nav-item-sm nav-item-danger">
+      <i class="fa-solid fa-arrow-right-from-bracket"></i><span>Sign Out</span>
+    </a>
+  </div>
+</aside>
+
+<div class="main-wrapper">
+  <header class="top-header">
+    <button class="hamburger" onclick="openSidebar()">
+      <span></span><span></span><span></span>
+    </button>
+    <div class="top-header-title">SMS Inbox</div>
+    <div class="top-header-right">
+      <a href="topup.html" class="header-balance">
+        <i class="fa-solid fa-wallet"></i>
+        <span>₦12,450.00</span>
+      </a>
+      <button class="theme-toggle" id="themeToggleBtn" onclick="toggleTheme()" title="Toggle light/dark mode">
+        <i class="fa-solid fa-moon" id="themeIcon"></i>
+      </button>
+      <div class="avatar-btn" onclick="toggleProfileMenu()">
+        <div class="avatar">A</div>
+      </div>
+      <div class="profile-menu" id="profileMenu">
+        <div class="pm-user">
+          <div class="pm-name">Ada Lovelace</div>
+          <div class="pm-email">ada@example.com</div>
+        </div>
+        <a href="settings.html" class="pm-item">
+          <i class="fa-solid fa-gear"></i> Settings
+        </a>
+        <a href="../admin/dashboard.html" class="pm-item">
+          <i class="fa-solid fa-shield-halved"></i> Admin Panel
+        </a>
+        <a href="../logout.html" class="pm-item pm-item-danger">
+          <i class="fa-solid fa-arrow-right-from-bracket"></i> Sign Out
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <main class="page-content">
+<meta name="csrf" content="{{ csrf_token }}">
+
+<!-- ── Custom Confirm Modal ─────────────────────────────────────────────── -->
+<div class="vsms-modal-overlay" id="vsmsConfirmOverlay">
+  <div class="vsms-modal-box">
+    <div class="vsms-modal-icon" id="vsmsModalIcon"><i class="fa-solid fa-circle-question"></i></div>
+    <div class="vsms-modal-title" id="vsmsModalTitle">Confirm Action</div>
+    <div class="vsms-modal-msg" id="vsmsModalMsg"></div>
+    <div class="vsms-modal-actions">
+      <button class="btn btn-secondary" id="vsmsModalCancel">Cancel</button>
+      <button class="btn btn-primary" id="vsmsModalOk">Confirm</button>
+    </div>
+  </div>
+</div>
+<div class="page-hero">
+  <h2><i class="fa-solid fa-envelope" style="color:var(--orange)"></i> SMS Inbox</h2>
+  <p>Real-time SMS for your number.</p>
+</div>
+
+<!-- Order info -->
+<div class="card mb-3">
+  <div class="card-header">
+    <div>
+      <div class="card-title">Whatsapp — Nigeria</div>
+      <div class="card-subtitle">Number: +234 812 345 6789 &bull; <span class="badge badge-success">SMS Received</span></div>
+    </div>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-secondary btn-sm" onclick="copyText('+2348123456789', this)">
+        <i class="fa-regular fa-copy"></i> Copy Number
+      </button>
+      <a href="cart.html" class="btn btn-ghost btn-sm">
+        <i class="fa-solid fa-arrow-left"></i> Back
+      </a>
+    </div>
+  </div>
+
+  <div class="info-grid">
+    <div class="info-tile">
+      <div class="info-tile-lbl">Phone</div>
+      <div class="info-tile-val"><i class="fa-solid fa-phone" style="color:var(--orange);margin-right:5px"></i>+234 812 345 6789</div>
+    </div>
+    <div class="info-tile">
+      <div class="info-tile-lbl">Country</div>
+      <div class="info-tile-val"><i class="fa-solid fa-location-dot" style="color:var(--orange);margin-right:5px"></i>Nigeria</div>
+    </div>
+    <div class="info-tile">
+      <div class="info-tile-lbl">Operator</div>
+      <div class="info-tile-val"><i class="fa-solid fa-signal" style="color:var(--orange);margin-right:5px"></i>Mtn</div>
+    </div>
+    <div class="info-tile">
+      <div class="info-tile-lbl">Expires</div>
+      <div class="info-tile-val"><i class="fa-solid fa-clock" style="color:var(--orange);margin-right:5px"></i>Aug 25 09:01</div>
+    </div>
+  </div>
+</div>
+
+<!-- SMS Messages area -->
+<div class="card" id="sms-area">
+  <div class="card-header">
+    <div class="card-title"><i class="fa-solid fa-inbox text-orange"></i>
+      Messages
+      <span id="sms-count-badge" style="font-size:.75rem;color:var(--text-muted);font-weight:400;margin-left:5px">(1)</span>
+    </div>
+    <button class="btn btn-secondary btn-sm" onclick="location.reload()">
+      <i class="fa-solid fa-arrows-rotate"></i> Refresh
+    </button>
+  </div>
+
+  <div id="sms-live-wrap">
+    <div class="sms-inbox-card">
+      <div class="sms-sender-row">
+        <div class="sms-sender"><i class="fa-solid fa-user" style="color:var(--orange)"></i> WhatsApp</div>
+        <div class="sms-date">Aug 25, 08:41</div>
+      </div>
+      <div class="sms-body">Your WhatsApp code is 482913. Do not share this code.</div>
+      <div class="otp-box">
+        <div class="otp-label"><i class="fa-solid fa-key"></i> Verification Code</div>
+        <div class="otp-code" id="otp-display">482913</div>
+        <button class="btn btn-sm btn-secondary mt-1" onclick="copyText('482913', this)">
+          <i class="fa-regular fa-copy"></i> Copy Code
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+    </main>
+
+    <footer class="page-footer">
+      <span>&copy; 2026 VerifySMS. All rights reserved.</span>
+      <span>v1.0.0</span>
+    </footer>
+</div><!-- /.main-wrapper -->
+<script src="../assets/js/app.js"></script>
+</body>
+</html>

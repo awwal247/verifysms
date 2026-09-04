@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+
+<title>Payment Settings — VerifySMS</title>
+<meta name="description" content="Buy temporary virtual phone numbers from 180+ countries instantly. No SIM needed. Pay with Paystack. Privacy-first SMS verification.">
+<meta name="author" content="VerifySMS">
+<meta name="robots" content="index,follow">
+<meta name="theme-color" content="#f97316">
+
+<link rel="icon" type="image/svg+xml" href="../assets/img/favicon.svg">
+<link rel="shortcut icon" href="../assets/img/favicon.svg">
+<link rel="apple-touch-icon" href="../assets/img/favicon.svg">
+
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="VerifySMS">
+<meta property="og:title" content="Payment Settings — VerifySMS">
+<meta property="og:description" content="Buy temporary virtual phone numbers from 180+ countries instantly. No SIM needed. Pay with Paystack. Privacy-first SMS verification.">
+<meta property="og:image" content="../assets/img/og-image.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Payment Settings — VerifySMS">
+<meta name="twitter:description" content="Buy temporary virtual phone numbers from 180+ countries instantly. No SIM needed. Pay with Paystack. Privacy-first SMS verification.">
+<meta name="twitter:image" content="../assets/img/og-image.png">
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<link rel="stylesheet" href="../assets/css/style.css">
+</head>
+<body class="is-admin">
+
+<div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
+
+<aside class="sidebar" id="sidebar">
+  <div class="sidebar-header">
+    <a href="../index.html" class="sidebar-logo">
+      <div class="sidebar-logo-icon"><i class="fa-solid fa-shield-halved"></i></div>
+      <span class="sidebar-logo-text">VerifySMS</span>
+    </a>
+    <button class="sidebar-close" onclick="closeSidebar()"><i class="fa-solid fa-xmark"></i></button>
+  </div>
+
+
+  <nav class="sidebar-nav">
+    <div class="nav-section-label">ADMIN</div>
+    <a href="dashboard.html" class="nav-item ">
+      <i class="fa-solid fa-gauge-high"></i>
+      <span>Dashboard</span>
+      
+    </a>
+    <a href="users.html" class="nav-item ">
+      <i class="fa-solid fa-users"></i>
+      <span>Users</span>
+      
+    </a>
+    <a href="transactions.html" class="nav-item ">
+      <i class="fa-solid fa-receipt"></i>
+      <span>Transactions</span>
+      
+    </a>
+    <a href="providers.html" class="nav-item ">
+      <i class="fa-solid fa-server"></i>
+      <span>Providers</span>
+      
+    </a>
+    <a href="payment.html" class="nav-item active">
+      <i class="fa-solid fa-credit-card"></i>
+      <span>Payments</span>
+      
+    </a>
+    <a href="coupons.html" class="nav-item ">
+      <i class="fa-solid fa-ticket"></i>
+      <span>Coupons</span>
+      
+    </a>
+    <a href="settings.html" class="nav-item ">
+      <i class="fa-solid fa-sliders"></i>
+      <span>Settings</span>
+      
+    </a>
+  </nav>
+
+  <div class="sidebar-footer">
+    <a href="../user/dashboard.html" class="nav-item nav-item-sm">
+      <i class="fa-solid fa-user"></i><span>User View</span>
+    </a>
+    <a href="../logout.html" class="nav-item nav-item-sm nav-item-danger">
+      <i class="fa-solid fa-arrow-right-from-bracket"></i><span>Sign Out</span>
+    </a>
+  </div>
+</aside>
+
+<div class="main-wrapper">
+  <header class="top-header">
+    <button class="hamburger" onclick="openSidebar()">
+      <span></span><span></span><span></span>
+    </button>
+    <div class="top-header-title">Payment Settings</div>
+    <div class="top-header-right">
+      <button class="theme-toggle" id="themeToggleBtn" onclick="toggleTheme()" title="Toggle light/dark mode">
+        <i class="fa-solid fa-moon" id="themeIcon"></i>
+      </button>
+      <div class="avatar-btn" onclick="toggleProfileMenu()">
+        <div class="avatar">A</div>
+      </div>
+      <div class="profile-menu" id="profileMenu">
+        <div class="pm-user">
+          <div class="pm-name">Ada Lovelace</div>
+          <div class="pm-email">ada@example.com</div>
+        </div>
+        <a href="../user/settings.html" class="pm-item">
+          <i class="fa-solid fa-gear"></i> Settings
+        </a>
+        <a href="../user/dashboard.html" class="pm-item">
+          <i class="fa-solid fa-user"></i> User View
+        </a>
+        <a href="../logout.html" class="pm-item pm-item-danger">
+          <i class="fa-solid fa-arrow-right-from-bracket"></i> Sign Out
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <main class="page-content">
+<meta name="csrf" content="{{ csrf_token }}">
+
+<!-- ── Custom Confirm Modal ─────────────────────────────────────────────── -->
+<div class="vsms-modal-overlay" id="vsmsConfirmOverlay">
+  <div class="vsms-modal-box">
+    <div class="vsms-modal-icon" id="vsmsModalIcon"><i class="fa-solid fa-circle-question"></i></div>
+    <div class="vsms-modal-title" id="vsmsModalTitle">Confirm Action</div>
+    <div class="vsms-modal-msg" id="vsmsModalMsg"></div>
+    <div class="vsms-modal-actions">
+      <button class="btn btn-secondary" id="vsmsModalCancel">Cancel</button>
+      <button class="btn btn-primary" id="vsmsModalOk">Confirm</button>
+    </div>
+  </div>
+</div>
+<div class="page-hero">
+  <h2><i class="fa-solid fa-credit-card" style="color:var(--orange)"></i> Payment Settings</h2>
+  <p>Configure Paystack integration and top-up fees.</p>
+</div>
+
+<div class="card mb-3">
+  <div class="card-header">
+    <div class="card-title"><i class="fa-solid fa-key text-orange"></i> Paystack API Keys</div>
+    {% if payment_configured %}<span class="badge badge-success">Configured</span>{% else %}<span class="badge badge-danger">Not Configured</span>{% endif %}
+  </div>
+  <form method="POST" action="/admin/action/">
+    {% csrf_token %}
+    <input type="hidden" name="action" value="save_payment">
+    <div class="form-group">
+      <label class="form-label">Public Key</label>
+      <input class="form-control" type="text" name="paystack_public_key" value="{{ public_key|default:'' }}" placeholder="pk_live_...">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Secret Key</label>
+      <input class="form-control" type="password" name="paystack_secret_key" placeholder="{% if payment_configured %}sk_live_•••••••••••••••••••••••• (leave blank to keep current){% else %}sk_live_...{% endif %}">
+    </div>
+    <button type="submit" class="btn btn-primary"><i class="fa-solid fa-floppy-disk"></i> Save Keys</button>
+  </form>
+</div>
+
+<div class="card mb-3">
+  <div class="card-header">
+    <div class="card-title"><i class="fa-solid fa-percent text-orange"></i> Top-Up Fee</div>
+  </div>
+  <form method="POST" action="/admin/action/">
+    {% csrf_token %}
+    <input type="hidden" name="action" value="save_settings">
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Processing Fee (%)</label>
+        <input class="form-control" type="number" step="0.1" name="topup_fee_percent" value="{{ fee_pct }}">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Minimum Top-Up (₦)</label>
+        <input class="form-control" type="number" name="min_topup" value="{{ min_topup }}">
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Maximum Top-Up (₦)</label>
+      <input class="form-control" type="number" name="max_topup" value="{{ max_topup }}">
+    </div>
+    <button type="submit" class="btn btn-primary"><i class="fa-solid fa-floppy-disk"></i> Save Fee Settings</button>
+  </form>
+</div>
+
+<div class="card">
+  <div class="card-header">
+    <div class="card-title"><i class="fa-solid fa-clock-rotate-left text-orange"></i> Recent Top-Up Transactions</div>
+  </div>
+  <div class="table-wrap">
+    <table class="table">
+      <thead><tr><th>User</th><th>Amount Paid</th><th>Fee</th><th>Credited</th><th>Reference</th><th>Status</th><th>Date</th></tr></thead>
+      <tbody>
+        <tr>
+          <td class="text-sm">Ada Lovelace</td>
+          <td class="fw-bold">₦10,000.00</td>
+          <td class="text-danger text-sm">−₦300.00</td>
+          <td class="text-success fw-bold">₦9,700.00</td>
+          <td class="text-xs text-dim">PSK_8271AB</td>
+          <td><span class="badge badge-success">Success</span></td>
+          <td class="text-xs text-muted">Aug 24, 3:12pm</td>
+        </tr>
+        <tr>
+          <td class="text-sm">Kunle Adebayo</td>
+          <td class="fw-bold">₦2,000.00</td>
+          <td class="text-danger text-sm">−₦60.00</td>
+          <td class="text-success fw-bold">₦1,940.00</td>
+          <td class="text-xs text-dim">PSK_9910KL</td>
+          <td><span class="badge badge-pending">Pending</span></td>
+          <td class="text-xs text-muted">Aug 12, 8:47am</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+    </main>
+
+    <footer class="page-footer">
+      <span>&copy; 2026 VerifySMS. All rights reserved.</span>
+      <span>v1.0.0</span>
+    </footer>
+</div><!-- /.main-wrapper -->
+<script src="../assets/js/app.js"></script>
+</body>
+</html>

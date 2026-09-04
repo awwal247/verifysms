@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+
+<title>Top Up Wallet — VerifySMS</title>
+<meta name="description" content="Buy temporary virtual phone numbers from 180+ countries instantly. No SIM needed. Pay with Paystack. Privacy-first SMS verification.">
+<meta name="author" content="VerifySMS">
+<meta name="robots" content="index,follow">
+<meta name="theme-color" content="#f97316">
+
+<link rel="icon" type="image/svg+xml" href="../assets/img/favicon.svg">
+<link rel="shortcut icon" href="../assets/img/favicon.svg">
+<link rel="apple-touch-icon" href="../assets/img/favicon.svg">
+
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="VerifySMS">
+<meta property="og:title" content="Top Up Wallet — VerifySMS">
+<meta property="og:description" content="Buy temporary virtual phone numbers from 180+ countries instantly. No SIM needed. Pay with Paystack. Privacy-first SMS verification.">
+<meta property="og:image" content="../assets/img/og-image.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Top Up Wallet — VerifySMS">
+<meta name="twitter:description" content="Buy temporary virtual phone numbers from 180+ countries instantly. No SIM needed. Pay with Paystack. Privacy-first SMS verification.">
+<meta name="twitter:image" content="../assets/img/og-image.png">
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<link rel="stylesheet" href="../assets/css/style.css">
+<script src="https://js.paystack.co/v1/inline.js"></script>
+<style>
+.topup-hero{display:grid;grid-template-columns:1fr auto;align-items:center;
+  background:linear-gradient(135deg,rgba(249,115,22,.1),rgba(37,99,235,.04));
+  border:1px solid rgba(249,115,22,.2);border-radius:var(--radius);padding:20px;margin-bottom:18px;gap:12px}
+.quick-amounts{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
+.qa-btn{background:var(--bg-input);border:1px solid var(--border);color:var(--text-muted);
+  padding:7px 14px;border-radius:8px;font-size:.82rem;font-weight:600;cursor:pointer;transition:var(--transition)}
+.qa-btn:hover{border-color:var(--orange);color:var(--orange)}
+.qa-btn.active{background:var(--orange-subtle);border-color:var(--orange);color:var(--orange)}
+.fee-breakdown{background:var(--bg-input);border:1px solid var(--border);
+  border-radius:var(--radius-sm);overflow:hidden;margin:14px 0;display:none}
+.fb-row{display:flex;justify-content:space-between;align-items:center;
+  padding:11px 16px;font-size:.88rem;border-bottom:1px solid var(--border)}
+.fb-row:last-child{border-bottom:none;background:rgba(249,115,22,.05)}
+.fb-row span{color:var(--text-muted)} .fb-row strong{color:var(--text)}
+.fb-row.total span{color:var(--text);font-weight:600}
+.fb-row.total strong{font-weight:700;font-size:1.15rem;color:var(--success)}
+.fb-badge{font-size:.68rem;background:var(--danger-bg);color:var(--danger);
+  padding:2px 7px;border-radius:100px;font-weight:600;margin-left:6px}
+.pay-btn{width:100%;padding:14px;font-size:1rem;border-radius:10px;
+  background:linear-gradient(135deg,#f97316,#ea6a0a);
+  box-shadow:0 6px 20px rgba(249,115,22,.35);
+  display:flex;align-items:center;justify-content:center;gap:10px;
+  border:none;color:white;font-weight:700;cursor:pointer;transition:var(--transition);margin-top:4px}
+.pay-btn:hover{transform:translateY(-1px);box-shadow:0 8px 28px rgba(249,115,22,.45)}
+.pay-btn:disabled{opacity:.5;cursor:not-allowed;transform:none}
+.info-pills{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.info-pill{display:flex;align-items:center;gap:5px;background:var(--bg-card);
+  border:1px solid var(--border);padding:5px 11px;border-radius:100px;font-size:.74rem;color:var(--text-muted)}
+.info-pill i{color:var(--orange);font-size:.72rem}
+.credit-success{display:none;flex-direction:column;align-items:center;
+  gap:12px;padding:30px 16px;text-align:center}
+.cs-icon{font-size:3.2rem;color:var(--success);animation:csipop .4s cubic-bezier(.36,.07,.19,.97)}
+@keyframes csipop{0%{transform:scale(.5);opacity:0}80%{transform:scale(1.2)}100%{transform:scale(1);opacity:1}}
+.cs-amount{font-size:1.9rem;font-weight:800;color:var(--success)}
+.cs-msg{font-size:.88rem;color:var(--text-muted)}
+.cs-balance-pill{background:var(--orange-subtle);border:1px solid rgba(249,115,22,.3);
+  border-radius:10px;padding:10px 24px;font-size:.88rem;color:var(--text-muted)}
+.cs-balance-pill strong{color:var(--orange);font-size:1.05rem;display:block;margin-top:2px}
+</style>
+</head>
+<body class="">
+
+<div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
+
+<aside class="sidebar" id="sidebar">
+  <div class="sidebar-header">
+    <a href="../index.html" class="sidebar-logo">
+      <div class="sidebar-logo-icon"><i class="fa-solid fa-shield-halved"></i></div>
+      <span class="sidebar-logo-text">VerifySMS</span>
+    </a>
+    <button class="sidebar-close" onclick="closeSidebar()"><i class="fa-solid fa-xmark"></i></button>
+  </div>
+
+  <div class="sidebar-balance">
+    <div class="sb-label">Wallet Balance</div>
+    <div class="sb-amount">₦12,450.00</div>
+    <a href="topup.html" class="sb-topup-btn">
+      <i class="fa-solid fa-plus"></i> Top Up
+    </a>
+  </div>
+
+  <nav class="sidebar-nav">
+    <div class="nav-section-label">MENU</div>
+    <a href="dashboard.html" class="nav-item ">
+      <i class="fa-solid fa-gauge-high"></i>
+      <span>Dashboard</span>
+      
+    </a>
+    <a href="services.html" class="nav-item ">
+      <i class="fa-solid fa-mobile-screen"></i>
+      <span>Services</span>
+      
+    </a>
+    <a href="cart.html" class="nav-item ">
+      <i class="fa-solid fa-inbox"></i>
+      <span>Active</span>
+      <span class="nav-badge">2</span>
+    </a>
+    <a href="topup.html" class="nav-item active">
+      <i class="fa-solid fa-wallet"></i>
+      <span>Top Up</span>
+      
+    </a>
+    <a href="history.html" class="nav-item ">
+      <i class="fa-solid fa-clock-rotate-left"></i>
+      <span>History</span>
+      
+    </a>
+    <a href="settings.html" class="nav-item ">
+      <i class="fa-solid fa-gear"></i>
+      <span>Settings</span>
+      
+    </a>
+  </nav>
+
+  <div class="sidebar-footer">
+    <a href="../admin/dashboard.html" class="nav-item nav-item-sm">
+      <i class="fa-solid fa-shield-halved"></i><span>Admin Panel</span>
+    </a>
+    <a href="../logout.html" class="nav-item nav-item-sm nav-item-danger">
+      <i class="fa-solid fa-arrow-right-from-bracket"></i><span>Sign Out</span>
+    </a>
+  </div>
+</aside>
+
+<div class="main-wrapper">
+  <header class="top-header">
+    <button class="hamburger" onclick="openSidebar()">
+      <span></span><span></span><span></span>
+    </button>
+    <div class="top-header-title">Top Up Wallet</div>
+    <div class="top-header-right">
+      <a href="topup.html" class="header-balance">
+        <i class="fa-solid fa-wallet"></i>
+        <span>₦12,450.00</span>
+      </a>
+      <button class="theme-toggle" id="themeToggleBtn" onclick="toggleTheme()" title="Toggle light/dark mode">
+        <i class="fa-solid fa-moon" id="themeIcon"></i>
+      </button>
+      <div class="avatar-btn" onclick="toggleProfileMenu()">
+        <div class="avatar">A</div>
+      </div>
+      <div class="profile-menu" id="profileMenu">
+        <div class="pm-user">
+          <div class="pm-name">Ada Lovelace</div>
+          <div class="pm-email">ada@example.com</div>
+        </div>
+        <a href="settings.html" class="pm-item">
+          <i class="fa-solid fa-gear"></i> Settings
+        </a>
+        <a href="../admin/dashboard.html" class="pm-item">
+          <i class="fa-solid fa-shield-halved"></i> Admin Panel
+        </a>
+        <a href="../logout.html" class="pm-item pm-item-danger">
+          <i class="fa-solid fa-arrow-right-from-bracket"></i> Sign Out
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <main class="page-content">
+<meta name="csrf" content="{{ csrf_token }}">
+
+<!-- ── Custom Confirm Modal ─────────────────────────────────────────────── -->
+<div class="vsms-modal-overlay" id="vsmsConfirmOverlay">
+  <div class="vsms-modal-box">
+    <div class="vsms-modal-icon" id="vsmsModalIcon"><i class="fa-solid fa-circle-question"></i></div>
+    <div class="vsms-modal-title" id="vsmsModalTitle">Confirm Action</div>
+    <div class="vsms-modal-msg" id="vsmsModalMsg"></div>
+    <div class="vsms-modal-actions">
+      <button class="btn btn-secondary" id="vsmsModalCancel">Cancel</button>
+      <button class="btn btn-primary" id="vsmsModalOk">Confirm</button>
+    </div>
+  </div>
+</div>
+<div class="topup-hero">
+  <div>
+    <div style="font-size:.72rem;text-transform:uppercase;letter-spacing:.08em;color:var(--text-muted);margin-bottom:4px">Current Balance</div>
+    <div id="heroBalance" style="font-weight:800;font-size:2rem;color:var(--orange)">₦12,450.00</div>
+    <div class="info-pills">
+      <div class="info-pill"><i class="fa-solid fa-shield-check"></i> Secured by Paystack</div>
+      <div class="info-pill"><i class="fa-solid fa-bolt"></i> Instant credit</div>
+      <div class="info-pill"><i class="fa-solid fa-percent"></i> 3% processing fee</div>
+    </div>
+  </div>
+  <div style="text-align:center"><i class="fa-solid fa-wallet" style="font-size:2.5rem;color:var(--orange);opacity:.3"></i></div>
+</div>
+
+<div class="card" id="topupCard">
+  <div class="card-header">
+    <div>
+      <div class="card-title"><i class="fa-solid fa-money-bill-wave text-orange"></i> Add Funds</div>
+      <div class="card-subtitle">Min ₦500 — Max ₦500,000</div>
+    </div>
+    <div style="display:flex;align-items:center;gap:6px;background:var(--bg-input);border:1px solid var(--border);padding:6px 12px;border-radius:8px">
+      <i class="fa-solid fa-lock" style="color:var(--success);font-size:.8rem"></i>
+      <span style="font-size:.75rem;color:var(--text-muted)">Powered by Paystack</span>
+    </div>
+  </div>
+
+  <!-- Form -->
+  <div id="payForm">
+    <div id="topupErr" class="alert alert-danger" style="display:none;margin-bottom:12px"></div>
+
+    <div class="form-group">
+      <label class="form-label">Enter Amount (₦)</label>
+      <div class="input-group">
+        <span style="display:flex;align-items:center;padding:0 14px;background:var(--bg-input);
+          border:1px solid var(--border);border-right:none;
+          border-radius:var(--radius-sm) 0 0 var(--radius-sm);
+          color:var(--text-muted);font-weight:700;font-size:1rem">₦</span>
+        <input class="form-control" type="number" id="amountInput"
+          placeholder="0.00" min="500" max="500000"
+          step="1" oninput="onAmountChange(this.value)"
+          style="border-radius:0 var(--radius-sm) var(--radius-sm) 0">
+      </div>
+    </div>
+
+    <div class="quick-amounts">
+      <button type="button" class="qa-btn" data-amount="500" onclick="setAmount(500)">₦500.00</button>
+      <button type="button" class="qa-btn" data-amount="1000" onclick="setAmount(1000)">₦1,000.00</button>
+      <button type="button" class="qa-btn" data-amount="2000" onclick="setAmount(2000)">₦2,000.00</button>
+      <button type="button" class="qa-btn" data-amount="5000" onclick="setAmount(5000)">₦5,000.00</button>
+      <button type="button" class="qa-btn" data-amount="10000" onclick="setAmount(10000)">₦10,000.00</button>
+      <button type="button" class="qa-btn" data-amount="20000" onclick="setAmount(20000)">₦20,000.00</button>
+    </div>
+
+    <div class="fee-breakdown" id="feeBreakdown">
+      <div class="fb-row">
+        <span><i class="fa-solid fa-money-bill" style="color:var(--orange);margin-right:6px"></i>Amount you pay</span>
+        <strong id="fb-pay">₦0.00</strong>
+      </div>
+      <div class="fb-row">
+        <span><i class="fa-solid fa-percent" style="color:var(--danger);margin-right:6px"></i>
+          Processing fee <span class="fb-badge">3%</span></span>
+        <strong id="fb-fee" style="color:var(--danger)">−₦0.00</strong>
+      </div>
+      <div class="fb-row total">
+        <span><i class="fa-solid fa-wallet" style="color:var(--success);margin-right:6px"></i>You receive</span>
+        <strong id="fb-net">₦0.00</strong>
+      </div>
+      <div class="fb-row" style="background:rgba(37,99,235,.04)">
+        <span><i class="fa-solid fa-piggy-bank" style="color:var(--blue);margin-right:6px"></i>New wallet balance</span>
+        <strong id="fb-newbal" style="color:var(--text)">₦0.00</strong>
+      </div>
+    </div>
+
+    <button class="pay-btn" id="payBtn" onclick="startPayment()">
+      <i class="fa-solid fa-lock"></i><span id="payBtnLabel">Pay Now</span>
+    </button>
+    <p style="text-align:center;font-size:.74rem;color:var(--text-dim);margin-top:10px">
+      <i class="fa-solid fa-shield-halved"></i>
+      Payment processed securely by Paystack — no page redirect.
+    </p>
+  </div>
+
+  <!-- Post-payment success -->
+  <div class="credit-success" id="creditSuccess">
+    <div class="cs-icon"><i class="fa-solid fa-circle-check"></i></div>
+    <div class="cs-amount" id="csAmount"></div>
+    <div class="cs-msg">Wallet credited instantly!</div>
+    <div class="cs-balance-pill">New balance<strong id="csBalance"></strong></div>
+    <a href="services.html" class="btn btn-primary mt-1">
+      <i class="fa-solid fa-mobile-screen"></i> Buy a Number
+    </a>
+    <button class="btn btn-ghost btn-sm" onclick="resetTopup()">Top Up Again</button>
+  </div>
+</div>
+
+<!-- Recent topups -->
+<div class="card mt-3">
+  <div class="card-header">
+    <div class="card-title"><i class="fa-solid fa-clock-rotate-left text-orange"></i> Recent Top-Ups</div>
+    <a href="history.html?tab=transactions" class="btn btn-ghost btn-sm">All History</a>
+  </div>
+  <div class="table-wrap">
+    <table class="table">
+      <thead><tr><th>Date</th><th>You Paid</th><th>Fee</th><th>Credited</th><th>Status</th></tr></thead>
+      <tbody>
+        <tr>
+          <td class="text-sm">Aug 24, 3:12pm</td>
+          <td class="fw-bold">₦10,000.00</td>
+          <td><span class="text-danger text-sm">−₦300.00</span> <span style="font-size:.65rem;color:var(--text-dim)">(3%)</span></td>
+          <td class="text-success fw-bold">₦9,700.00</td>
+          <td><span class="badge badge-success"><i class="fa-solid fa-check-circle"></i> Success</span></td>
+        </tr>
+        <tr>
+          <td class="text-sm">Aug 20, 11:05am</td>
+          <td class="fw-bold">₦5,000.00</td>
+          <td><span class="text-danger text-sm">−₦150.00</span> <span style="font-size:.65rem;color:var(--text-dim)">(3%)</span></td>
+          <td class="text-success fw-bold">₦4,850.00</td>
+          <td><span class="badge badge-success"><i class="fa-solid fa-check-circle"></i> Success</span></td>
+        </tr>
+        <tr>
+          <td class="text-sm">Aug 12, 8:47am</td>
+          <td class="fw-bold">₦2,000.00</td>
+          <td><span class="text-danger text-sm">−₦60.00</span> <span style="font-size:.65rem;color:var(--text-dim)">(3%)</span></td>
+          <td class="text-success fw-bold">₦1,940.00</td>
+          <td><span class="badge badge-pending"><i class="fa-solid fa-clock"></i> Pending</span></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+/* ── Top-up logic ─────────────────────────────────────────────────────────
+   Creates a pending topup via /api/paystack/init/, redirects to the
+   Paystack-hosted checkout page, then Paystack redirects back to
+   /api/paystack/callback/ for server-side verification and wallet credit.
+   ── */
+const FEE_PCT  = parseFloat('{{ fee_percent|default:"3" }}') || 3;
+const WALLET   = parseFloat('{{ current_user.balance|default:"0" }}') || 0;
+const MIN_AMT  = parseFloat('{{ min_topup|default:"500" }}') || 500;
+const MAX_AMT  = parseFloat('{{ max_topup|default:"500000" }}') || 500000;
+
+function fmt(n){
+  return '₦'+parseFloat(n).toLocaleString('en-NG',{minimumFractionDigits:2,maximumFractionDigits:2});
+}
+
+function onAmountChange(val){
+  const amt=parseFloat(val);
+  if(!amt||amt<=0){document.getElementById('feeBreakdown').style.display='none';
+    document.querySelectorAll('.qa-btn').forEach(b=>b.classList.remove('active'));return;}
+  const fee=parseFloat((amt*FEE_PCT/100).toFixed(2));
+  const net=parseFloat((amt-fee).toFixed(2));
+  const nb=parseFloat((WALLET+net).toFixed(2));
+  document.getElementById('fb-pay').textContent=fmt(amt);
+  document.getElementById('fb-fee').textContent='−'+fmt(fee);
+  document.getElementById('fb-net').textContent=fmt(net);
+  document.getElementById('fb-newbal').textContent=fmt(nb);
+  document.getElementById('feeBreakdown').style.display='block';
+  document.querySelectorAll('.qa-btn').forEach(b=>b.classList.toggle('active',parseFloat(b.dataset.amount)===amt));
+}
+function setAmount(v){document.getElementById('amountInput').value=v;onAmountChange(v);}
+function showTopupErr(m){const e=document.getElementById('topupErr');e.textContent=m;e.style.display='block';}
+function hideTopupErr(){document.getElementById('topupErr').style.display='none';}
+function setBtnLoading(on){
+  const b=document.getElementById('payBtn');b.disabled=on;
+  document.getElementById('payBtnLabel').innerHTML=on?'<span class="spinner"></span> Please wait...':'Pay Now';
+}
+
+async function startPayment(){
+  hideTopupErr();
+  const amount=parseFloat(document.getElementById('amountInput').value||'0');
+  if(!amount||amount<MIN_AMT){showTopupErr('Minimum top-up is '+fmt(MIN_AMT)+'.');return;}
+  if(amount>MAX_AMT){showTopupErr('Maximum top-up is '+fmt(MAX_AMT)+'.');return;}
+  const btn=document.getElementById('payBtn');
+  setLoading(btn,true);
+  fetch('/api/paystack/init/',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:new URLSearchParams({amount})})
+    .then(r=>r.json()).then(d=>{
+      if (!d.success) { showTopupErr(d.message||'Payment could not be initialized.'); setLoading(btn,false); return; }
+      if (d.authorization_url) window.location.href=d.authorization_url;
+    }).catch(()=>{ showTopupErr('Payment request failed.'); setLoading(btn,false); });
+}
+
+function resetTopup(){
+  document.getElementById('payForm').style.display='block';
+  document.getElementById('creditSuccess').style.display='none';
+  document.getElementById('amountInput').value='';
+  document.getElementById('feeBreakdown').style.display='none';
+  document.querySelectorAll('.qa-btn').forEach(b=>b.classList.remove('active'));
+  hideTopupErr();
+}
+document.addEventListener('DOMContentLoaded',()=>{
+  const reference=new URLSearchParams(location.search).get('reference');
+  if (!reference) return;
+  fetch('/api/paystack/verify/',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:new URLSearchParams({reference})})
+    .then(r=>r.json()).then(d=>{ if(d.success){showToast(d.message||'Wallet credited.','success'); location.replace('/user/dashboard.html');} else showTopupErr(d.message||'Payment verification failed.'); });
+});
+</script>
+
+    </main>
+
+    <footer class="page-footer">
+      <span>&copy; 2026 VerifySMS. All rights reserved.</span>
+      <span>v1.0.0</span>
+    </footer>
+</div><!-- /.main-wrapper -->
+<script src="../assets/js/app.js"></script>
+</body>
+</html>

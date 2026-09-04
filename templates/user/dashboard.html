@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+
+<title>Dashboard — VerifySMS</title>
+<meta name="description" content="Buy temporary virtual phone numbers from 180+ countries instantly. No SIM needed. Pay with Paystack. Privacy-first SMS verification.">
+<meta name="author" content="VerifySMS">
+<meta name="robots" content="index,follow">
+<meta name="theme-color" content="#f97316">
+
+<link rel="icon" type="image/svg+xml" href="../assets/img/favicon.svg">
+<link rel="shortcut icon" href="../assets/img/favicon.svg">
+<link rel="apple-touch-icon" href="../assets/img/favicon.svg">
+
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="VerifySMS">
+<meta property="og:title" content="Dashboard — VerifySMS">
+<meta property="og:description" content="Buy temporary virtual phone numbers from 180+ countries instantly. No SIM needed. Pay with Paystack. Privacy-first SMS verification.">
+<meta property="og:image" content="../assets/img/og-image.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Dashboard — VerifySMS">
+<meta name="twitter:description" content="Buy temporary virtual phone numbers from 180+ countries instantly. No SIM needed. Pay with Paystack. Privacy-first SMS verification.">
+<meta name="twitter:image" content="../assets/img/og-image.png">
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<link rel="stylesheet" href="../assets/css/style.css">
+</head>
+<body class="">
+
+<div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
+
+<aside class="sidebar" id="sidebar">
+  <div class="sidebar-header">
+    <a href="../index.html" class="sidebar-logo">
+      <div class="sidebar-logo-icon"><i class="fa-solid fa-shield-halved"></i></div>
+      <span class="sidebar-logo-text">VerifySMS</span>
+    </a>
+    <button class="sidebar-close" onclick="closeSidebar()"><i class="fa-solid fa-xmark"></i></button>
+  </div>
+
+  <div class="sidebar-balance">
+    <div class="sb-label">Wallet Balance</div>
+    <div class="sb-amount">₦12,450.00</div>
+    <a href="topup.html" class="sb-topup-btn">
+      <i class="fa-solid fa-plus"></i> Top Up
+    </a>
+  </div>
+
+  <nav class="sidebar-nav">
+    <div class="nav-section-label">MENU</div>
+    <a href="dashboard.html" class="nav-item active">
+      <i class="fa-solid fa-gauge-high"></i>
+      <span>Dashboard</span>
+      
+    </a>
+    <a href="services.html" class="nav-item ">
+      <i class="fa-solid fa-mobile-screen"></i>
+      <span>Services</span>
+      
+    </a>
+    <a href="cart.html" class="nav-item ">
+      <i class="fa-solid fa-inbox"></i>
+      <span>Active</span>
+      <span class="nav-badge">2</span>
+    </a>
+    <a href="topup.html" class="nav-item ">
+      <i class="fa-solid fa-wallet"></i>
+      <span>Top Up</span>
+      
+    </a>
+    <a href="history.html" class="nav-item ">
+      <i class="fa-solid fa-clock-rotate-left"></i>
+      <span>History</span>
+      
+    </a>
+    <a href="settings.html" class="nav-item ">
+      <i class="fa-solid fa-gear"></i>
+      <span>Settings</span>
+      
+    </a>
+  </nav>
+
+  <div class="sidebar-footer">
+    <a href="../admin/dashboard.html" class="nav-item nav-item-sm">
+      <i class="fa-solid fa-shield-halved"></i><span>Admin Panel</span>
+    </a>
+    <a href="../logout.html" class="nav-item nav-item-sm nav-item-danger">
+      <i class="fa-solid fa-arrow-right-from-bracket"></i><span>Sign Out</span>
+    </a>
+  </div>
+</aside>
+
+<div class="main-wrapper">
+  <header class="top-header">
+    <button class="hamburger" onclick="openSidebar()">
+      <span></span><span></span><span></span>
+    </button>
+    <div class="top-header-title">Dashboard</div>
+    <div class="top-header-right">
+      <a href="topup.html" class="header-balance">
+        <i class="fa-solid fa-wallet"></i>
+        <span>₦12,450.00</span>
+      </a>
+      <button class="theme-toggle" id="themeToggleBtn" onclick="toggleTheme()" title="Toggle light/dark mode">
+        <i class="fa-solid fa-moon" id="themeIcon"></i>
+      </button>
+      <div class="avatar-btn" onclick="toggleProfileMenu()">
+        <div class="avatar">A</div>
+      </div>
+      <div class="profile-menu" id="profileMenu">
+        <div class="pm-user">
+          <div class="pm-name">Ada Lovelace</div>
+          <div class="pm-email">ada@example.com</div>
+        </div>
+        <a href="settings.html" class="pm-item">
+          <i class="fa-solid fa-gear"></i> Settings
+        </a>
+        <a href="../admin/dashboard.html" class="pm-item">
+          <i class="fa-solid fa-shield-halved"></i> Admin Panel
+        </a>
+        <a href="../logout.html" class="pm-item pm-item-danger">
+          <i class="fa-solid fa-arrow-right-from-bracket"></i> Sign Out
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <main class="page-content">
+<meta name="csrf" content="{{ csrf_token }}">
+
+<!-- ── Custom Confirm Modal ─────────────────────────────────────────────── -->
+<div class="vsms-modal-overlay" id="vsmsConfirmOverlay">
+  <div class="vsms-modal-box">
+    <div class="vsms-modal-icon" id="vsmsModalIcon"><i class="fa-solid fa-circle-question"></i></div>
+    <div class="vsms-modal-title" id="vsmsModalTitle">Confirm Action</div>
+    <div class="vsms-modal-msg" id="vsmsModalMsg"></div>
+    <div class="vsms-modal-actions">
+      <button class="btn btn-secondary" id="vsmsModalCancel">Cancel</button>
+      <button class="btn btn-primary" id="vsmsModalOk">Confirm</button>
+    </div>
+  </div>
+</div>
+<div class="page-hero">
+  <h2><i class="fa-solid fa-hand-wave" style="color:var(--orange)"></i> Welcome back, Ada!</h2>
+  <p>Here's an overview of your account activity.</p>
+</div>
+
+<!-- Stats Grid -->
+<div class="stats-grid mb-3">
+  <div class="stat-card">
+    <div class="stat-icon orange"><i class="fa-solid fa-wallet"></i></div>
+    <div class="stat-label">Wallet Balance</div>
+    <div class="stat-value">₦12,450.00</div>
+    <a href="topup.html" class="stat-sub" style="color:var(--orange)">+ Top Up</a>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon blue"><i class="fa-solid fa-mobile-screen"></i></div>
+    <div class="stat-label">Total Orders</div>
+    <div class="stat-value">47</div>
+    <div class="stat-sub">All time</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon green"><i class="fa-solid fa-inbox"></i></div>
+    <div class="stat-label">Active Orders</div>
+    <div class="stat-value">2</div>
+    <a href="cart.html" class="stat-sub" style="color:var(--success)">View active</a>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon red"><i class="fa-solid fa-circle-dollar-to-slot"></i></div>
+    <div class="stat-label">Total Spent</div>
+    <div class="stat-value">₦38,900.00</div>
+    <div class="stat-sub">All time</div>
+  </div>
+</div>
+
+<!-- Quick Actions -->
+<div class="card mb-3">
+  <div class="card-header">
+    <div>
+      <div class="card-title">Quick Actions</div>
+    </div>
+  </div>
+  <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px">
+    <a href="services.html" class="btn btn-primary">
+      <i class="fa-solid fa-plus"></i> Buy Number
+    </a>
+    <a href="cart.html" class="btn btn-secondary">
+      <i class="fa-solid fa-inbox"></i> Active Orders
+    </a>
+    <a href="topup.html" class="btn btn-secondary">
+      <i class="fa-solid fa-wallet"></i> Top Up Wallet
+    </a>
+    <a href="history.html" class="btn btn-secondary">
+      <i class="fa-solid fa-clock-rotate-left"></i> View History
+    </a>
+  </div>
+</div>
+
+<div style="display:grid;grid-template-columns:1fr;gap:14px;width:100%;max-width:100%;overflow:visible">
+  <!-- Recent Orders -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title"><i class="fa-solid fa-mobile-screen text-orange"></i> Recent Orders</div>
+      <a href="history.html" class="btn btn-ghost btn-sm">View All</a>
+    </div>
+    <div class="table-wrap">
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Service</th><th>Phone</th><th>Country</th><th>Price</th><th>Status</th><th>Date</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>Whatsapp</strong></td>
+            <td><span class="number-chip">+234 812 345 6789</span></td>
+            <td>Nigeria</td>
+            <td class="text-orange fw-bold">₦480.00</td>
+            <td><span class="badge badge-success">SMS Received</span></td>
+            <td class="text-sm text-muted">12m ago</td>
+          </tr>
+          <tr>
+            <td><strong>Telegram</strong></td>
+            <td><span class="number-chip">+44 7911 123456</span></td>
+            <td>England</td>
+            <td class="text-orange fw-bold">₦620.00</td>
+            <td><span class="badge badge-pending">Pending</span></td>
+            <td class="text-sm text-muted">38m ago</td>
+          </tr>
+          <tr>
+            <td><strong>Google</strong></td>
+            <td><span class="number-chip">+1 415 555 0192</span></td>
+            <td>Usa</td>
+            <td class="text-orange fw-bold">₦910.00</td>
+            <td><span class="badge badge-info">Finished</span></td>
+            <td class="text-sm text-muted">2h ago</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Recent Transactions -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title"><i class="fa-solid fa-receipt text-orange"></i> Recent Transactions</div>
+      <a href="history.html?tab=transactions" class="btn btn-ghost btn-sm">View All</a>
+    </div>
+    <div class="table-wrap">
+      <table class="table">
+        <thead>
+          <tr><th>Type</th><th>Amount</th><th>Description</th><th>Balance After</th><th>Date</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><span class="badge badge-danger">Purchase</span></td>
+            <td class="fw-bold text-danger">₦480.00</td>
+            <td class="text-muted text-sm">Purchase: Whatsapp (Nigeria)</td>
+            <td>₦12,450.00</td>
+            <td class="text-sm text-muted">12m ago</td>
+          </tr>
+          <tr>
+            <td><span class="badge badge-success">Topup</span></td>
+            <td class="fw-bold text-success">+₦10,000.00</td>
+            <td class="text-muted text-sm">Wallet top-up via Paystack</td>
+            <td>₦12,930.00</td>
+            <td class="text-sm text-muted">1d ago</td>
+          </tr>
+          <tr>
+            <td><span class="badge badge-danger">Purchase</span></td>
+            <td class="fw-bold text-danger">₦620.00</td>
+            <td class="text-muted text-sm">Purchase: Telegram (England)</td>
+            <td>₦2,930.00</td>
+            <td class="text-sm text-muted">2d ago</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+    </main>
+
+    <footer class="page-footer">
+      <span>&copy; 2026 VerifySMS. All rights reserved.</span>
+      <span>v1.0.0</span>
+    </footer>
+</div><!-- /.main-wrapper -->
+<script src="../assets/js/app.js"></script>
+</body>
+</html>

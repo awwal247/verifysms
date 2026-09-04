@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+
+<title>Settings — VerifySMS</title>
+<meta name="description" content="Buy temporary virtual phone numbers from 180+ countries instantly. No SIM needed. Pay with Paystack. Privacy-first SMS verification.">
+<meta name="author" content="VerifySMS">
+<meta name="robots" content="index,follow">
+<meta name="theme-color" content="#f97316">
+
+<link rel="icon" type="image/svg+xml" href="../assets/img/favicon.svg">
+<link rel="shortcut icon" href="../assets/img/favicon.svg">
+<link rel="apple-touch-icon" href="../assets/img/favicon.svg">
+
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="VerifySMS">
+<meta property="og:title" content="Settings — VerifySMS">
+<meta property="og:description" content="Buy temporary virtual phone numbers from 180+ countries instantly. No SIM needed. Pay with Paystack. Privacy-first SMS verification.">
+<meta property="og:image" content="../assets/img/og-image.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Settings — VerifySMS">
+<meta name="twitter:description" content="Buy temporary virtual phone numbers from 180+ countries instantly. No SIM needed. Pay with Paystack. Privacy-first SMS verification.">
+<meta name="twitter:image" content="../assets/img/og-image.png">
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<link rel="stylesheet" href="../assets/css/style.css">
+</head>
+<body class="">
+
+<div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
+
+<aside class="sidebar" id="sidebar">
+  <div class="sidebar-header">
+    <a href="../index.html" class="sidebar-logo">
+      <div class="sidebar-logo-icon"><i class="fa-solid fa-shield-halved"></i></div>
+      <span class="sidebar-logo-text">VerifySMS</span>
+    </a>
+    <button class="sidebar-close" onclick="closeSidebar()"><i class="fa-solid fa-xmark"></i></button>
+  </div>
+
+  <div class="sidebar-balance">
+    <div class="sb-label">Wallet Balance</div>
+    <div class="sb-amount">₦12,450.00</div>
+    <a href="topup.html" class="sb-topup-btn">
+      <i class="fa-solid fa-plus"></i> Top Up
+    </a>
+  </div>
+
+  <nav class="sidebar-nav">
+    <div class="nav-section-label">MENU</div>
+    <a href="dashboard.html" class="nav-item ">
+      <i class="fa-solid fa-gauge-high"></i>
+      <span>Dashboard</span>
+      
+    </a>
+    <a href="services.html" class="nav-item ">
+      <i class="fa-solid fa-mobile-screen"></i>
+      <span>Services</span>
+      
+    </a>
+    <a href="cart.html" class="nav-item ">
+      <i class="fa-solid fa-inbox"></i>
+      <span>Active</span>
+      <span class="nav-badge">2</span>
+    </a>
+    <a href="topup.html" class="nav-item ">
+      <i class="fa-solid fa-wallet"></i>
+      <span>Top Up</span>
+      
+    </a>
+    <a href="history.html" class="nav-item ">
+      <i class="fa-solid fa-clock-rotate-left"></i>
+      <span>History</span>
+      
+    </a>
+    <a href="settings.html" class="nav-item active">
+      <i class="fa-solid fa-gear"></i>
+      <span>Settings</span>
+      
+    </a>
+  </nav>
+
+  <div class="sidebar-footer">
+    <a href="../admin/dashboard.html" class="nav-item nav-item-sm">
+      <i class="fa-solid fa-shield-halved"></i><span>Admin Panel</span>
+    </a>
+    <a href="../logout.html" class="nav-item nav-item-sm nav-item-danger">
+      <i class="fa-solid fa-arrow-right-from-bracket"></i><span>Sign Out</span>
+    </a>
+  </div>
+</aside>
+
+<div class="main-wrapper">
+  <header class="top-header">
+    <button class="hamburger" onclick="openSidebar()">
+      <span></span><span></span><span></span>
+    </button>
+    <div class="top-header-title">Settings</div>
+    <div class="top-header-right">
+      <a href="topup.html" class="header-balance">
+        <i class="fa-solid fa-wallet"></i>
+        <span>₦12,450.00</span>
+      </a>
+      <button class="theme-toggle" id="themeToggleBtn" onclick="toggleTheme()" title="Toggle light/dark mode">
+        <i class="fa-solid fa-moon" id="themeIcon"></i>
+      </button>
+      <div class="avatar-btn" onclick="toggleProfileMenu()">
+        <div class="avatar">A</div>
+      </div>
+      <div class="profile-menu" id="profileMenu">
+        <div class="pm-user">
+          <div class="pm-name">Ada Lovelace</div>
+          <div class="pm-email">ada@example.com</div>
+        </div>
+        <a href="settings.html" class="pm-item">
+          <i class="fa-solid fa-gear"></i> Settings
+        </a>
+        <a href="../admin/dashboard.html" class="pm-item">
+          <i class="fa-solid fa-shield-halved"></i> Admin Panel
+        </a>
+        <a href="../logout.html" class="pm-item pm-item-danger">
+          <i class="fa-solid fa-arrow-right-from-bracket"></i> Sign Out
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <main class="page-content">
+<meta name="csrf" content="{{ csrf_token }}">
+
+<!-- ── Custom Confirm Modal ─────────────────────────────────────────────── -->
+<div class="vsms-modal-overlay" id="vsmsConfirmOverlay">
+  <div class="vsms-modal-box">
+    <div class="vsms-modal-icon" id="vsmsModalIcon"><i class="fa-solid fa-circle-question"></i></div>
+    <div class="vsms-modal-title" id="vsmsModalTitle">Confirm Action</div>
+    <div class="vsms-modal-msg" id="vsmsModalMsg"></div>
+    <div class="vsms-modal-actions">
+      <button class="btn btn-secondary" id="vsmsModalCancel">Cancel</button>
+      <button class="btn btn-primary" id="vsmsModalOk">Confirm</button>
+    </div>
+  </div>
+</div>
+<div class="page-hero">
+  <h2><i class="fa-solid fa-gear" style="color:var(--orange)"></i> Account Settings</h2>
+  <p>Manage your profile and security preferences.</p>
+</div>
+
+<div style="display:grid;gap:16px">
+  <!-- Profile card -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title"><i class="fa-solid fa-user text-orange"></i> Profile Information</div>
+    </div>
+    <form method="POST" action="/user/settings.html">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="profile">
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Full Name</label>
+          <input class="form-control" type="text" name="name" value="Ada Lovelace" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Email Address</label>
+          <input class="form-control" type="email" name="email" value="ada@example.com" required>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Account Status</label>
+        <input class="form-control" type="text" value="Active" disabled>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Member Since</label>
+        <input class="form-control" type="text" value="March 4, 2025" disabled>
+      </div>
+      <button type="submit" class="btn btn-primary"><i class="fa-solid fa-floppy-disk"></i> Save Profile</button>
+    </form>
+  </div>
+
+  <!-- Password card -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title"><i class="fa-solid fa-lock text-orange"></i> Change Password</div>
+    </div>
+    <form method="POST" action="/user/settings.html">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="password">
+      <div class="form-group">
+        <label class="form-label">Current Password</label>
+        <input class="form-control" type="password" name="current_password" required>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">New Password</label>
+          <input class="form-control" type="password" name="new_password" minlength="6" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Confirm New Password</label>
+          <input class="form-control" type="password" name="confirm_password" required>
+        </div>
+      </div>
+      <button type="submit" class="btn btn-primary"><i class="fa-solid fa-key"></i> Update Password</button>
+    </form>
+  </div>
+
+  <!-- Wallet summary -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title"><i class="fa-solid fa-wallet text-orange"></i> Wallet Overview</div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+      <div style="background:var(--bg-input);border:1px solid var(--border);border-radius:var(--radius-sm);padding:14px;text-align:center">
+        <div style="font-size:0.75rem;color:var(--text-muted);margin-bottom:4px">Current Balance</div>
+        <div style="font-weight:700;font-size:1.3rem;color:var(--orange)">₦12,450.00</div>
+      </div>
+      <div style="background:var(--bg-input);border:1px solid var(--border);border-radius:var(--radius-sm);padding:14px;text-align:center">
+        <div style="font-size:0.75rem;color:var(--text-muted);margin-bottom:4px">Total Spent</div>
+        <div style="font-weight:700;font-size:1.3rem;color:var(--text)">₦38,900.00</div>
+      </div>
+    </div>
+    <div style="margin-top:12px">
+      <a href="topup.html" class="btn btn-primary"><i class="fa-solid fa-plus"></i> Top Up Wallet</a>
+    </div>
+  </div>
+</div>
+
+    </main>
+
+    <footer class="page-footer">
+      <span>&copy; 2026 VerifySMS. All rights reserved.</span>
+      <span>v1.0.0</span>
+    </footer>
+</div><!-- /.main-wrapper -->
+<script src="../assets/js/app.js"></script>
+</body>
+</html>

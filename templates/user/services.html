@@ -1,0 +1,606 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+
+<title>Buy a Number — VerifySMS</title>
+<meta name="description" content="Buy temporary virtual phone numbers from 180+ countries instantly. No SIM needed. Pay with Paystack. Privacy-first SMS verification.">
+<meta name="author" content="VerifySMS">
+<meta name="robots" content="index,follow">
+<meta name="theme-color" content="#f97316">
+
+<link rel="icon" type="image/svg+xml" href="../assets/img/favicon.svg">
+<link rel="shortcut icon" href="../assets/img/favicon.svg">
+<link rel="apple-touch-icon" href="../assets/img/favicon.svg">
+
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="VerifySMS">
+<meta property="og:title" content="Buy a Number — VerifySMS">
+<meta property="og:description" content="Buy temporary virtual phone numbers from 180+ countries instantly. No SIM needed. Pay with Paystack. Privacy-first SMS verification.">
+<meta property="og:image" content="../assets/img/og-image.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Buy a Number — VerifySMS">
+<meta name="twitter:description" content="Buy temporary virtual phone numbers from 180+ countries instantly. No SIM needed. Pay with Paystack. Privacy-first SMS verification.">
+<meta name="twitter:image" content="../assets/img/og-image.png">
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<link rel="stylesheet" href="../assets/css/style.css">
+<style>
+.wallet-bar{display:flex;align-items:center;justify-content:space-between;
+  background:var(--bg-card);border:1px solid var(--border);
+  border-radius:var(--radius);padding:11px 14px;margin-bottom:14px;gap:8px;flex-wrap:wrap}
+
+/* Step layout */
+.buy-step{margin-bottom:16px}
+.step-lbl{font-size:.75rem;font-weight:600;color:var(--text-muted);text-transform:uppercase;
+  letter-spacing:.07em;margin-bottom:7px;display:flex;align-items:center;gap:7px}
+.snum{width:20px;height:20px;border-radius:50%;background:var(--orange);color:white;
+  font-size:.68rem;font-weight:700;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0}
+.snum.dim{background:var(--border);color:var(--text-dim)}
+.step-disabled{opacity:.4;pointer-events:none}
+
+/* Custom searchable dropdown */
+.csel{position:relative;width:100%}
+.csel-box{width:100%;background:var(--bg-input);border:1px solid var(--border);
+  border-radius:var(--radius-sm);color:var(--text);font-size:.88rem;
+  padding:9px 34px 9px 12px;cursor:pointer;min-height:40px;
+  display:flex;align-items:center;gap:8px;transition:var(--transition);
+  user-select:none;position:relative}
+.csel-box:hover,.csel-box.open{border-color:var(--orange);box-shadow:0 0 0 3px var(--orange-glow)}
+.csel-box .ph{color:var(--text-dim);font-size:.85rem}
+.csel-box .cval{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.csel-arrow{position:absolute;right:11px;top:50%;transform:translateY(-50%);
+  color:var(--text-dim);font-size:.78rem;pointer-events:none;transition:transform .18s}
+.csel-box.open .csel-arrow{transform:translateY(-50%) rotate(180deg)}
+.csel-drop{position:absolute;top:calc(100% + 3px);left:0;right:0;
+  background:var(--bg-card);border:1px solid var(--border-light);
+  border-radius:var(--radius-sm);box-shadow:var(--shadow);z-index:700;
+  display:none;flex-direction:column;max-height:260px}
+.csel-drop.open{display:flex}
+.csel-srch{padding:7px 8px;border-bottom:1px solid var(--border);flex-shrink:0}
+.csel-srch input{width:100%;background:var(--bg-input);border:1px solid var(--border);
+  border-radius:5px;color:var(--text);font-size:.82rem;padding:5px 9px;outline:none}
+.csel-srch input:focus{border-color:var(--orange)}
+.csel-list{overflow-y:auto;overflow-x:hidden;flex:1}
+.copt{display:flex;align-items:center;gap:8px;padding:9px 12px;
+  cursor:pointer;font-size:.85rem;color:var(--text-muted);transition:background .1s;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.copt:hover{background:var(--secondary-bg);color:var(--text)}
+.copt.active{background:var(--orange-subtle);color:var(--orange)}
+.copt.na{opacity:.38;cursor:not-allowed;pointer-events:none}
+.copt .cflag{font-size:1.1rem;flex-shrink:0}
+.copt .cname{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;text-transform:capitalize}
+.copt .cbadge{font-size:.63rem;padding:1px 6px;border-radius:100px;
+  background:var(--success-bg);color:var(--success);flex-shrink:0;margin-left:auto}
+.copt.na .cbadge{background:var(--danger-bg);color:var(--danger)}
+.csel-empty{padding:14px 12px;text-align:center;color:var(--text-dim);font-size:.82rem}
+
+/* Manual input toggle */
+.manual-toggle{font-size:.73rem;color:var(--orange);cursor:pointer;margin-top:5px;display:inline-block}
+.manual-toggle:hover{text-decoration:underline}
+.manual-row{display:flex;gap:8px;margin-top:7px;display:none}
+.manual-row input{flex:1;background:var(--bg-input);border:1px solid var(--border);
+  border-radius:var(--radius-sm);color:var(--text);font-size:.85rem;
+  padding:7px 10px;outline:none;transition:var(--transition)}
+.manual-row input:focus{border-color:var(--orange);box-shadow:0 0 0 3px var(--orange-glow)}
+
+/* Operator radio circles */
+.op-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(145px,1fr));gap:8px}
+.op-radio{display:flex;align-items:center;gap:10px;
+  background:var(--bg-input);border:1px solid var(--border);
+  border-radius:var(--radius-sm);padding:10px 12px;cursor:pointer;
+  transition:var(--transition);position:relative}
+.op-radio:hover{border-color:var(--orange)}
+.op-radio.selected{border-color:var(--orange);background:var(--orange-subtle)}
+.op-radio.unavail{opacity:.38;cursor:not-allowed}
+.op-radio.op-any{border-style:dashed;opacity:.85}
+.op-radio.op-any.selected{border-style:solid;opacity:1}
+.op-circle{width:18px;height:18px;border-radius:50%;border:2px solid var(--border-light);
+  flex-shrink:0;display:flex;align-items:center;justify-content:center;transition:var(--transition)}
+.op-radio.selected .op-circle{border-color:var(--orange);background:var(--orange)}
+.op-radio.selected .op-circle::after{content:'';width:6px;height:6px;border-radius:50%;background:white}
+.op-info{flex:1;min-width:0}
+.op-name{font-size:.82rem;font-weight:600;text-transform:capitalize;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.op-price{font-size:.9rem;font-weight:700;color:var(--orange)}
+.op-qty{font-size:.67rem;color:var(--text-muted)}
+
+/* Buy summary */
+.buy-box{background:var(--bg-input);border:1px solid rgba(249,115,22,.3);
+  border-radius:var(--radius);padding:16px;display:none;margin-top:4px}
+.buy-box.show{display:block}
+.buy-meta{display:grid;gap:0}
+.brow{display:flex;align-items:center;justify-content:space-between;
+  padding:7px 0;font-size:.85rem;border-bottom:1px solid var(--border)}
+.brow:last-of-type{border:none}
+.brow .blabel{color:var(--text-muted);display:flex;align-items:center;gap:6px}
+.brow .bval{font-weight:600;text-transform:capitalize;display:flex;align-items:center;gap:5px}
+.buy-price-big{font-size:1.6rem;font-weight:800;color:var(--orange);
+  text-align:center;margin:10px 0 3px}
+.buy-after{text-align:center;font-size:.78rem;color:var(--text-muted);margin-bottom:12px}
+.buy-btn-row{display:flex;flex-direction:column;gap:8px}
+</style>
+</head>
+<body class="">
+
+<div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
+
+<aside class="sidebar" id="sidebar">
+  <div class="sidebar-header">
+    <a href="../index.html" class="sidebar-logo">
+      <div class="sidebar-logo-icon"><i class="fa-solid fa-shield-halved"></i></div>
+      <span class="sidebar-logo-text">VerifySMS</span>
+    </a>
+    <button class="sidebar-close" onclick="closeSidebar()"><i class="fa-solid fa-xmark"></i></button>
+  </div>
+
+  <div class="sidebar-balance">
+    <div class="sb-label">Wallet Balance</div>
+    <div class="sb-amount">₦12,450.00</div>
+    <a href="topup.html" class="sb-topup-btn">
+      <i class="fa-solid fa-plus"></i> Top Up
+    </a>
+  </div>
+
+  <nav class="sidebar-nav">
+    <div class="nav-section-label">MENU</div>
+    <a href="dashboard.html" class="nav-item ">
+      <i class="fa-solid fa-gauge-high"></i>
+      <span>Dashboard</span>
+      
+    </a>
+    <a href="services.html" class="nav-item active">
+      <i class="fa-solid fa-mobile-screen"></i>
+      <span>Services</span>
+      
+    </a>
+    <a href="cart.html" class="nav-item ">
+      <i class="fa-solid fa-inbox"></i>
+      <span>Active</span>
+      <span class="nav-badge">2</span>
+    </a>
+    <a href="topup.html" class="nav-item ">
+      <i class="fa-solid fa-wallet"></i>
+      <span>Top Up</span>
+      
+    </a>
+    <a href="history.html" class="nav-item ">
+      <i class="fa-solid fa-clock-rotate-left"></i>
+      <span>History</span>
+      
+    </a>
+    <a href="settings.html" class="nav-item ">
+      <i class="fa-solid fa-gear"></i>
+      <span>Settings</span>
+      
+    </a>
+  </nav>
+
+  <div class="sidebar-footer">
+    <a href="../admin/dashboard.html" class="nav-item nav-item-sm">
+      <i class="fa-solid fa-shield-halved"></i><span>Admin Panel</span>
+    </a>
+    <a href="../logout.html" class="nav-item nav-item-sm nav-item-danger">
+      <i class="fa-solid fa-arrow-right-from-bracket"></i><span>Sign Out</span>
+    </a>
+  </div>
+</aside>
+
+<div class="main-wrapper">
+  <header class="top-header">
+    <button class="hamburger" onclick="openSidebar()">
+      <span></span><span></span><span></span>
+    </button>
+    <div class="top-header-title">Buy a Number</div>
+    <div class="top-header-right">
+      <a href="topup.html" class="header-balance">
+        <i class="fa-solid fa-wallet"></i>
+        <span>₦12,450.00</span>
+      </a>
+      <button class="theme-toggle" id="themeToggleBtn" onclick="toggleTheme()" title="Toggle light/dark mode">
+        <i class="fa-solid fa-moon" id="themeIcon"></i>
+      </button>
+      <div class="avatar-btn" onclick="toggleProfileMenu()">
+        <div class="avatar">A</div>
+      </div>
+      <div class="profile-menu" id="profileMenu">
+        <div class="pm-user">
+          <div class="pm-name">Ada Lovelace</div>
+          <div class="pm-email">ada@example.com</div>
+        </div>
+        <a href="settings.html" class="pm-item">
+          <i class="fa-solid fa-gear"></i> Settings
+        </a>
+        <a href="../admin/dashboard.html" class="pm-item">
+          <i class="fa-solid fa-shield-halved"></i> Admin Panel
+        </a>
+        <a href="../logout.html" class="pm-item pm-item-danger">
+          <i class="fa-solid fa-arrow-right-from-bracket"></i> Sign Out
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <main class="page-content">
+<meta name="csrf" content="{{ csrf_token }}">
+
+<!-- ── Custom Confirm Modal ─────────────────────────────────────────────── -->
+<div class="vsms-modal-overlay" id="vsmsConfirmOverlay">
+  <div class="vsms-modal-box">
+    <div class="vsms-modal-icon" id="vsmsModalIcon"><i class="fa-solid fa-circle-question"></i></div>
+    <div class="vsms-modal-title" id="vsmsModalTitle">Confirm Action</div>
+    <div class="vsms-modal-msg" id="vsmsModalMsg"></div>
+    <div class="vsms-modal-actions">
+      <button class="btn btn-secondary" id="vsmsModalCancel">Cancel</button>
+      <button class="btn btn-primary" id="vsmsModalOk">Confirm</button>
+    </div>
+  </div>
+</div>
+<!-- Wallet -->
+<div class="wallet-bar">
+  <div>
+    <div style="font-size:.7rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:.06em">Wallet Balance</div>
+    <div style="font-size:1.15rem;font-weight:700;color:var(--orange)">₦12,450.00</div>
+  </div>
+  <a href="topup.html" class="btn btn-primary btn-sm">
+    <i class="fa-solid fa-plus"></i> Top Up
+  </a>
+</div>
+
+<div class="card">
+  <div class="card-header">
+    <div class="card-title"><i class="fa-solid fa-mobile-screen text-orange"></i> Buy a Number</div>
+  </div>
+
+  <!-- STEP 1: Service -->
+  <div class="buy-step" id="s1">
+    <div class="step-lbl"><span class="snum" id="sn1">1</span> Service</div>
+    <div class="csel" id="svcSel">
+      <div class="csel-box" id="svcBox" onclick="openDrop('svc')">
+        <span class="cval"><span class="ph">— Select a service —</span></span>
+        <i class="fa-solid fa-chevron-down csel-arrow"></i>
+      </div>
+      <div class="csel-drop" id="svcDrop">
+        <div class="csel-srch"><input id="svcSrch" placeholder="Search service..." oninput="filterDrop('svc',this.value)" autocomplete="off"></div>
+        <div class="csel-list" id="svcList">
+          <div class="csel-empty"><span class="spinner" style="width:14px;height:14px;border-width:2px"></span> Loading services...</div>
+        </div>
+      </div>
+    </div>
+    <span class="manual-toggle" onclick="toggleManual()">✏️ Type service name manually</span>
+    <div class="manual-row" id="manualRow">
+      <input type="text" id="manualInp" placeholder="e.g. telegram, google, amazon...">
+      <button class="btn btn-secondary btn-sm" onclick="useManual()">Use</button>
+    </div>
+  </div>
+
+  <!-- STEP 2: Country -->
+  <div class="buy-step step-disabled" id="s2">
+    <div class="step-lbl"><span class="snum dim" id="sn2">2</span> Country</div>
+    <div class="csel" id="ctrySel">
+      <div class="csel-box" id="ctryBox" onclick="openDrop('ctry')">
+        <span class="cval"><span class="ph">Select a service first</span></span>
+        <i class="fa-solid fa-chevron-down csel-arrow"></i>
+      </div>
+      <div class="csel-drop" id="ctryDrop">
+        <div class="csel-srch"><input id="ctrySrch" placeholder="Search country..." oninput="filterDrop('ctry',this.value)" autocomplete="off"></div>
+        <div class="csel-list" id="ctryList">
+          <div class="csel-empty">Select a service first</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- STEP 3: Operator (radio circles) -->
+  <div class="buy-step step-disabled" id="s3">
+    <div class="step-lbl"><span class="snum dim" id="sn3">3</span> Operator</div>
+    <div class="op-grid" id="opGrid">
+      <div style="color:var(--text-dim);font-size:.82rem;padding:8px 0">Select a country first</div>
+    </div>
+  </div>
+
+  <!-- Buy summary -->
+  <div class="buy-box" id="buyBox">
+    <div class="buy-meta">
+      <div class="brow">
+        <span class="blabel"><i class="fa-solid fa-mobile-screen" style="color:var(--orange)"></i> Service</span>
+        <span class="bval" id="bb-svc"></span>
+      </div>
+      <div class="brow">
+        <span class="blabel"><i class="fa-solid fa-earth-africa" style="color:var(--blue)"></i> Country</span>
+        <span class="bval" id="bb-ctry"></span>
+      </div>
+      <div class="brow">
+        <span class="blabel"><i class="fa-solid fa-signal" style="color:var(--success)"></i> Operator</span>
+        <span class="bval" id="bb-op"></span>
+      </div>
+      <div class="brow">
+        <span class="blabel"><i class="fa-solid fa-layer-group" style="color:var(--text-muted)"></i> Available</span>
+        <span class="bval" id="bb-qty" style="color:var(--success)"></span>
+      </div>
+    </div>
+    <div class="buy-price-big" id="bb-price"></div>
+    <div class="buy-after">Wallet after: <span id="bb-after" style="font-weight:700"></span></div>
+
+    <!-- Coupon code -->
+    <div id="couponWrap" style="margin:10px 0 14px">
+      <div style="display:flex;gap:6px">
+        <input class="form-control" id="couponInput" placeholder="Coupon code (optional)"
+          style="text-transform:uppercase;font-family:monospace;letter-spacing:.05em;font-size:.88rem"
+          oninput="this.value=this.value.toUpperCase().replace(/[^A-Z0-9_\-]/g,'')">
+        <button class="btn btn-secondary btn-sm" style="white-space:nowrap" onclick="applyCoupon()">
+          <i class="fa-solid fa-tag"></i> Apply
+        </button>
+      </div>
+      <div id="couponMsg" style="display:none;font-size:.78rem;margin-top:5px;padding:6px 10px;
+        border-radius:6px;border:1px solid"></div>
+    </div>
+
+    <!-- Discount row (hidden until coupon applied) -->
+    <div id="discountRow" style="display:none;background:rgba(34,197,94,.07);
+      border:1px solid rgba(34,197,94,.25);border-radius:8px;padding:8px 12px;
+      margin-top:8px;display:none;align-items:center;justify-content:space-between;font-size:.84rem">
+      <span style="color:var(--success)"><i class="fa-solid fa-tag"></i> Coupon discount</span>
+      <strong id="discountAmt" style="color:var(--success)">−₦0.00</strong>
+    </div>
+    <div id="finalPriceRow" style="display:none;font-size:.82rem;color:var(--text-muted);
+      text-align:right;margin-top:2px">
+      Final: <strong id="finalPriceVal" style="color:var(--text)"></strong>
+    </div>
+
+    <div id="buyErr" class="alert alert-danger" style="display:none;margin-bottom:10px"></div>
+    <div class="buy-btn-row">
+      <button class="btn btn-primary btn-block btn-lg" id="buyBtn" onclick="doBuy()">
+        <i class="fa-solid fa-bolt"></i> Buy Number
+      </button>
+    </div>
+  </div>
+
+</div>
+
+<script>
+/* ── Provider-backed front-end logic ─────────────────────────────────────
+   Fetches /api/provider/ for live services/countries/
+   operators and posts purchases to the Django compatibility endpoints. ── */
+const CSRF   = document.querySelector('meta[name=csrf]').content;
+const WALLET = parseFloat('{{ current_user.balance|default:"0" }}') || 0;
+
+const S = {service:'', country:'', countryIso:'', countryLabel:'', operator:'', operatorLabel:'', provCost:0, qty:0};
+
+function providerToNGN(provCost) {
+  const rate   = 1600;
+  const markup = 20;
+  return Math.round(provCost * rate * (1 + markup/100) * 100) / 100;
+}
+
+function resetCoupon() {
+  appliedCoupon = null;
+  document.getElementById('couponInput').value = '';
+  const msg = document.getElementById('couponMsg');
+  msg.style.display = 'none';
+  document.getElementById('discountRow').style.display = 'none';
+  document.getElementById('finalPriceRow').style.display = 'none';
+}
+
+/* ── Emoji flag ─────────────────────────────────────────────────────────── */
+function flag(iso) {
+  if (!iso||iso.length<2) return '🌍';
+  return String.fromCodePoint(0x1F1E6+iso.toLowerCase().charCodeAt(0)-97)
+        +String.fromCodePoint(0x1F1E6+iso.toLowerCase().charCodeAt(1)-97);
+}
+function ngn(n) {
+  return '₦'+parseFloat(n).toLocaleString('en-NG',{minimumFractionDigits:2,maximumFractionDigits:2});
+}
+
+/* ── Dropdown control ───────────────────────────────────────────────────── */
+let activeDrop = null;
+function openDrop(id) {
+  const box  = document.getElementById(id+'Box');
+  const drop = document.getElementById(id+'Drop');
+  if (activeDrop && activeDrop !== id) closeDrop(activeDrop);
+  const isOpen = drop.classList.contains('open');
+  if (isOpen) { closeDrop(id); return; }
+  box.classList.add('open');
+  drop.classList.add('open');
+  activeDrop = id;
+  const srch = document.getElementById(id+'Srch');
+  if (srch) setTimeout(()=>srch.focus(),60);
+}
+function closeDrop(id) {
+  document.getElementById(id+'Box').classList.remove('open');
+  document.getElementById(id+'Drop').classList.remove('open');
+  if (activeDrop===id) activeDrop=null;
+}
+document.addEventListener('click', e=>{
+  if (!e.target.closest('.csel') && activeDrop) closeDrop(activeDrop);
+});
+function filterDrop(id, q) {
+  q = q.toLowerCase();
+  const list = document.getElementById(id+'List');
+  list.querySelectorAll('.copt').forEach(el=>{
+    el.style.display = (el.dataset.key||'').toLowerCase().includes(q) ? '' : 'none';
+  });
+}
+
+/* ── Enable/disable steps ──────────────────────────────────────────────── */
+function enableStep(n) {
+  document.getElementById('s'+n).classList.remove('step-disabled');
+  document.getElementById('sn'+n).classList.remove('dim');
+}
+function setBoxVal(id, html) {
+  document.getElementById(id+'Box').querySelector('.cval').innerHTML = html;
+}
+
+function pickService(name, qty) {
+  S.service = name;
+  setBoxVal('svc',
+    `<i class="fa-solid fa-mobile-screen" style="color:var(--orange);flex-shrink:0;font-size:.85rem"></i>
+     <span style="text-transform:capitalize;font-weight:600;flex:1">${name}</span>
+     <span class="cbadge" style="margin-left:auto">${qty.toLocaleString()}</span>`
+  );
+  document.querySelectorAll('#svcList .copt').forEach(el=>el.classList.toggle('active',el.dataset.key===name));
+  closeDrop('svc');
+  S.country=S.operator=''; S.countryIso='';
+  document.getElementById('opGrid').innerHTML='<div style="color:var(--text-dim);font-size:.82rem;padding:8px 0">Select a country first</div>';
+  document.getElementById('buyBox').classList.remove('show');
+  enableStep(2);
+  document.getElementById('s3').classList.add('step-disabled');
+  document.getElementById('sn3').classList.add('dim');
+  setBoxVal('ctry','<span class="ph">— Select a country —</span>');
+  document.getElementById('ctryList').innerHTML='<div class="csel-empty"><span class="spinner" style="width:14px;height:14px;border-width:2px"></span> Loading countries...</div>';
+  fetch('/api/provider/?action=countries&product='+encodeURIComponent(name))
+    .then(r=>r.json()).then(d=>{
+      const list=document.getElementById('ctryList');
+      if (!d.success || !d.data || !d.data.length) { list.innerHTML='<div class="csel-empty">No countries available.</div>'; return; }
+      list.innerHTML=d.data.map(c=>`<div class="copt" data-key="${c.name}" data-iso="${c.iso||''}" data-label="${c.label}" onclick="pickCountry('${c.name}','${c.iso||''}','${c.label}',${c.qty})"><span class="cflag">${c.iso?flag(c.iso):'🌍'}</span><span class="cname">${c.label}</span><span class="cbadge">${c.qty.toLocaleString()}</span></div>`).join('');
+    }).catch(()=>{ document.getElementById('ctryList').innerHTML='<div class="csel-empty" style="color:var(--danger)">Could not load countries.</div>'; });
+}
+
+function toggleManual() {
+  const r = document.getElementById('manualRow');
+  r.style.display = r.style.display==='none'||r.style.display==='' ? 'flex' : 'none';
+  if (r.style.display==='flex') document.getElementById('manualInp').focus();
+}
+function useManual() {
+  const v = document.getElementById('manualInp').value.trim().toLowerCase();
+  if (!v) return;
+  document.getElementById('manualRow').style.display='none';
+  pickService(v, 0);
+}
+
+function pickCountry(name, iso, label, qty) {
+  S.country=name; S.countryIso=iso; S.countryLabel=label;
+  const f = iso ? flag(iso) : '🌍';
+  setBoxVal('ctry',
+    `<span style="font-size:1.05rem;flex-shrink:0">${f}</span>
+     <span style="font-weight:600;flex:1">${label}</span>
+     <span class="cbadge" style="margin-left:auto">${qty.toLocaleString()}</span>`
+  );
+  document.querySelectorAll('#ctryList .copt').forEach(el=>el.classList.toggle('active',el.dataset.key===name));
+  closeDrop('ctry');
+  S.operator='';
+  enableStep(3);
+  document.getElementById('buyBox').classList.remove('show');
+  document.getElementById('opGrid').innerHTML =
+    '<div style="display:flex;align-items:center;gap:8px;color:var(--text-muted);font-size:.82rem;padding:6px 0"><span class="spinner" style="width:14px;height:14px;border-width:2px"></span> Loading operators...</div>';
+  fetch('/api/provider/?action=operators&country='+encodeURIComponent(name)+'&product='+encodeURIComponent(S.service))
+    .then(r=>r.json()).then(d=>{
+      if (!d.success || !d.data || !d.data.length) {
+        document.getElementById('opGrid').innerHTML='<div style="color:var(--warning);font-size:.85rem;padding:8px 0">No operators are available for this selection.</div>';
+        return;
+      }
+      document.getElementById('opGrid').innerHTML=d.data.map(op=>`<label class="op-radio ${op.qty?'':'unavail'} ${op.is_any?'op-any':''}" ${op.qty?`onclick="pickOp('${op.name}','${op.label}',${op.provider_price},${op.user_price},${op.qty})"`:''}>
+        <div class="op-circle" id="opc-${op.name}"></div><div class="op-info">
+        <div class="op-name">${op.label}${op.is_any?'<span style="font-size:.62rem;font-weight:400;color:var(--text-dim);display:block;margin-top:1px">Auto-picked — best available carrier</span>':''}</div>
+        <div class="op-price">${op.user_price_fmt}</div><div class="op-qty ${op.qty?'text-success':'text-danger'}">${op.qty?op.qty.toLocaleString()+' available':'Unavailable'}</div>
+        </div></label>`).join('');
+      const available=d.data.filter(o=>o.qty>0);
+      if (available.length===1) pickOp(available[0].name,available[0].label,available[0].provider_price,available[0].user_price,available[0].qty);
+    }).catch(()=>{ document.getElementById('opGrid').innerHTML='<div style="color:var(--danger);font-size:.85rem;padding:8px 0">Could not load operators.</div>'; });
+}
+
+function pickOp(name, label, provCost, uPrice, qty) {
+  S.operator=name; S.operatorLabel=label; S.provCost=provCost; S.qty=qty;
+  document.querySelectorAll('.op-radio').forEach(el=>{
+    const onclick = el.getAttribute('onclick')||'';
+    el.classList.toggle('selected', onclick.includes(`'${name}'`));
+  });
+  resetCoupon();
+  showBuyBox(uPrice, qty);
+}
+
+function updateBuyBox() {
+  if (!S.provCost) return;
+  const base  = providerToNGN(S.provCost);
+  const disc  = appliedCoupon ? appliedCoupon.discount_ngn : 0;
+  const final = Math.max(0, base - disc);
+  const after = WALLET - final;
+  document.getElementById('bb-price').textContent = ngn(base);
+  document.getElementById('bb-after').textContent = ngn(Math.max(0, after));
+  document.getElementById('bb-after').style.color = after>=0?'var(--orange)':'var(--danger)';
+  if (disc > 0) {
+    document.getElementById('discountRow').style.display = 'flex';
+    document.getElementById('discountAmt').textContent    = '−'+ngn(disc);
+    document.getElementById('finalPriceRow').style.display = 'block';
+    document.getElementById('finalPriceVal').textContent   = ngn(final);
+  }
+}
+
+function showBuyBox(uPrice, qty) {
+  const after = WALLET - uPrice;
+  const f     = S.countryIso ? flag(S.countryIso) : '🌍';
+  document.getElementById('bb-svc').innerHTML  = `<i class="fa-solid fa-mobile-screen" style="color:var(--orange)"></i> ${S.service}`;
+  document.getElementById('bb-ctry').innerHTML = `${f} ${S.countryLabel}`;
+  document.getElementById('bb-op').innerHTML   = `<i class="fa-solid fa-signal" style="color:var(--success)"></i> ${S.operatorLabel}`;
+  document.getElementById('bb-qty').textContent = qty.toLocaleString()+' available';
+  document.getElementById('bb-price').textContent = ngn(uPrice);
+  document.getElementById('bb-after').textContent = ngn(Math.max(0,after));
+  document.getElementById('bb-after').style.color  = after>=0?'var(--orange)':'var(--danger)';
+  document.getElementById('buyErr').style.display  = 'none';
+  const box = document.getElementById('buyBox');
+  box.classList.add('show');
+  setTimeout(()=>box.scrollIntoView({behavior:'smooth',block:'nearest'}),80);
+}
+
+let appliedCoupon = null; // { code, discount_ngn, final_price }
+
+function applyCoupon() {
+  const code = document.getElementById('couponInput').value.trim();
+  if (!code) { showCouponMsg('Please enter a coupon code.', false); return; }
+  if (!S.provCost) { showCouponMsg('Select a service and country first.', false); return; }
+  fetch('/api/coupon/?action=validate&code='+encodeURIComponent(code)+'&price='+encodeURIComponent(S.provCost ? providerToNGN(S.provCost) : 0))
+    .then(r=>r.json()).then(d=>{
+      if (!d.success) { showCouponMsg(d.message || 'Coupon could not be applied.', false); return; }
+      appliedCoupon=d;
+      document.getElementById('bb-price').textContent=ngn(d.final_price);
+      document.getElementById('bb-after').textContent=ngn(Math.max(0, (window._walletBalance||0)-d.final_price));
+      showCouponMsg(d.message || 'Coupon applied.', true);
+    }).catch(()=>showCouponMsg('Could not validate the coupon.', false));
+}
+
+function showCouponMsg(msg, ok) {
+  const el = document.getElementById('couponMsg');
+  el.textContent = msg;
+  el.style.display = 'block';
+  el.style.background = ok ? 'rgba(34,197,94,.08)' : 'rgba(239,68,68,.08)';
+  el.style.borderColor = ok ? 'rgba(34,197,94,.3)'  : 'rgba(239,68,68,.3)';
+  el.style.color = ok ? 'var(--success)' : 'var(--danger)';
+}
+
+function loadProviderServices() {
+  fetch('/api/provider/?action=services').then(r=>r.json()).then(d=>{
+    const list=document.getElementById('svcList');
+    if (!d.success || !d.data || !Object.keys(d.data).length) { list.innerHTML='<div class="csel-empty">No services available.</div>'; return; }
+    list.innerHTML=Object.values(d.data).map(s=>`<div class="copt" data-key="${s.name}" onclick="pickService('${s.name}',${s.qty})"><i class="fa-solid fa-mobile-screen" style="color:var(--orange);font-size:.78rem;flex-shrink:0"></i><span class="cname">${s.name}</span><span class="cbadge">${s.qty.toLocaleString()}</span></div>`).join('');
+  }).catch(()=>{ document.getElementById('svcList').innerHTML='<div class="csel-empty" style="color:var(--danger)">Could not load services.</div>'; });
+}
+
+function doBuy() {
+  const btn = document.getElementById('buyBtn');
+  const err = document.getElementById('buyErr');
+  if (!S.service || !S.country || !S.operator) { err.textContent='Please complete all selections.'; err.style.display='block'; return; }
+  setLoading(btn, true);
+  const body=new URLSearchParams({action:'buy', product:S.service, country:S.country, operator:S.operator, coupon_code:(appliedCoupon&&appliedCoupon.code)||''});
+  fetch('/api/orders/',{method:'POST',body}).then(r=>r.json()).then(d=>{
+    if (!d.success) { err.textContent=d.message||'Purchase failed.'; err.style.display='block'; setLoading(btn,false); return; }
+    showToast(d.message||'Number purchased.','success');
+    location.href='/user/cart.html';
+  }).catch(()=>{ err.textContent='Purchase request failed.'; err.style.display='block'; setLoading(btn,false); });
+}
+document.addEventListener('DOMContentLoaded', loadProviderServices);
+</script>
+
+    </main>
+
+    <footer class="page-footer">
+      <span>&copy; 2026 VerifySMS. All rights reserved.</span>
+      <span>v1.0.0</span>
+    </footer>
+</div><!-- /.main-wrapper -->
+<script src="../assets/js/app.js"></script>
+</body>
+</html>

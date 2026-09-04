@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+
+<title>Coupons — VerifySMS</title>
+<meta name="description" content="Buy temporary virtual phone numbers from 180+ countries instantly. No SIM needed. Pay with Paystack. Privacy-first SMS verification.">
+<meta name="author" content="VerifySMS">
+<meta name="robots" content="index,follow">
+<meta name="theme-color" content="#f97316">
+
+<link rel="icon" type="image/svg+xml" href="../assets/img/favicon.svg">
+<link rel="shortcut icon" href="../assets/img/favicon.svg">
+<link rel="apple-touch-icon" href="../assets/img/favicon.svg">
+
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="VerifySMS">
+<meta property="og:title" content="Coupons — VerifySMS">
+<meta property="og:description" content="Buy temporary virtual phone numbers from 180+ countries instantly. No SIM needed. Pay with Paystack. Privacy-first SMS verification.">
+<meta property="og:image" content="../assets/img/og-image.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Coupons — VerifySMS">
+<meta name="twitter:description" content="Buy temporary virtual phone numbers from 180+ countries instantly. No SIM needed. Pay with Paystack. Privacy-first SMS verification.">
+<meta name="twitter:image" content="../assets/img/og-image.png">
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<link rel="stylesheet" href="../assets/css/style.css">
+</head>
+<body class="is-admin">
+
+<div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
+
+<aside class="sidebar" id="sidebar">
+  <div class="sidebar-header">
+    <a href="../index.html" class="sidebar-logo">
+      <div class="sidebar-logo-icon"><i class="fa-solid fa-shield-halved"></i></div>
+      <span class="sidebar-logo-text">VerifySMS</span>
+    </a>
+    <button class="sidebar-close" onclick="closeSidebar()"><i class="fa-solid fa-xmark"></i></button>
+  </div>
+
+
+  <nav class="sidebar-nav">
+    <div class="nav-section-label">ADMIN</div>
+    <a href="dashboard.html" class="nav-item ">
+      <i class="fa-solid fa-gauge-high"></i>
+      <span>Dashboard</span>
+      
+    </a>
+    <a href="users.html" class="nav-item ">
+      <i class="fa-solid fa-users"></i>
+      <span>Users</span>
+      
+    </a>
+    <a href="transactions.html" class="nav-item ">
+      <i class="fa-solid fa-receipt"></i>
+      <span>Transactions</span>
+      
+    </a>
+    <a href="providers.html" class="nav-item ">
+      <i class="fa-solid fa-server"></i>
+      <span>Providers</span>
+      
+    </a>
+    <a href="payment.html" class="nav-item ">
+      <i class="fa-solid fa-credit-card"></i>
+      <span>Payments</span>
+      
+    </a>
+    <a href="coupons.html" class="nav-item active">
+      <i class="fa-solid fa-ticket"></i>
+      <span>Coupons</span>
+      
+    </a>
+    <a href="settings.html" class="nav-item ">
+      <i class="fa-solid fa-sliders"></i>
+      <span>Settings</span>
+      
+    </a>
+  </nav>
+
+  <div class="sidebar-footer">
+    <a href="../user/dashboard.html" class="nav-item nav-item-sm">
+      <i class="fa-solid fa-user"></i><span>User View</span>
+    </a>
+    <a href="../logout.html" class="nav-item nav-item-sm nav-item-danger">
+      <i class="fa-solid fa-arrow-right-from-bracket"></i><span>Sign Out</span>
+    </a>
+  </div>
+</aside>
+
+<div class="main-wrapper">
+  <header class="top-header">
+    <button class="hamburger" onclick="openSidebar()">
+      <span></span><span></span><span></span>
+    </button>
+    <div class="top-header-title">Coupons</div>
+    <div class="top-header-right">
+      <button class="theme-toggle" id="themeToggleBtn" onclick="toggleTheme()" title="Toggle light/dark mode">
+        <i class="fa-solid fa-moon" id="themeIcon"></i>
+      </button>
+      <div class="avatar-btn" onclick="toggleProfileMenu()">
+        <div class="avatar">A</div>
+      </div>
+      <div class="profile-menu" id="profileMenu">
+        <div class="pm-user">
+          <div class="pm-name">Ada Lovelace</div>
+          <div class="pm-email">ada@example.com</div>
+        </div>
+        <a href="../user/settings.html" class="pm-item">
+          <i class="fa-solid fa-gear"></i> Settings
+        </a>
+        <a href="../user/dashboard.html" class="pm-item">
+          <i class="fa-solid fa-user"></i> User View
+        </a>
+        <a href="../logout.html" class="pm-item pm-item-danger">
+          <i class="fa-solid fa-arrow-right-from-bracket"></i> Sign Out
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <main class="page-content">
+<meta name="csrf" content="{{ csrf_token }}">
+
+<!-- ── Custom Confirm Modal ─────────────────────────────────────────────── -->
+<div class="vsms-modal-overlay" id="vsmsConfirmOverlay">
+  <div class="vsms-modal-box">
+    <div class="vsms-modal-icon" id="vsmsModalIcon"><i class="fa-solid fa-circle-question"></i></div>
+    <div class="vsms-modal-title" id="vsmsModalTitle">Confirm Action</div>
+    <div class="vsms-modal-msg" id="vsmsModalMsg"></div>
+    <div class="vsms-modal-actions">
+      <button class="btn btn-secondary" id="vsmsModalCancel">Cancel</button>
+      <button class="btn btn-primary" id="vsmsModalOk">Confirm</button>
+    </div>
+  </div>
+</div>
+<div class="page-hero">
+  <h2><i class="fa-solid fa-ticket" style="color:var(--orange)"></i> Coupons</h2>
+  <p>Create and manage discount coupon codes.</p>
+</div>
+
+<div class="card mb-3">
+  <div class="card-header">
+    <div class="card-title"><i class="fa-solid fa-plus text-orange"></i> Create New Coupon</div>
+  </div>
+  <form method="POST" action="/admin/action/">
+    {% csrf_token %}
+    <input type="hidden" name="action" value="create">
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Coupon Code</label>
+        <input class="form-control" type="text" name="code" placeholder="e.g. WELCOME10"
+               style="text-transform:uppercase;font-family:monospace" required>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Discount Type</label>
+        <select class="form-control" name="discount_type">
+          <option value="percent">Percentage (%)</option>
+          <option value="fixed">Fixed Amount (₦)</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Discount Value</label>
+        <input class="form-control" type="number" step="0.01" name="value" placeholder="10" required>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Usage Limit</label>
+        <input class="form-control" type="number" name="usage_limit" placeholder="Leave blank for unlimited">
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Expiry Date</label>
+      <input class="form-control" type="date" name="expires_at">
+    </div>
+    <button type="submit" class="btn btn-primary"><i class="fa-solid fa-plus"></i> Create Coupon</button>
+  </form>
+</div>
+
+<div class="card">
+  <div class="card-header">
+    <div class="card-title"><i class="fa-solid fa-list text-orange"></i> All Coupons</div>
+  </div>
+  <div class="table-wrap">
+    <table class="table">
+      <thead>
+        <tr><th>Code</th><th>Discount</th><th>Used</th><th>Limit</th><th>Expires</th><th>Status</th><th>Actions</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><span class="number-chip" style="font-family:monospace">WELCOME10</span></td>
+          <td class="fw-bold text-orange">10%</td>
+          <td>214</td>
+          <td>Unlimited</td>
+          <td class="text-xs text-muted">Dec 31, 2026</td>
+          <td><span class="badge badge-success">Active</span></td>
+          <td>
+            <form method="POST" action="/admin/action/" style="display:inline">
+              {% csrf_token %}
+              <input type="hidden" name="action" value="disable">
+              <input type="hidden" name="coupon_id" value="1">
+              <button class="btn btn-danger btn-sm btn-icon" title="Disable"
+                onclick="confirmAndSubmit(event,'Disable this coupon?',this,true)">
+                <i class="fa-solid fa-ban"></i>
+              </button>
+            </form>
+          </td>
+        </tr>
+        <tr>
+          <td><span class="number-chip" style="font-family:monospace">FLAT200</span></td>
+          <td class="fw-bold text-orange">₦200.00</td>
+          <td>58 / 100</td>
+          <td>100</td>
+          <td class="text-xs text-muted">Sep 15, 2026</td>
+          <td><span class="badge badge-success">Active</span></td>
+          <td>
+            <form method="POST" action="/admin/action/" style="display:inline">
+              {% csrf_token %}
+              <input type="hidden" name="action" value="disable">
+              <input type="hidden" name="coupon_id" value="2">
+              <button class="btn btn-danger btn-sm btn-icon" title="Disable"
+                onclick="confirmAndSubmit(event,'Disable this coupon?',this,true)">
+                <i class="fa-solid fa-ban"></i>
+              </button>
+            </form>
+          </td>
+        </tr>
+        <tr>
+          <td><span class="number-chip" style="font-family:monospace">OLDPROMO</span></td>
+          <td class="fw-bold text-orange">15%</td>
+          <td>500 / 500</td>
+          <td>500</td>
+          <td class="text-xs text-muted">Jun 1, 2026</td>
+          <td><span class="badge badge-warning">Expired</span></td>
+          <td class="text-xs text-dim">—</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+    </main>
+
+    <footer class="page-footer">
+      <span>&copy; 2026 VerifySMS. All rights reserved.</span>
+      <span>v1.0.0</span>
+    </footer>
+</div><!-- /.main-wrapper -->
+<script src="../assets/js/app.js"></script>
+</body>
+</html>

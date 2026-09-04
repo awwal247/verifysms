@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+
+<title>Active Orders — VerifySMS</title>
+<meta name="description" content="Buy temporary virtual phone numbers from 180+ countries instantly. No SIM needed. Pay with Paystack. Privacy-first SMS verification.">
+<meta name="author" content="VerifySMS">
+<meta name="robots" content="index,follow">
+<meta name="theme-color" content="#f97316">
+
+<link rel="icon" type="image/svg+xml" href="../assets/img/favicon.svg">
+<link rel="shortcut icon" href="../assets/img/favicon.svg">
+<link rel="apple-touch-icon" href="../assets/img/favicon.svg">
+
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="VerifySMS">
+<meta property="og:title" content="Active Orders — VerifySMS">
+<meta property="og:description" content="Buy temporary virtual phone numbers from 180+ countries instantly. No SIM needed. Pay with Paystack. Privacy-first SMS verification.">
+<meta property="og:image" content="../assets/img/og-image.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Active Orders — VerifySMS">
+<meta name="twitter:description" content="Buy temporary virtual phone numbers from 180+ countries instantly. No SIM needed. Pay with Paystack. Privacy-first SMS verification.">
+<meta name="twitter:image" content="../assets/img/og-image.png">
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<link rel="stylesheet" href="../assets/css/style.css">
+<style>
+.ocard{background:var(--bg-card);border:1px solid var(--border);
+  border-radius:var(--radius);padding:14px;margin-bottom:12px;overflow:hidden}
+.ocard-head{display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:10px;flex-wrap:wrap}
+.ocard-left .osvc{font-weight:700;font-size:.92rem;text-transform:capitalize;display:flex;align-items:center;gap:6px}
+.ocard-left .ometa{font-size:.73rem;color:var(--text-muted);margin-top:2px;display:flex;align-items:center;gap:5px;flex-wrap:wrap}
+.ocard-right{text-align:right;flex-shrink:0}
+
+.onum-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:8px}
+.onum{font-size:1.1rem;font-weight:700;letter-spacing:.03em;word-break:break-all}
+.copy-pill{display:inline-flex;align-items:center;gap:4px;
+  background:var(--secondary-bg);border:1px solid var(--border);
+  color:var(--text-muted);font-size:.72rem;padding:3px 9px;border-radius:20px;
+  cursor:pointer;transition:var(--transition);flex-shrink:0}
+.copy-pill:hover{border-color:var(--orange);color:var(--orange)}
+
+/* SMS live area */
+.sms-live{border:1px solid var(--border);border-radius:var(--radius-sm);overflow:hidden;margin-bottom:10px}
+.sms-live-header{display:flex;align-items:center;justify-content:space-between;
+  padding:8px 12px;background:var(--bg-input);font-size:.75rem;font-weight:600;color:var(--text-muted)}
+.sms-live-header .pulse{display:flex;align-items:center;gap:5px}
+.pulse-dot{width:7px;height:7px;border-radius:50%;background:var(--warning);
+  animation:blink 1.2s ease-in-out infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.2}}
+.pulse-dot.active{background:var(--success);animation:none}
+.pulse-dot.done{background:var(--text-dim);animation:none}
+.sms-live-body{padding:12px}
+.sms-waiting{display:flex;align-items:center;gap:8px;color:var(--text-muted);font-size:.82rem}
+.sms-code-wrap{display:none}
+.sms-otp-box{background:var(--bg-card);border:1px solid rgba(34,197,94,.35);
+  border-radius:var(--radius-sm);padding:14px 12px;text-align:center;margin-bottom:6px}
+.sms-otp-label{font-size:.65rem;text-transform:uppercase;letter-spacing:.09em;
+  color:var(--text-muted);margin-bottom:5px;display:flex;align-items:center;justify-content:center;gap:5px}
+.sms-big-code{font-size:2.1rem;font-weight:800;color:var(--success);letter-spacing:.12em;word-break:break-all;line-height:1.1}
+.sms-full-text{font-size:.78rem;color:var(--text-muted);line-height:1.5;word-break:break-word;margin-top:8px;
+  padding-top:8px;border-top:1px solid var(--border)}
+.timer-bar{height:3px;background:var(--border);border-radius:2px;margin-top:8px;overflow:hidden}
+.timer-fill{height:100%;background:var(--warning);border-radius:2px;transition:width 1s linear}
+.timer-fill.urgent{background:var(--danger)}
+.timer-label{font-size:.7rem;color:var(--text-dim);margin-top:3px;text-align:right}
+
+/* Action buttons */
+.oactions{display:flex;gap:7px;flex-wrap:wrap;margin-top:8px}
+.oactions .btn{font-size:.78rem;padding:5px 12px}
+.refund-note{font-size:.7rem;color:var(--text-dim);margin-top:4px}
+.ometa-row{display:flex;align-items:center;justify-content:space-between;
+  font-size:.7rem;color:var(--text-dim);margin-top:6px;flex-wrap:wrap;gap:4px}
+</style>
+</head>
+<body class="">
+
+<div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
+
+<aside class="sidebar" id="sidebar">
+  <div class="sidebar-header">
+    <a href="../index.html" class="sidebar-logo">
+      <div class="sidebar-logo-icon"><i class="fa-solid fa-shield-halved"></i></div>
+      <span class="sidebar-logo-text">VerifySMS</span>
+    </a>
+    <button class="sidebar-close" onclick="closeSidebar()"><i class="fa-solid fa-xmark"></i></button>
+  </div>
+
+  <div class="sidebar-balance">
+    <div class="sb-label">Wallet Balance</div>
+    <div class="sb-amount">₦12,450.00</div>
+    <a href="topup.html" class="sb-topup-btn">
+      <i class="fa-solid fa-plus"></i> Top Up
+    </a>
+  </div>
+
+  <nav class="sidebar-nav">
+    <div class="nav-section-label">MENU</div>
+    <a href="dashboard.html" class="nav-item ">
+      <i class="fa-solid fa-gauge-high"></i>
+      <span>Dashboard</span>
+      
+    </a>
+    <a href="services.html" class="nav-item ">
+      <i class="fa-solid fa-mobile-screen"></i>
+      <span>Services</span>
+      
+    </a>
+    <a href="cart.html" class="nav-item active">
+      <i class="fa-solid fa-inbox"></i>
+      <span>Active</span>
+      <span class="nav-badge">2</span>
+    </a>
+    <a href="topup.html" class="nav-item ">
+      <i class="fa-solid fa-wallet"></i>
+      <span>Top Up</span>
+      
+    </a>
+    <a href="history.html" class="nav-item ">
+      <i class="fa-solid fa-clock-rotate-left"></i>
+      <span>History</span>
+      
+    </a>
+    <a href="settings.html" class="nav-item ">
+      <i class="fa-solid fa-gear"></i>
+      <span>Settings</span>
+      
+    </a>
+  </nav>
+
+  <div class="sidebar-footer">
+    <a href="../admin/dashboard.html" class="nav-item nav-item-sm">
+      <i class="fa-solid fa-shield-halved"></i><span>Admin Panel</span>
+    </a>
+    <a href="../logout.html" class="nav-item nav-item-sm nav-item-danger">
+      <i class="fa-solid fa-arrow-right-from-bracket"></i><span>Sign Out</span>
+    </a>
+  </div>
+</aside>
+
+<div class="main-wrapper">
+  <header class="top-header">
+    <button class="hamburger" onclick="openSidebar()">
+      <span></span><span></span><span></span>
+    </button>
+    <div class="top-header-title">Active Orders</div>
+    <div class="top-header-right">
+      <a href="topup.html" class="header-balance">
+        <i class="fa-solid fa-wallet"></i>
+        <span>₦12,450.00</span>
+      </a>
+      <button class="theme-toggle" id="themeToggleBtn" onclick="toggleTheme()" title="Toggle light/dark mode">
+        <i class="fa-solid fa-moon" id="themeIcon"></i>
+      </button>
+      <div class="avatar-btn" onclick="toggleProfileMenu()">
+        <div class="avatar">A</div>
+      </div>
+      <div class="profile-menu" id="profileMenu">
+        <div class="pm-user">
+          <div class="pm-name">Ada Lovelace</div>
+          <div class="pm-email">ada@example.com</div>
+        </div>
+        <a href="settings.html" class="pm-item">
+          <i class="fa-solid fa-gear"></i> Settings
+        </a>
+        <a href="../admin/dashboard.html" class="pm-item">
+          <i class="fa-solid fa-shield-halved"></i> Admin Panel
+        </a>
+        <a href="../logout.html" class="pm-item pm-item-danger">
+          <i class="fa-solid fa-arrow-right-from-bracket"></i> Sign Out
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <main class="page-content">
+<meta name="csrf" content="{{ csrf_token }}">
+
+<!-- ── Custom Confirm Modal ─────────────────────────────────────────────── -->
+<div class="vsms-modal-overlay" id="vsmsConfirmOverlay">
+  <div class="vsms-modal-box">
+    <div class="vsms-modal-icon" id="vsmsModalIcon"><i class="fa-solid fa-circle-question"></i></div>
+    <div class="vsms-modal-title" id="vsmsModalTitle">Confirm Action</div>
+    <div class="vsms-modal-msg" id="vsmsModalMsg"></div>
+    <div class="vsms-modal-actions">
+      <button class="btn btn-secondary" id="vsmsModalCancel">Cancel</button>
+      <button class="btn btn-primary" id="vsmsModalOk">Confirm</button>
+    </div>
+  </div>
+</div>
+<div class="page-hero">
+  <h2><i class="fa-solid fa-inbox" style="color:var(--orange)"></i> Active Orders</h2>
+  <p>Numbers auto-refresh every 5s. Cancel for a full refund if no SMS received.</p>
+</div>
+
+<!-- Order #1: PENDING, waiting for SMS -->
+<div class="ocard" id="oc-1001">
+  <div class="ocard-head">
+    <div class="ocard-left">
+      <div class="osvc"><i class="fa-solid fa-mobile-screen" style="color:var(--orange)"></i> Telegram</div>
+      <div class="ometa">
+        <span>England</span>
+        <span style="color:var(--border-light)">•</span>
+        <i class="fa-solid fa-signal" style="color:var(--success);font-size:.68rem"></i>
+        <span>Any</span>
+      </div>
+    </div>
+    <div class="ocard-right">
+      <div id="badge-1001"><span class="badge badge-pending">Pending</span></div>
+      <div style="font-weight:700;color:var(--orange);font-size:.88rem;margin-top:3px">₦620.00</div>
+    </div>
+  </div>
+
+  <div class="onum-row">
+    <div class="onum" id="phone-1001">+44 7911 123456</div>
+    <span class="copy-pill" onclick="copyText('+447911123456',this)">
+      <i class="fa-regular fa-copy"></i> Copy
+    </span>
+  </div>
+
+  <div class="sms-live" id="sms-live-1001">
+    <div class="sms-live-header">
+      <div class="pulse">
+        <div class="pulse-dot" id="pdot-1001"></div>
+        <span id="pulse-lbl-1001">Waiting for SMS...</span>
+      </div>
+    </div>
+    <div class="sms-live-body">
+      <div class="sms-waiting" id="sms-wait-1001">
+        <span class="spinner" style="width:14px;height:14px;border-width:2px"></span>
+        Waiting for your verification code...
+      </div>
+      <div class="sms-waiting" id="sms-arriving-1001" style="display:none">
+        <span class="spinner" style="width:14px;height:14px;border-width:2px;border-color:var(--success);border-top-color:transparent"></span>
+        <span style="color:var(--success);font-weight:600">SMS detected — code arriving...</span>
+      </div>
+      <div class="sms-code-wrap" id="sms-code-1001"></div>
+    </div>
+
+    <div style="padding:0 12px 10px">
+      <div class="timer-bar">
+        <div class="timer-fill" id="tfill-1001" data-total="1200" style="width:65%"></div>
+      </div>
+      <div class="timer-label">
+        Expires in: <span id="tcdown-1001" data-expires="2026-08-25T10:31:25Z"></span>
+      </div>
+    </div>
+  </div>
+
+  <div class="oactions" id="oact-1001">
+    <button class="btn btn-danger" onclick="orderAct(1001,'cancel',this)">
+      <i class="fa-solid fa-xmark"></i> Cancel & Refund
+    </button>
+    <button class="btn btn-ghost" onclick="orderAct(1001,'ban',this)">
+      <i class="fa-solid fa-circle-xmark"></i> Not Working — Refund
+    </button>
+  </div>
+  <div class="refund-note"><i class="fa-solid fa-circle-info"></i> Cancel before receiving SMS to get a full refund.</div>
+
+  <div class="ometa-row">
+    <span>Order #1001</span>
+    <span>Aug 25, 2026 09:12</span>
+  </div>
+</div>
+
+<!-- Order #2: RECEIVED, code available -->
+<div class="ocard" id="oc-1000">
+  <div class="ocard-head">
+    <div class="ocard-left">
+      <div class="osvc"><i class="fa-solid fa-mobile-screen" style="color:var(--orange)"></i> Whatsapp</div>
+      <div class="ometa">
+        <span>Nigeria</span>
+        <span style="color:var(--border-light)">•</span>
+        <i class="fa-solid fa-signal" style="color:var(--success);font-size:.68rem"></i>
+        <span>Mtn</span>
+      </div>
+    </div>
+    <div class="ocard-right">
+      <div id="badge-1000"><span class="badge badge-success">SMS Received</span></div>
+      <div style="font-weight:700;color:var(--orange);font-size:.88rem;margin-top:3px">₦480.00</div>
+    </div>
+  </div>
+
+  <div class="onum-row">
+    <div class="onum" id="phone-1000">+234 812 345 6789</div>
+    <span class="copy-pill" onclick="copyText('+2348123456789',this)">
+      <i class="fa-regular fa-copy"></i> Copy
+    </span>
+  </div>
+
+  <div class="sms-live" id="sms-live-1000">
+    <div class="sms-live-header">
+      <div class="pulse">
+        <div class="pulse-dot active" id="pdot-1000"></div>
+        <span id="pulse-lbl-1000">SMS Received</span>
+      </div>
+      <span class="copy-pill" onclick="copyText('482913',this)">
+        <i class="fa-regular fa-copy"></i> Copy Code
+      </span>
+    </div>
+    <div class="sms-live-body">
+      <div class="sms-code-wrap" id="sms-code-1000" style="display:block">
+        <div class="sms-otp-box">
+          <div class="sms-otp-label"><i class="fa-solid fa-key" style="color:var(--success)"></i> Verification Code</div>
+          <div class="sms-big-code" id="code-val-1000">482913</div>
+          <div class="sms-full-text">Your WhatsApp code is 482913. Do not share this code.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="oactions" id="oact-1000">
+    <button class="btn btn-success" onclick="orderAct(1000,'finish',this)">
+      <i class="fa-solid fa-check-double"></i> Mark Done
+    </button>
+    <button class="btn btn-ghost" onclick="orderAct(1000,'ban',this)">
+      <i class="fa-solid fa-circle-xmark"></i> Not Working — Refund
+    </button>
+    <button class="btn btn-secondary" onclick="copyText('482913',this)">
+      <i class="fa-regular fa-copy"></i> Copy Code
+    </button>
+  </div>
+
+  <div class="ometa-row">
+    <span>Order #1000</span>
+    <span>Aug 25, 2026 08:41</span>
+    <span>From: WhatsApp</span>
+  </div>
+</div>
+
+<div style="text-align:center;margin-top:4px">
+  <a href="services.html" class="btn btn-secondary">
+    <i class="fa-solid fa-plus"></i> Buy Another Number
+  </a>
+</div>
+
+<script>
+/* ── Django-backed order logic ────────────────────────────────────────────
+   Polls /api/orders/ every few seconds for live status and
+   SMS delivery. This static extraction keeps the same countdown/timer
+   and modal-confirm interactions. ── */
+const CSRF = document.querySelector('meta[name=csrf]').content;
+
+document.querySelectorAll('[data-expires]').forEach(el => {
+  const orderId  = el.id.replace('tcdown-','');
+  const expires  = new Date(el.dataset.expires).getTime();
+  const fill     = document.getElementById('tfill-'+orderId);
+  const totalSec = fill ? (parseInt(fill.dataset.total) || 1200) : 1200;
+
+  const tick = () => {
+    const now = Date.now();
+    const rem = Math.max(0, Math.floor((expires - now) / 1000));
+    const m   = Math.floor(rem / 60);
+    const s   = rem % 60;
+    el.textContent = rem > 0 ? m + ':' + (s < 10 ? '0' : '') + s : 'Expired';
+    if (fill) {
+      const pct = Math.max(0, Math.min(100, (rem / totalSec) * 100));
+      fill.style.width = pct + '%';
+      fill.classList.toggle('urgent', pct < 25);
+    }
+    if (rem > 0) setTimeout(tick, 1000);
+  };
+  tick();
+});
+
+function orderAct(dbId, action, btn) {
+  const msgs = {
+    cancel: 'Cancel this order and get a full refund?',
+    finish: 'Mark this order as successfully completed?',
+    ban:    'Is this number not working or receiving wrong SMS? You\'ll get a full refund.',
+  };
+  const isDanger = action === 'cancel' || action === 'ban';
+  showConfirm(msgs[action] || 'Are you sure?', () => {
+    btn.disabled=true;
+    fetch('/api/orders/',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:new URLSearchParams({action,order_id:dbId,csrf_token:CSRF})})
+      .then(r=>r.json()).then(d=>{ if (d.success) { showToast(d.message||'Done!','success'); setTimeout(()=>location.reload(),700); } else { showToast(d.message||'Could not update order.','error'); btn.disabled=false; } })
+      .catch(()=>{ showToast('Request failed.','error'); btn.disabled=false; });
+  }, { danger: isDanger, title: isDanger ? 'Warning' : 'Confirm' });
+}
+</script>
+
+    </main>
+
+    <footer class="page-footer">
+      <span>&copy; 2026 VerifySMS. All rights reserved.</span>
+      <span>v1.0.0</span>
+    </footer>
+</div><!-- /.main-wrapper -->
+<script src="../assets/js/app.js"></script>
+</body>
+</html>
