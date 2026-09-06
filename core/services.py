@@ -253,7 +253,15 @@ class Paystack:
             cls.base_url + endpoint,
             data=body,
             method=method,
-            headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json", "Cache-Control": "no-cache"},
+            headers={
+                "Authorization": f"Bearer {key}",
+                "Content-Type": "application/json",
+                "Accept": "application/json",
+                "Cache-Control": "no-cache",
+                # Paystack's edge (Cloudflare) 403s the default urllib User-Agent
+                # with "error code: 1010"; a real UA is required to pass.
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0 Safari/537.36",
+            },
         )
         try:
             with urlopen(request, timeout=20) as response:
