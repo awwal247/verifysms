@@ -258,7 +258,24 @@ class Paystack:
         try:
             with urlopen(request, timeout=20) as response:
                 return json.loads(response.read().decode("utf-8"))
-        except (HTTPError, URLError, OSError, ValueError) as exc:
+        except HTTPError as exc:
+            detail = ""
+            try:
+                detail = exc.read().decode("utf-8", "replace")
+            except Exception:
+                pass
+            message = f"Paystack request failed: {exc}"
+            if detail:
+                try:
+                    parsed = json.loads(detail)
+                    if isinstance(parsed, dict) and parsed.get("message"):
+                        message = f"Paystack request failed (HTTP {exc.code}): {parsed['message']}"
+                    else:
+                        message = f"{message} — {detail[:300]}"
+                except ValueError:
+                    message = f"{message} — {detail[:300]}"
+            return {"status": False, "message": message}
+        except (URLError, OSError, ValueError) as exc:
             return {"status": False, "message": f"Paystack request failed: {exc}"}
 
     @classmethod
