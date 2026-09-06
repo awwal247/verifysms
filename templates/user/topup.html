@@ -87,7 +87,7 @@
 
   <div class="sidebar-balance">
     <div class="sb-label">Wallet Balance</div>
-    <div class="sb-amount">₦12,450.00</div>
+    <div class="sb-amount">{{ wallet_balance }}</div>
     <a href="topup.html" class="sb-topup-btn">
       <i class="fa-solid fa-plus"></i> Top Up
     </a>
@@ -108,7 +108,7 @@
     <a href="cart.html" class="nav-item ">
       <i class="fa-solid fa-inbox"></i>
       <span>Active</span>
-      <span class="nav-badge">2</span>
+      {% if active_orders_count %}<span class="nav-badge">{{ active_orders_count }}</span>{% endif %}
     </a>
     <a href="topup.html" class="nav-item active">
       <i class="fa-solid fa-wallet"></i>
@@ -128,9 +128,9 @@
   </nav>
 
   <div class="sidebar-footer">
-    <a href="../admin/dashboard.html" class="nav-item nav-item-sm">
+    {% if user.role == 'admin' %}<a href="../admin/dashboard.html" class="nav-item nav-item-sm">
       <i class="fa-solid fa-shield-halved"></i><span>Admin Panel</span>
-    </a>
+    </a>{% endif %}
     <a href="../logout.html" class="nav-item nav-item-sm nav-item-danger">
       <i class="fa-solid fa-arrow-right-from-bracket"></i><span>Sign Out</span>
     </a>
@@ -146,25 +146,25 @@
     <div class="top-header-right">
       <a href="topup.html" class="header-balance">
         <i class="fa-solid fa-wallet"></i>
-        <span>₦12,450.00</span>
+        <span>{{ wallet_balance }}</span>
       </a>
       <button class="theme-toggle" id="themeToggleBtn" onclick="toggleTheme()" title="Toggle light/dark mode">
         <i class="fa-solid fa-moon" id="themeIcon"></i>
       </button>
       <div class="avatar-btn" onclick="toggleProfileMenu()">
-        <div class="avatar">A</div>
+        <div class="avatar">{{ user.first_name|default:user.email|slice:":1"|upper }}</div>
       </div>
       <div class="profile-menu" id="profileMenu">
         <div class="pm-user">
-          <div class="pm-name">Ada Lovelace</div>
-          <div class="pm-email">ada@example.com</div>
+          <div class="pm-name">{{ user.get_full_name|default:user.email }}</div>
+          <div class="pm-email">{{ user.email }}</div>
         </div>
         <a href="settings.html" class="pm-item">
           <i class="fa-solid fa-gear"></i> Settings
         </a>
-        <a href="../admin/dashboard.html" class="pm-item">
+        {% if user.role == 'admin' %}<a href="../admin/dashboard.html" class="pm-item">
           <i class="fa-solid fa-shield-halved"></i> Admin Panel
-        </a>
+        </a>{% endif %}
         <a href="../logout.html" class="pm-item pm-item-danger">
           <i class="fa-solid fa-arrow-right-from-bracket"></i> Sign Out
         </a>
@@ -173,6 +173,8 @@
   </header>
 
   <main class="page-content">
+
+{% if messages %}{% for message in messages %}<div class="alert alert-{% if message.tags == 'error' %}danger{% else %}{{ message.tags }}{% endif %}" style="margin-bottom:14px"><i class="fa-solid fa-circle-exclamation"></i> {{ message }}<button class="alert-close" onclick="this.parentElement.remove()">&times;</button></div>{% endfor %}{% endif %}
 <meta name="csrf" content="{{ csrf_token }}">
 
 <!-- ── Custom Confirm Modal ─────────────────────────────────────────────── -->
@@ -190,11 +192,11 @@
 <div class="topup-hero">
   <div>
     <div style="font-size:.72rem;text-transform:uppercase;letter-spacing:.08em;color:var(--text-muted);margin-bottom:4px">Current Balance</div>
-    <div id="heroBalance" style="font-weight:800;font-size:2rem;color:var(--orange)">₦12,450.00</div>
+    <div id="heroBalance" style="font-weight:800;font-size:2rem;color:var(--orange)">{{ wallet_balance }}</div>
     <div class="info-pills">
       <div class="info-pill"><i class="fa-solid fa-shield-check"></i> Secured by Paystack</div>
       <div class="info-pill"><i class="fa-solid fa-bolt"></i> Instant credit</div>
-      <div class="info-pill"><i class="fa-solid fa-percent"></i> 3% processing fee</div>
+      <div class="info-pill"><i class="fa-solid fa-percent"></i> {{ fee_percent }}% processing fee</div>
     </div>
   </div>
   <div style="text-align:center"><i class="fa-solid fa-wallet" style="font-size:2.5rem;color:var(--orange);opacity:.3"></i></div>
@@ -204,7 +206,7 @@
   <div class="card-header">
     <div>
       <div class="card-title"><i class="fa-solid fa-money-bill-wave text-orange"></i> Add Funds</div>
-      <div class="card-subtitle">Min ₦500 — Max ₦500,000</div>
+      <div class="card-subtitle">Min ₦{{ min_topup }} — Max ₦{{ max_topup }}</div>
     </div>
     <div style="display:flex;align-items:center;gap:6px;background:var(--bg-input);border:1px solid var(--border);padding:6px 12px;border-radius:8px">
       <i class="fa-solid fa-lock" style="color:var(--success);font-size:.8rem"></i>
@@ -246,7 +248,7 @@
       </div>
       <div class="fb-row">
         <span><i class="fa-solid fa-percent" style="color:var(--danger);margin-right:6px"></i>
-          Processing fee <span class="fb-badge">3%</span></span>
+          Processing fee <span class="fb-badge">{{ fee_percent }}%</span></span>
         <strong id="fb-fee" style="color:var(--danger)">−₦0.00</strong>
       </div>
       <div class="fb-row total">
@@ -291,27 +293,21 @@
     <table class="table">
       <thead><tr><th>Date</th><th>You Paid</th><th>Fee</th><th>Credited</th><th>Status</th></tr></thead>
       <tbody>
+        {% for t in recent_topups %}
         <tr>
-          <td class="text-sm">Aug 24, 3:12pm</td>
-          <td class="fw-bold">₦10,000.00</td>
-          <td><span class="text-danger text-sm">−₦300.00</span> <span style="font-size:.65rem;color:var(--text-dim)">(3%)</span></td>
-          <td class="text-success fw-bold">₦9,700.00</td>
-          <td><span class="badge badge-success"><i class="fa-solid fa-check-circle"></i> Success</span></td>
+          <td class="text-sm">{{ t.created_at|date:"M j, H:i" }}</td>
+          <td class="fw-bold">₦{{ t.amount_paid|floatformat:2 }}</td>
+          <td><span class="text-danger text-sm">-₦{{ t.fee_amount|floatformat:2 }}</span> <span style="font-size:.65rem;color:var(--text-dim)">({{ fee_percent }}%)</span></td>
+          <td class="text-success fw-bold">₦{{ t.net_credited|floatformat:2 }}</td>
+          <td>
+            {% if t.status == 'success' %}<span class="badge badge-success"><i class="fa-solid fa-check-circle"></i> Success</span>
+            {% elif t.status == 'pending' %}<span class="badge badge-pending"><i class="fa-solid fa-clock"></i> Pending</span>
+            {% else %}<span class="badge badge-danger">{{ t.status|title }}</span>{% endif %}
+          </td>
         </tr>
-        <tr>
-          <td class="text-sm">Aug 20, 11:05am</td>
-          <td class="fw-bold">₦5,000.00</td>
-          <td><span class="text-danger text-sm">−₦150.00</span> <span style="font-size:.65rem;color:var(--text-dim)">(3%)</span></td>
-          <td class="text-success fw-bold">₦4,850.00</td>
-          <td><span class="badge badge-success"><i class="fa-solid fa-check-circle"></i> Success</span></td>
-        </tr>
-        <tr>
-          <td class="text-sm">Aug 12, 8:47am</td>
-          <td class="fw-bold">₦2,000.00</td>
-          <td><span class="text-danger text-sm">−₦60.00</span> <span style="font-size:.65rem;color:var(--text-dim)">(3%)</span></td>
-          <td class="text-success fw-bold">₦1,940.00</td>
-          <td><span class="badge badge-pending"><i class="fa-solid fa-clock"></i> Pending</span></td>
-        </tr>
+        {% empty %}
+        <tr><td colspan="5" class="text-muted text-sm" style="text-align:center;padding:18px">No top-ups yet.</td></tr>
+        {% endfor %}
       </tbody>
     </table>
   </div>

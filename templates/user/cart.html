@@ -94,7 +94,7 @@
 
   <div class="sidebar-balance">
     <div class="sb-label">Wallet Balance</div>
-    <div class="sb-amount">₦12,450.00</div>
+    <div class="sb-amount">{{ wallet_balance }}</div>
     <a href="topup.html" class="sb-topup-btn">
       <i class="fa-solid fa-plus"></i> Top Up
     </a>
@@ -115,7 +115,7 @@
     <a href="cart.html" class="nav-item active">
       <i class="fa-solid fa-inbox"></i>
       <span>Active</span>
-      <span class="nav-badge">2</span>
+      {% if active_orders_count %}<span class="nav-badge">{{ active_orders_count }}</span>{% endif %}
     </a>
     <a href="topup.html" class="nav-item ">
       <i class="fa-solid fa-wallet"></i>
@@ -135,9 +135,9 @@
   </nav>
 
   <div class="sidebar-footer">
-    <a href="../admin/dashboard.html" class="nav-item nav-item-sm">
+    {% if user.role == 'admin' %}<a href="../admin/dashboard.html" class="nav-item nav-item-sm">
       <i class="fa-solid fa-shield-halved"></i><span>Admin Panel</span>
-    </a>
+    </a>{% endif %}
     <a href="../logout.html" class="nav-item nav-item-sm nav-item-danger">
       <i class="fa-solid fa-arrow-right-from-bracket"></i><span>Sign Out</span>
     </a>
@@ -153,25 +153,25 @@
     <div class="top-header-right">
       <a href="topup.html" class="header-balance">
         <i class="fa-solid fa-wallet"></i>
-        <span>₦12,450.00</span>
+        <span>{{ wallet_balance }}</span>
       </a>
       <button class="theme-toggle" id="themeToggleBtn" onclick="toggleTheme()" title="Toggle light/dark mode">
         <i class="fa-solid fa-moon" id="themeIcon"></i>
       </button>
       <div class="avatar-btn" onclick="toggleProfileMenu()">
-        <div class="avatar">A</div>
+        <div class="avatar">{{ user.first_name|default:user.email|slice:":1"|upper }}</div>
       </div>
       <div class="profile-menu" id="profileMenu">
         <div class="pm-user">
-          <div class="pm-name">Ada Lovelace</div>
-          <div class="pm-email">ada@example.com</div>
+          <div class="pm-name">{{ user.get_full_name|default:user.email }}</div>
+          <div class="pm-email">{{ user.email }}</div>
         </div>
         <a href="settings.html" class="pm-item">
           <i class="fa-solid fa-gear"></i> Settings
         </a>
-        <a href="../admin/dashboard.html" class="pm-item">
+        {% if user.role == 'admin' %}<a href="../admin/dashboard.html" class="pm-item">
           <i class="fa-solid fa-shield-halved"></i> Admin Panel
-        </a>
+        </a>{% endif %}
         <a href="../logout.html" class="pm-item pm-item-danger">
           <i class="fa-solid fa-arrow-right-from-bracket"></i> Sign Out
         </a>
@@ -180,6 +180,8 @@
   </header>
 
   <main class="page-content">
+
+{% if messages %}{% for message in messages %}<div class="alert alert-{% if message.tags == 'error' %}danger{% else %}{{ message.tags }}{% endif %}" style="margin-bottom:14px"><i class="fa-solid fa-circle-exclamation"></i> {{ message }}<button class="alert-close" onclick="this.parentElement.remove()">&times;</button></div>{% endfor %}{% endif %}
 <meta name="csrf" content="{{ csrf_token }}">
 
 <!-- ── Custom Confirm Modal ─────────────────────────────────────────────── -->
@@ -196,143 +198,127 @@
 </div>
 <div class="page-hero">
   <h2><i class="fa-solid fa-inbox" style="color:var(--orange)"></i> Active Orders</h2>
-  <p>Numbers auto-refresh every 5s. Cancel for a full refund if no SMS received.</p>
+  <p>Numbers auto-refresh every few seconds. Cancel before receiving SMS for a full refund.</p>
 </div>
 
-<!-- Order #1: PENDING, waiting for SMS -->
-<div class="ocard" id="oc-1001">
+{% for o in orders %}
+<div class="ocard" id="order-card-{{ o.id }}"{% if o.status == 'PENDING' %} data-poll-order="{{ o.id }}" data-interval="5"{% endif %}>
   <div class="ocard-head">
     <div class="ocard-left">
-      <div class="osvc"><i class="fa-solid fa-mobile-screen" style="color:var(--orange)"></i> Telegram</div>
+      <div class="osvc"><i class="fa-solid fa-mobile-screen" style="color:var(--orange)"></i> {{ o.product|title }}</div>
       <div class="ometa">
-        <span>England</span>
-        <span style="color:var(--border-light)">•</span>
+        <span>{{ o.country }}</span>
+        <span style="color:var(--border-light)">&#8226;</span>
         <i class="fa-solid fa-signal" style="color:var(--success);font-size:.68rem"></i>
-        <span>Any</span>
+        <span>{{ o.operator|title }}</span>
       </div>
     </div>
     <div class="ocard-right">
-      <div id="badge-1001"><span class="badge badge-pending">Pending</span></div>
-      <div style="font-weight:700;color:var(--orange);font-size:.88rem;margin-top:3px">₦620.00</div>
+      <div id="status-{{ o.id }}">
+        {% if o.status == 'PENDING' %}<span class="badge badge-pending">Pending</span>
+        {% elif o.status == 'RECEIVED' %}<span class="badge badge-success">SMS Received</span>{% endif %}
+      </div>
+      <div style="font-weight:700;color:var(--orange);font-size:.88rem;margin-top:3px">&#8358;{{ o.user_price|floatformat:2 }}</div>
     </div>
   </div>
 
   <div class="onum-row">
-    <div class="onum" id="phone-1001">+44 7911 123456</div>
-    <span class="copy-pill" onclick="copyText('+447911123456',this)">
+    <div class="onum" id="phone-{{ o.id }}">{{ o.phone }}</div>
+    <span class="copy-pill" onclick="copyText('{{ o.phone }}',this)">
       <i class="fa-regular fa-copy"></i> Copy
     </span>
   </div>
 
-  <div class="sms-live" id="sms-live-1001">
+  <div class="sms-live" id="sms-live-{{ o.id }}">
     <div class="sms-live-header">
       <div class="pulse">
-        <div class="pulse-dot" id="pdot-1001"></div>
-        <span id="pulse-lbl-1001">Waiting for SMS...</span>
+        <div class="pulse-dot {% if o.status == 'RECEIVED' %}active{% endif %}" id="pdot-{{ o.id }}"></div>
+        <span id="pulse-lbl-{{ o.id }}">
+          {% if o.status == 'RECEIVED' %}SMS Received{% else %}Waiting for SMS...{% endif %}
+        </span>
       </div>
-    </div>
-    <div class="sms-live-body">
-      <div class="sms-waiting" id="sms-wait-1001">
-        <span class="spinner" style="width:14px;height:14px;border-width:2px"></span>
-        Waiting for your verification code...
-      </div>
-      <div class="sms-waiting" id="sms-arriving-1001" style="display:none">
-        <span class="spinner" style="width:14px;height:14px;border-width:2px;border-color:var(--success);border-top-color:transparent"></span>
-        <span style="color:var(--success);font-weight:600">SMS detected — code arriving...</span>
-      </div>
-      <div class="sms-code-wrap" id="sms-code-1001"></div>
-    </div>
-
-    <div style="padding:0 12px 10px">
-      <div class="timer-bar">
-        <div class="timer-fill" id="tfill-1001" data-total="1200" style="width:65%"></div>
-      </div>
-      <div class="timer-label">
-        Expires in: <span id="tcdown-1001" data-expires="2026-08-25T10:31:25Z"></span>
-      </div>
-    </div>
-  </div>
-
-  <div class="oactions" id="oact-1001">
-    <button class="btn btn-danger" onclick="orderAct(1001,'cancel',this)">
-      <i class="fa-solid fa-xmark"></i> Cancel & Refund
-    </button>
-    <button class="btn btn-ghost" onclick="orderAct(1001,'ban',this)">
-      <i class="fa-solid fa-circle-xmark"></i> Not Working — Refund
-    </button>
-  </div>
-  <div class="refund-note"><i class="fa-solid fa-circle-info"></i> Cancel before receiving SMS to get a full refund.</div>
-
-  <div class="ometa-row">
-    <span>Order #1001</span>
-    <span>Aug 25, 2026 09:12</span>
-  </div>
-</div>
-
-<!-- Order #2: RECEIVED, code available -->
-<div class="ocard" id="oc-1000">
-  <div class="ocard-head">
-    <div class="ocard-left">
-      <div class="osvc"><i class="fa-solid fa-mobile-screen" style="color:var(--orange)"></i> Whatsapp</div>
-      <div class="ometa">
-        <span>Nigeria</span>
-        <span style="color:var(--border-light)">•</span>
-        <i class="fa-solid fa-signal" style="color:var(--success);font-size:.68rem"></i>
-        <span>Mtn</span>
-      </div>
-    </div>
-    <div class="ocard-right">
-      <div id="badge-1000"><span class="badge badge-success">SMS Received</span></div>
-      <div style="font-weight:700;color:var(--orange);font-size:.88rem;margin-top:3px">₦480.00</div>
-    </div>
-  </div>
-
-  <div class="onum-row">
-    <div class="onum" id="phone-1000">+234 812 345 6789</div>
-    <span class="copy-pill" onclick="copyText('+2348123456789',this)">
-      <i class="fa-regular fa-copy"></i> Copy
-    </span>
-  </div>
-
-  <div class="sms-live" id="sms-live-1000">
-    <div class="sms-live-header">
-      <div class="pulse">
-        <div class="pulse-dot active" id="pdot-1000"></div>
-        <span id="pulse-lbl-1000">SMS Received</span>
-      </div>
-      <span class="copy-pill" onclick="copyText('482913',this)">
+      {% if o.status == 'RECEIVED' and o.sms_code %}
+      <span class="copy-pill" onclick="copyText('{{ o.sms_code }}',this)">
         <i class="fa-regular fa-copy"></i> Copy Code
       </span>
+      {% endif %}
     </div>
     <div class="sms-live-body">
-      <div class="sms-code-wrap" id="sms-code-1000" style="display:block">
-        <div class="sms-otp-box">
-          <div class="sms-otp-label"><i class="fa-solid fa-key" style="color:var(--success)"></i> Verification Code</div>
-          <div class="sms-big-code" id="code-val-1000">482913</div>
-          <div class="sms-full-text">Your WhatsApp code is 482913. Do not share this code.</div>
+      <div id="sms-area-{{ o.id }}">
+        {% if o.status == 'RECEIVED' and o.sms_code %}
+        <div class="sms-code-wrap" style="display:block">
+          <div class="sms-otp-box">
+            <div class="sms-otp-label"><i class="fa-solid fa-key" style="color:var(--success)"></i> Verification Code</div>
+            <div class="sms-big-code" id="code-val-{{ o.id }}">{{ o.sms_code }}</div>
+            {% if o.sms_text %}<div class="sms-full-text">{{ o.sms_text }}</div>{% endif %}
+          </div>
         </div>
+        {% else %}
+        <div class="sms-waiting" id="sms-wait-{{ o.id }}">
+          <span class="spinner" style="width:14px;height:14px;border-width:2px"></span>
+          Waiting for your verification code...
+        </div>
+        {% endif %}
       </div>
     </div>
+
+    {% if o.status == 'PENDING' and o.expires_at %}
+    <div style="padding:0 12px 10px">
+      <div class="timer-bar">
+        <div class="timer-fill" id="tfill-{{ o.id }}" data-total="1200" style="width:100%"></div>
+      </div>
+      <div class="timer-label">
+        Expires in: <span id="tcdown-{{ o.id }}" data-expires="{{ o.expires_at|date:'c' }}"></span>
+      </div>
+    </div>
+    {% endif %}
   </div>
 
-  <div class="oactions" id="oact-1000">
-    <button class="btn btn-success" onclick="orderAct(1000,'finish',this)">
-      <i class="fa-solid fa-check-double"></i> Mark Done
+  <div class="oactions" id="actions-{{ o.id }}">
+    {% if o.status == 'PENDING' %}
+    <button class="btn btn-danger" onclick="orderAct({{ o.id }},'cancel',this)">
+      <i class="fa-solid fa-xmark"></i> Cancel &amp; Refund
     </button>
-    <button class="btn btn-ghost" onclick="orderAct(1000,'ban',this)">
+    <button class="btn btn-ghost" onclick="orderAct({{ o.id }},'ban',this)">
       <i class="fa-solid fa-circle-xmark"></i> Not Working — Refund
     </button>
-    <button class="btn btn-secondary" onclick="copyText('482913',this)">
+    {% elif o.status == 'RECEIVED' %}
+    <button class="btn btn-success" onclick="orderAct({{ o.id }},'finish',this)">
+      <i class="fa-solid fa-check-double"></i> Mark Done
+    </button>
+    <button class="btn btn-ghost" onclick="orderAct({{ o.id }},'ban',this)">
+      <i class="fa-solid fa-circle-xmark"></i> Not Working — Refund
+    </button>
+    {% if o.sms_code %}
+    <button class="btn btn-secondary" onclick="copyText('{{ o.sms_code }}',this)">
       <i class="fa-regular fa-copy"></i> Copy Code
     </button>
+    {% endif %}
+    <a class="btn btn-ghost" href="sms.html?order_id={{ o.id }}">
+      <i class="fa-solid fa-envelope"></i> SMS Inbox
+    </a>
+    {% endif %}
   </div>
+  {% if o.status == 'PENDING' %}
+  <div class="refund-note"><i class="fa-solid fa-circle-info"></i> Cancel before receiving SMS to get a full refund.</div>
+  {% endif %}
 
   <div class="ometa-row">
-    <span>Order #1000</span>
-    <span>Aug 25, 2026 08:41</span>
-    <span>From: WhatsApp</span>
+    <span>Order #{{ o.id }}</span>
+    <span>{{ o.created_at|date:"M j, Y H:i" }}</span>
+    {% if o.status == 'RECEIVED' and o.sms_sender %}<span>From: {{ o.sms_sender }}</span>{% endif %}
   </div>
 </div>
+{% empty %}
+<div class="ocard" style="text-align:center;padding:26px">
+  <i class="fa-solid fa-inbox" style="font-size:2rem;color:var(--text-dim);margin-bottom:8px"></i>
+  <div style="font-weight:600;margin-bottom:4px">No active orders</div>
+  <div class="text-muted text-sm" style="margin-bottom:12px">Buy a number and it will show up here while you wait for the SMS.</div>
+  <a href="services.html" class="btn btn-primary">
+    <i class="fa-solid fa-plus"></i> Buy a Number
+  </a>
+</div>
+{% endfor %}
 
 <div style="text-align:center;margin-top:4px">
   <a href="services.html" class="btn btn-secondary">
@@ -341,10 +327,7 @@
 </div>
 
 <script>
-/* ── Django-backed order logic ────────────────────────────────────────────
-   Polls /api/orders/ every few seconds for live status and
-   SMS delivery. This static extraction keeps the same countdown/timer
-   and modal-confirm interactions. ── */
+/* Live countdown + order actions. */
 const CSRF = document.querySelector('meta[name=csrf]').content;
 
 document.querySelectorAll('[data-expires]').forEach(el => {
@@ -384,8 +367,7 @@ function orderAct(dbId, action, btn) {
   }, { danger: isDanger, title: isDanger ? 'Warning' : 'Confirm' });
 }
 </script>
-
-    </main>
+</main>
 
     <footer class="page-footer">
       <span>&copy; 2026 VerifySMS. All rights reserved.</span>

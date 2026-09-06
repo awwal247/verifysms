@@ -105,12 +105,12 @@
         <i class="fa-solid fa-moon" id="themeIcon"></i>
       </button>
       <div class="avatar-btn" onclick="toggleProfileMenu()">
-        <div class="avatar">A</div>
+        <div class="avatar">{{ user.first_name|default:user.email|slice:":1"|upper }}</div>
       </div>
       <div class="profile-menu" id="profileMenu">
         <div class="pm-user">
-          <div class="pm-name">Ada Lovelace</div>
-          <div class="pm-email">ada@example.com</div>
+          <div class="pm-name">{{ user.get_full_name|default:user.email }}</div>
+          <div class="pm-email">{{ user.email }}</div>
         </div>
         <a href="../user/settings.html" class="pm-item">
           <i class="fa-solid fa-gear"></i> Settings
@@ -126,6 +126,8 @@
   </header>
 
   <main class="page-content">
+
+{% if messages %}{% for message in messages %}<div class="alert alert-{% if message.tags == 'error' %}danger{% else %}{{ message.tags }}{% endif %}" style="margin-bottom:14px"><i class="fa-solid fa-circle-exclamation"></i> {{ message }}<button class="alert-close" onclick="this.parentElement.remove()">&times;</button></div>{% endfor %}{% endif %}
 <meta name="csrf" content="{{ csrf_token }}">
 
 <!-- ── Custom Confirm Modal ─────────────────────────────────────────────── -->
@@ -148,42 +150,54 @@
 <div style="display:grid;gap:16px">
   <div class="card">
     <div class="card-header">
-      <div class="card-title"><i class="fa-solid fa-globe text-orange"></i> Site Information</div>
+      <div class="card-title"><i class="fa-solid fa-sliders text-orange"></i> General Settings</div>
     </div>
     <form method="POST" action="/admin/action/">
       {% csrf_token %}
-      <input type="hidden" name="action" value="site_info">
+      <input type="hidden" name="action" value="save_settings">
       <div class="form-group">
         <label class="form-label">Site Name</label>
-        <input class="form-control" type="text" name="site_name" value="VerifySMS">
+        <input class="form-control" type="text" name="site_name" value="{{ settings.site_name }}" required>
       </div>
-      <div class="form-group">
-        <label class="form-label">Support Email</label>
-        <input class="form-control" type="email" name="support_email" value="support@verifysms.example">
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">USD → NGN Exchange Rate</label>
+          <input class="form-control" type="number" step="0.01" min="0" name="site_rate" value="{{ settings.site_rate }}" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Markup Percentage (%)</label>
+          <input class="form-control" type="number" step="0.1" min="0" name="markup_percent" value="{{ settings.markup_percent }}" required>
+        </div>
       </div>
-      <div class="form-group">
-        <label class="form-label">Site Description</label>
-        <textarea class="form-control" name="site_description" rows="3">Buy temporary virtual phone numbers from 180+ countries instantly. No SIM needed. Pay with Paystack. Privacy-first SMS verification.</textarea>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Top-up Fee (%)</label>
+          <input class="form-control" type="number" step="0.1" min="0" name="topup_fee_percent" value="{{ settings.topup_fee_percent }}" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label">SMS Poll Interval (seconds)</label>
+          <input class="form-control" type="number" step="1" min="2" name="sms_poll_interval" value="{{ settings.sms_poll_interval }}" required>
+        </div>
       </div>
-      <button type="submit" class="btn btn-primary"><i class="fa-solid fa-floppy-disk"></i> Save</button>
-    </form>
-  </div>
-
-  <div class="card">
-    <div class="card-header">
-      <div class="card-title"><i class="fa-solid fa-toggle-on text-orange"></i> Maintenance Mode</div>
-    </div>
-    <form method="POST" action="/admin/action/">
-      {% csrf_token %}
-      <input type="hidden" name="action" value="maintenance">
-      <div class="form-group" style="display:flex;align-items:center;gap:10px">
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Minimum Top-up (NGN)</label>
+          <input class="form-control" type="number" step="0.01" min="0" name="min_topup" value="{{ settings.min_topup }}" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Maximum Top-up (NGN)</label>
+          <input class="form-control" type="number" step="0.01" min="0" name="max_topup" value="{{ settings.max_topup }}" required>
+        </div>
+      </div>
+      <div class="form-group" style="display:flex;align-items:center;gap:10px;margin-top:6px">
+        <input type="hidden" name="maintenance_mode" value="0">
         <label class="switch">
-          <input type="checkbox" name="maintenance_mode">
+          <input type="checkbox" name="maintenance_mode" value="1"{% if settings.maintenance_mode == '1' %} checked{% endif %}>
           <span class="slider"></span>
         </label>
-        <span class="text-sm text-muted">When enabled, only admins can access the site.</span>
+        <span class="text-sm text-muted">Maintenance mode — when enabled, only admins can access the site.</span>
       </div>
-      <button type="submit" class="btn btn-primary"><i class="fa-solid fa-floppy-disk"></i> Save</button>
+      <button type="submit" class="btn btn-primary"><i class="fa-solid fa-floppy-disk"></i> Save Settings</button>
     </form>
   </div>
 
@@ -197,11 +211,11 @@
       <div class="form-row">
         <div class="form-group">
           <label class="form-label">New Password</label>
-          <input class="form-control" type="password" name="new_password" minlength="6">
+          <input class="form-control" type="password" name="new_password" minlength="6" required>
         </div>
         <div class="form-group">
           <label class="form-label">Confirm Password</label>
-          <input class="form-control" type="password" name="confirm_password">
+          <input class="form-control" type="password" name="confirm_password" minlength="6" required>
         </div>
       </div>
       <button type="submit" class="btn btn-primary"><i class="fa-solid fa-key"></i> Update Password</button>

@@ -46,7 +46,7 @@
 
   <div class="sidebar-balance">
     <div class="sb-label">Wallet Balance</div>
-    <div class="sb-amount">₦12,450.00</div>
+    <div class="sb-amount">{{ wallet_balance }}</div>
     <a href="topup.html" class="sb-topup-btn">
       <i class="fa-solid fa-plus"></i> Top Up
     </a>
@@ -67,7 +67,7 @@
     <a href="cart.html" class="nav-item ">
       <i class="fa-solid fa-inbox"></i>
       <span>Active</span>
-      <span class="nav-badge">2</span>
+      {% if active_orders_count %}<span class="nav-badge">{{ active_orders_count }}</span>{% endif %}
     </a>
     <a href="topup.html" class="nav-item ">
       <i class="fa-solid fa-wallet"></i>
@@ -87,9 +87,9 @@
   </nav>
 
   <div class="sidebar-footer">
-    <a href="../admin/dashboard.html" class="nav-item nav-item-sm">
+    {% if user.role == 'admin' %}<a href="../admin/dashboard.html" class="nav-item nav-item-sm">
       <i class="fa-solid fa-shield-halved"></i><span>Admin Panel</span>
-    </a>
+    </a>{% endif %}
     <a href="../logout.html" class="nav-item nav-item-sm nav-item-danger">
       <i class="fa-solid fa-arrow-right-from-bracket"></i><span>Sign Out</span>
     </a>
@@ -105,25 +105,25 @@
     <div class="top-header-right">
       <a href="topup.html" class="header-balance">
         <i class="fa-solid fa-wallet"></i>
-        <span>₦12,450.00</span>
+        <span>{{ wallet_balance }}</span>
       </a>
       <button class="theme-toggle" id="themeToggleBtn" onclick="toggleTheme()" title="Toggle light/dark mode">
         <i class="fa-solid fa-moon" id="themeIcon"></i>
       </button>
       <div class="avatar-btn" onclick="toggleProfileMenu()">
-        <div class="avatar">A</div>
+        <div class="avatar">{{ user.first_name|default:user.email|slice:":1"|upper }}</div>
       </div>
       <div class="profile-menu" id="profileMenu">
         <div class="pm-user">
-          <div class="pm-name">Ada Lovelace</div>
-          <div class="pm-email">ada@example.com</div>
+          <div class="pm-name">{{ user.get_full_name|default:user.email }}</div>
+          <div class="pm-email">{{ user.email }}</div>
         </div>
         <a href="settings.html" class="pm-item">
           <i class="fa-solid fa-gear"></i> Settings
         </a>
-        <a href="../admin/dashboard.html" class="pm-item">
+        {% if user.role == 'admin' %}<a href="../admin/dashboard.html" class="pm-item">
           <i class="fa-solid fa-shield-halved"></i> Admin Panel
-        </a>
+        </a>{% endif %}
         <a href="../logout.html" class="pm-item pm-item-danger">
           <i class="fa-solid fa-arrow-right-from-bracket"></i> Sign Out
         </a>
@@ -132,6 +132,8 @@
   </header>
 
   <main class="page-content">
+
+{% if messages %}{% for message in messages %}<div class="alert alert-{% if message.tags == 'error' %}danger{% else %}{{ message.tags }}{% endif %}" style="margin-bottom:14px"><i class="fa-solid fa-circle-exclamation"></i> {{ message }}<button class="alert-close" onclick="this.parentElement.remove()">&times;</button></div>{% endfor %}{% endif %}
 <meta name="csrf" content="{{ csrf_token }}">
 
 <!-- ── Custom Confirm Modal ─────────────────────────────────────────────── -->
@@ -163,20 +165,20 @@
       <div class="form-row">
         <div class="form-group">
           <label class="form-label">Full Name</label>
-          <input class="form-control" type="text" name="name" value="Ada Lovelace" required>
+          <input class="form-control" type="text" name="name" value="{{ user.first_name }}" required>
         </div>
         <div class="form-group">
           <label class="form-label">Email Address</label>
-          <input class="form-control" type="email" name="email" value="ada@example.com" required>
+          <input class="form-control" type="email" name="email" value="{{ user.email }}" required>
         </div>
       </div>
       <div class="form-group">
         <label class="form-label">Account Status</label>
-        <input class="form-control" type="text" value="Active" disabled>
+        <input class="form-control" type="text" value="{{ user.status|title }}" disabled>
       </div>
       <div class="form-group">
         <label class="form-label">Member Since</label>
-        <input class="form-control" type="text" value="March 4, 2025" disabled>
+        <input class="form-control" type="text" value="{{ user.date_joined|date:'F j, Y' }}" disabled>
       </div>
       <button type="submit" class="btn btn-primary"><i class="fa-solid fa-floppy-disk"></i> Save Profile</button>
     </form>
@@ -216,11 +218,11 @@
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
       <div style="background:var(--bg-input);border:1px solid var(--border);border-radius:var(--radius-sm);padding:14px;text-align:center">
         <div style="font-size:0.75rem;color:var(--text-muted);margin-bottom:4px">Current Balance</div>
-        <div style="font-weight:700;font-size:1.3rem;color:var(--orange)">₦12,450.00</div>
+        <div style="font-weight:700;font-size:1.3rem;color:var(--orange)">{{ wallet_balance }}</div>
       </div>
       <div style="background:var(--bg-input);border:1px solid var(--border);border-radius:var(--radius-sm);padding:14px;text-align:center">
         <div style="font-size:0.75rem;color:var(--text-muted);margin-bottom:4px">Total Spent</div>
-        <div style="font-weight:700;font-size:1.3rem;color:var(--text)">₦38,900.00</div>
+        <div style="font-weight:700;font-size:1.3rem;color:var(--text)">{{ total_spent }}</div>
       </div>
     </div>
     <div style="margin-top:12px">

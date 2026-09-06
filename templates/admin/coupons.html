@@ -105,12 +105,12 @@
         <i class="fa-solid fa-moon" id="themeIcon"></i>
       </button>
       <div class="avatar-btn" onclick="toggleProfileMenu()">
-        <div class="avatar">A</div>
+        <div class="avatar">{{ user.first_name|default:user.email|slice:":1"|upper }}</div>
       </div>
       <div class="profile-menu" id="profileMenu">
         <div class="pm-user">
-          <div class="pm-name">Ada Lovelace</div>
-          <div class="pm-email">ada@example.com</div>
+          <div class="pm-name">{{ user.get_full_name|default:user.email }}</div>
+          <div class="pm-email">{{ user.email }}</div>
         </div>
         <a href="../user/settings.html" class="pm-item">
           <i class="fa-solid fa-gear"></i> Settings
@@ -126,6 +126,8 @@
   </header>
 
   <main class="page-content">
+
+{% if messages %}{% for message in messages %}<div class="alert alert-{% if message.tags == 'error' %}danger{% else %}{{ message.tags }}{% endif %}" style="margin-bottom:14px"><i class="fa-solid fa-circle-exclamation"></i> {{ message }}<button class="alert-close" onclick="this.parentElement.remove()">&times;</button></div>{% endfor %}{% endif %}
 <meta name="csrf" content="{{ csrf_token }}">
 
 <!-- ── Custom Confirm Modal ─────────────────────────────────────────────── -->
@@ -142,107 +144,137 @@
 </div>
 <div class="page-hero">
   <h2><i class="fa-solid fa-ticket" style="color:var(--orange)"></i> Coupons</h2>
-  <p>Create and manage discount coupon codes.</p>
+  <p>Create and manage discount codes customers can use at checkout.</p>
 </div>
 
-<div class="card mb-3">
-  <div class="card-header">
-    <div class="card-title"><i class="fa-solid fa-plus text-orange"></i> Create New Coupon</div>
+<div style="display:grid;gap:14px">
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title"><i class="fa-solid fa-plus text-orange"></i> Create Coupon</div>
+    </div>
+    <form method="POST" action="/admin/action/">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="create_coupon">
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Coupon Code</label>
+          <input class="form-control" type="text" name="code" placeholder="e.g. SUMMER20" maxlength="50" required style="text-transform:uppercase">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Discount Type</label>
+          <select class="form-control" name="discount_type">
+            <option value="percent">Percent (%)</option>
+            <option value="fixed">Fixed (NGN)</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Description</label>
+        <input class="form-control" type="text" name="description" placeholder="Short note about this coupon (optional)">
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Discount Value</label>
+          <input class="form-control" type="number" step="0.01" min="0" name="discount_value" placeholder="e.g. 20" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Minimum Purchase (NGN)</label>
+          <input class="form-control" type="number" step="0.01" min="0" name="min_purchase" placeholder="0 = no minimum">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Max Uses</label>
+          <input class="form-control" type="number" step="1" min="1" name="max_uses" placeholder="Leave empty for unlimited">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Target Users</label>
+          <select class="form-control" name="target_users">
+            <option value="all">Everyone</option>
+            <option value="new">New users</option>
+            <option value="old">Existing users</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Expires At</label>
+        <input class="form-control" type="datetime-local" name="valid_until">
+        <div class="text-xs text-muted" style="margin-top:4px">Leave empty for no expiry date.</div>
+      </div>
+      <button type="submit" class="btn btn-primary"><i class="fa-solid fa-ticket"></i> Create Coupon</button>
+    </form>
   </div>
-  <form method="POST" action="/admin/action/">
-    {% csrf_token %}
-    <input type="hidden" name="action" value="create">
-    <div class="form-row">
-      <div class="form-group">
-        <label class="form-label">Coupon Code</label>
-        <input class="form-control" type="text" name="code" placeholder="e.g. WELCOME10"
-               style="text-transform:uppercase;font-family:monospace" required>
-      </div>
-      <div class="form-group">
-        <label class="form-label">Discount Type</label>
-        <select class="form-control" name="discount_type">
-          <option value="percent">Percentage (%)</option>
-          <option value="fixed">Fixed Amount (₦)</option>
-        </select>
-      </div>
-    </div>
-    <div class="form-row">
-      <div class="form-group">
-        <label class="form-label">Discount Value</label>
-        <input class="form-control" type="number" step="0.01" name="value" placeholder="10" required>
-      </div>
-      <div class="form-group">
-        <label class="form-label">Usage Limit</label>
-        <input class="form-control" type="number" name="usage_limit" placeholder="Leave blank for unlimited">
-      </div>
-    </div>
-    <div class="form-group">
-      <label class="form-label">Expiry Date</label>
-      <input class="form-control" type="date" name="expires_at">
-    </div>
-    <button type="submit" class="btn btn-primary"><i class="fa-solid fa-plus"></i> Create Coupon</button>
-  </form>
-</div>
 
-<div class="card">
-  <div class="card-header">
-    <div class="card-title"><i class="fa-solid fa-list text-orange"></i> All Coupons</div>
-  </div>
-  <div class="table-wrap">
-    <table class="table">
-      <thead>
-        <tr><th>Code</th><th>Discount</th><th>Used</th><th>Limit</th><th>Expires</th><th>Status</th><th>Actions</th></tr>
-      </thead>
-      <tbody>
-        <tr>
-          <td><span class="number-chip" style="font-family:monospace">WELCOME10</span></td>
-          <td class="fw-bold text-orange">10%</td>
-          <td>214</td>
-          <td>Unlimited</td>
-          <td class="text-xs text-muted">Dec 31, 2026</td>
-          <td><span class="badge badge-success">Active</span></td>
-          <td>
-            <form method="POST" action="/admin/action/" style="display:inline">
-              {% csrf_token %}
-              <input type="hidden" name="action" value="disable">
-              <input type="hidden" name="coupon_id" value="1">
-              <button class="btn btn-danger btn-sm btn-icon" title="Disable"
-                onclick="confirmAndSubmit(event,'Disable this coupon?',this,true)">
-                <i class="fa-solid fa-ban"></i>
-              </button>
-            </form>
-          </td>
-        </tr>
-        <tr>
-          <td><span class="number-chip" style="font-family:monospace">FLAT200</span></td>
-          <td class="fw-bold text-orange">₦200.00</td>
-          <td>58 / 100</td>
-          <td>100</td>
-          <td class="text-xs text-muted">Sep 15, 2026</td>
-          <td><span class="badge badge-success">Active</span></td>
-          <td>
-            <form method="POST" action="/admin/action/" style="display:inline">
-              {% csrf_token %}
-              <input type="hidden" name="action" value="disable">
-              <input type="hidden" name="coupon_id" value="2">
-              <button class="btn btn-danger btn-sm btn-icon" title="Disable"
-                onclick="confirmAndSubmit(event,'Disable this coupon?',this,true)">
-                <i class="fa-solid fa-ban"></i>
-              </button>
-            </form>
-          </td>
-        </tr>
-        <tr>
-          <td><span class="number-chip" style="font-family:monospace">OLDPROMO</span></td>
-          <td class="fw-bold text-orange">15%</td>
-          <td>500 / 500</td>
-          <td>500</td>
-          <td class="text-xs text-muted">Jun 1, 2026</td>
-          <td><span class="badge badge-warning">Expired</span></td>
-          <td class="text-xs text-dim">—</td>
-        </tr>
-      </tbody>
-    </table>
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title"><i class="fa-solid fa-tags text-orange"></i> Coupons</div>
+    </div>
+    <div class="table-wrap">
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Code</th><th>Discount</th><th>Min Purchase</th><th>Uses</th>
+            <th>Expires</th><th>Status</th><th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for c in coupons %}
+          <tr>
+            <td><span class="badge" style="background:rgba(249,115,22,.15);color:var(--orange)">{{ c.code }}</span>
+              {% if c.description %}<div class="text-xs text-muted">{{ c.description }}</div>{% endif %}
+            </td>
+            <td class="text-sm">
+              {% if c.discount_type == 'percent' %}{{ c.discount_value|floatformat:0 }}%
+              {% else %}&#8358;{{ c.discount_value|floatformat:2 }}{% endif %}
+              {% if c.target_users != 'all' %}<div class="text-xs text-muted">{{ c.target_users|title }} users</div>{% endif %}
+            </td>
+            <td class="text-muted text-sm">&#8358;{{ c.min_purchase|floatformat:2 }}</td>
+            <td class="text-sm">{{ c.uses_count }}{% if c.max_uses %}<span class="text-muted"> / {{ c.max_uses }}</span>{% endif %}</td>
+            <td class="text-xs text-muted">
+              {% if c.valid_until %}{{ c.valid_until|date:"M j, Y H:i" }}
+                {% if c.valid_until < now %}<span class="badge badge-danger" style="margin-left:4px">Expired</span>{% endif %}
+              {% else %}Never{% endif %}
+            </td>
+            <td>
+              {% if c.is_active %}<span class="badge badge-success">Active</span>
+              {% else %}<span class="badge badge-pending">Disabled</span>{% endif %}
+            </td>
+            <td>
+              <div class="admin-table-actions">
+                <form method="POST" action="/admin/action/" style="display:inline">
+                  {% csrf_token %}
+                  <input type="hidden" name="action" value="toggle_coupon">
+                  <input type="hidden" name="coupon_id" value="{{ c.id }}">
+                  {% if c.is_active %}
+                  <button class="btn btn-ghost btn-sm btn-icon" title="Disable Coupon"
+                          onclick="confirmAndSubmit(event,'Disable this coupon? New orders can no longer use it.',this)">
+                    <i class="fa-solid fa-pause"></i>
+                  </button>
+                  {% else %}
+                  <button class="btn btn-ghost btn-sm btn-icon" title="Enable Coupon"
+                          onclick="confirmAndSubmit(event,'Enable this coupon again?',this)">
+                    <i class="fa-solid fa-play"></i>
+                  </button>
+                  {% endif %}
+                </form>
+                <form method="POST" action="/admin/action/" style="display:inline">
+                  {% csrf_token %}
+                  <input type="hidden" name="action" value="delete_coupon">
+                  <input type="hidden" name="coupon_id" value="{{ c.id }}">
+                  <button class="btn btn-danger btn-sm btn-icon" title="Delete Coupon"
+                          onclick="confirmAndSubmit(event,'Permanently delete this coupon?',this,true)">
+                    <i class="fa-solid fa-trash"></i>
+                  </button>
+                </form>
+              </div>
+            </td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="7" class="text-muted text-sm" style="text-align:center;padding:18px">No coupons yet. Create your first one above.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
   </div>
 </div>
 

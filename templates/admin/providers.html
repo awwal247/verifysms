@@ -105,12 +105,12 @@
         <i class="fa-solid fa-moon" id="themeIcon"></i>
       </button>
       <div class="avatar-btn" onclick="toggleProfileMenu()">
-        <div class="avatar">A</div>
+        <div class="avatar">{{ user.first_name|default:user.email|slice:":1"|upper }}</div>
       </div>
       <div class="profile-menu" id="profileMenu">
         <div class="pm-user">
-          <div class="pm-name">Ada Lovelace</div>
-          <div class="pm-email">ada@example.com</div>
+          <div class="pm-name">{{ user.get_full_name|default:user.email }}</div>
+          <div class="pm-email">{{ user.email }}</div>
         </div>
         <a href="../user/settings.html" class="pm-item">
           <i class="fa-solid fa-gear"></i> Settings
@@ -126,6 +126,8 @@
   </header>
 
   <main class="page-content">
+
+{% if messages %}{% for message in messages %}<div class="alert alert-{% if message.tags == 'error' %}danger{% else %}{{ message.tags }}{% endif %}" style="margin-bottom:14px"><i class="fa-solid fa-circle-exclamation"></i> {{ message }}<button class="alert-close" onclick="this.parentElement.remove()">&times;</button></div>{% endfor %}{% endif %}
 <meta name="csrf" content="{{ csrf_token }}">
 
 <!-- ── Custom Confirm Modal ─────────────────────────────────────────────── -->
@@ -142,95 +144,51 @@
 </div>
 <div class="page-hero">
   <h2><i class="fa-solid fa-server" style="color:var(--orange)"></i> Providers</h2>
-  <p>Manage SMS number providers and global pricing.</p>
+  <p>Connect the SMS number provider that powers checkout.</p>
 </div>
 
 <div class="stats-grid mb-3">
   <div class="stat-card">
-    <div class="stat-icon green"><i class="fa-solid fa-server"></i></div>
-    <div class="stat-label">Active Provider</div>
-    <div class="stat-value" style="font-size:1.2rem">5sim</div>
-    <div class="stat-sub text-success">Connected</div>
-  </div>
-  <div class="stat-card">
-    <div class="stat-icon blue"><i class="fa-solid fa-coins"></i></div>
-    <div class="stat-label">Provider Balance</div>
-    <div class="stat-value">248.60</div>
-    <div class="stat-sub">USD equivalent</div>
-  </div>
-  <div class="stat-card">
-    <div class="stat-icon orange"><i class="fa-solid fa-percent"></i></div>
-    <div class="stat-label">Global Markup</div>
-    <div class="stat-value">20%</div>
-    <div class="stat-sub">Applied to provider cost</div>
-  </div>
-  <div class="stat-card">
-    <div class="stat-icon red"><i class="fa-solid fa-money-bill-trend-up"></i></div>
-    <div class="stat-label">Exchange Rate</div>
-    <div class="stat-value">₦1,600</div>
-    <div class="stat-sub">per USD</div>
+    <div class="stat-icon {% if provider_configured %}green{% else %}orange{% endif %}"><i class="fa-solid fa-server"></i></div>
+    <div class="stat-label">5sim Provider</div>
+    <div class="stat-value">
+      {% if provider_configured %}Connected{% else %}Not Configured{% endif %}
+    </div>
+    <div class="stat-sub">
+      {% if demo_mode %}Running in demo mode — orders won't reach the real network.{% else %}Live — orders will book real numbers.{% endif %}
+    </div>
   </div>
 </div>
 
-<div class="card mb-3">
-  <div class="card-header">
-    <div class="card-title"><i class="fa-solid fa-sliders text-orange"></i> Pricing Configuration</div>
-  </div>
-  <form method="POST" action="/admin/action/">
-    {% csrf_token %}
-    <input type="hidden" name="action" value="pricing">
-    <div class="form-row">
+<div style="display:grid;gap:14px">
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title"><i class="fa-solid fa-key text-orange"></i> 5sim API Key</div>
+    </div>
+    <form method="POST" action="/admin/action/">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="save_provider">
       <div class="form-group">
-        <label class="form-label">USD → NGN Exchange Rate</label>
-        <input class="form-control" type="number" step="0.01" name="exchange_rate" value="1600">
+        <label class="form-label">API Key</label>
+        <input class="form-control" type="password" name="provider_api_key" placeholder="Enter your 5sim API key" autocomplete="off">
+        <div class="text-xs text-muted" style="margin-top:4px">
+          {% if provider_configured %}A key is currently stored — type a new one to replace it.{% else %}No key stored — orders fall back to demo mode.{% endif %}
+          Leave blank and save to remove the key and switch to demo mode.
+        </div>
       </div>
-      <div class="form-group">
-        <label class="form-label">Markup Percentage (%)</label>
-        <input class="form-control" type="number" step="0.1" name="markup_pct" value="20">
-      </div>
-    </div>
-    <button type="submit" class="btn btn-primary"><i class="fa-solid fa-floppy-disk"></i> Save Pricing</button>
-  </form>
-</div>
-
-<div class="card mb-3">
-  <div class="card-header">
-    <div class="card-title"><i class="fa-solid fa-key text-orange"></i> Provider API Credentials</div>
+      <button type="submit" class="btn btn-primary"><i class="fa-solid fa-floppy-disk"></i> Save Provider Key</button>
+    </form>
   </div>
-  <form method="POST" action="/admin/action/">
-    {% csrf_token %}
-    <input type="hidden" name="action" value="api_key">
-    <div class="form-group">
-      <label class="form-label">Provider</label>
-      <select class="form-control" name="provider">
-        <option value="5sim" selected>5sim</option>
-        <option value="smshub">SMS-Hub</option>
-        <option value="sms-activate">SMS-Activate</option>
-      </select>
-    </div>
-    <div class="form-group">
-      <label class="form-label">API Key</label>
-      <input class="form-control" type="password" name="api_key" placeholder="••••••••••••••••••••">
-    </div>
-    <button type="submit" class="btn btn-primary"><i class="fa-solid fa-floppy-disk"></i> Save API Key</button>
-  </form>
-</div>
 
-<div class="card">
-  <div class="card-header">
-    <div class="card-title"><i class="fa-solid fa-list text-orange"></i> Cached Services</div>
-    <button class="btn btn-secondary btn-sm"><i class="fa-solid fa-arrows-rotate"></i> Refresh Cache</button>
-  </div>
-  <div class="table-wrap">
-    <table class="table">
-      <thead><tr><th>Service</th><th>Countries</th><th>Avg. Cost (USD)</th><th>Last Synced</th></tr></thead>
-      <tbody>
-        <tr><td><strong>Whatsapp</strong></td><td>142</td><td>$0.30</td><td class="text-xs text-muted">4m ago</td></tr>
-        <tr><td><strong>Telegram</strong></td><td>138</td><td>$0.32</td><td class="text-xs text-muted">4m ago</td></tr>
-        <tr><td><strong>Google</strong></td><td>151</td><td>$0.45</td><td class="text-xs text-muted">4m ago</td></tr>
-        <tr><td><strong>Amazon</strong></td><td>96</td><td>$0.27</td><td class="text-xs text-muted">4m ago</td></tr>
-      </tbody>
-    </table>
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title"><i class="fa-solid fa-gears text-orange"></i> Pricing</div>
+    </div>
+    <div class="text-sm text-muted" style="padding:2px 22px 22px">
+      Exchange rate and markup are configured on the
+      <a href="settings.html" style="color:var(--orange)">Settings</a> page.
+      Customer-facing prices are recalculated from the provider's USD prices automatically.
+    </div>
   </div>
 </div>
 

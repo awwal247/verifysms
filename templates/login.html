@@ -45,6 +45,7 @@
     <div class="alert alert-danger"><i class="fa-solid fa-exclamation-circle"></i> Invalid email or password.</div>
     -->
 
+    {% if messages %}{% for message in messages %}<div class="alert alert-{% if message.tags == 'error' %}danger{% else %}{{ message.tags }}{% endif %}" style="margin-bottom:14px"><i class="fa-solid fa-circle-exclamation"></i> {{ message }}<button class="alert-close" onclick="this.parentElement.remove()">&times;</button></div>{% endfor %}{% endif %}
     <form method="POST" action="/login.html" onsubmit="setLoading(this, true)">
       {% csrf_token %}
       <div class="form-group">

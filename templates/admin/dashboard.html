@@ -105,12 +105,12 @@
         <i class="fa-solid fa-moon" id="themeIcon"></i>
       </button>
       <div class="avatar-btn" onclick="toggleProfileMenu()">
-        <div class="avatar">A</div>
+        <div class="avatar">{{ user.first_name|default:user.email|slice:":1"|upper }}</div>
       </div>
       <div class="profile-menu" id="profileMenu">
         <div class="pm-user">
-          <div class="pm-name">Ada Lovelace</div>
-          <div class="pm-email">ada@example.com</div>
+          <div class="pm-name">{{ user.get_full_name|default:user.email }}</div>
+          <div class="pm-email">{{ user.email }}</div>
         </div>
         <a href="../user/settings.html" class="pm-item">
           <i class="fa-solid fa-gear"></i> Settings
@@ -126,6 +126,8 @@
   </header>
 
   <main class="page-content">
+
+{% if messages %}{% for message in messages %}<div class="alert alert-{% if message.tags == 'error' %}danger{% else %}{{ message.tags }}{% endif %}" style="margin-bottom:14px"><i class="fa-solid fa-circle-exclamation"></i> {{ message }}<button class="alert-close" onclick="this.parentElement.remove()">&times;</button></div>{% endfor %}{% endif %}
 <meta name="csrf" content="{{ csrf_token }}">
 
 <!-- ── Custom Confirm Modal ─────────────────────────────────────────────── -->
@@ -149,41 +151,26 @@
   <div class="stat-card">
     <div class="stat-icon orange"><i class="fa-solid fa-users"></i></div>
     <div class="stat-label">Total Users</div>
-    <div class="stat-value">1,284</div>
+    <div class="stat-value">{{ total_users }}</div>
     <a href="users.html" class="stat-sub" style="color:var(--orange)">Manage users</a>
   </div>
   <div class="stat-card">
     <div class="stat-icon blue"><i class="fa-solid fa-mobile-screen"></i></div>
     <div class="stat-label">Total Orders</div>
-    <div class="stat-value">9,732</div>
-    <div class="stat-sub">14 active now</div>
+    <div class="stat-value">{{ total_orders }}</div>
+    <div class="stat-sub">{{ pending_orders }} pending now</div>
   </div>
   <div class="stat-card">
     <div class="stat-icon green"><i class="fa-solid fa-circle-dollar-to-slot"></i></div>
     <div class="stat-label">Total Revenue</div>
-    <div class="stat-value">₦4,861,200.00</div>
+    <div class="stat-value">&#8358;{{ total_revenue|floatformat:2 }}</div>
     <div class="stat-sub">All orders</div>
   </div>
   <div class="stat-card">
-    <div class="stat-icon red"><i class="fa-solid fa-calendar-day"></i></div>
-    <div class="stat-label">Today's Revenue</div>
-    <div class="stat-value">₦82,340.00</div>
-    <div class="stat-sub">62 orders today</div>
-  </div>
-</div>
-
-<div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:16px">
-  <div class="stat-card">
-    <div class="stat-icon blue"><i class="fa-solid fa-wallet"></i></div>
-    <div class="stat-label">Total Top-Ups</div>
-    <div class="stat-value">₦5,120,500.00</div>
-    <div class="stat-sub text-warning">3 pending</div>
-  </div>
-  <div class="stat-card">
-    <div class="stat-icon green"><i class="fa-solid fa-server"></i></div>
-    <div class="stat-label">Provider Balance</div>
-    <div class="stat-value" style="font-size:1.1rem">248.60</div>
-    <div class="stat-sub">5sim account</div>
+    <div class="stat-icon red"><i class="fa-solid fa-hourglass-half"></i></div>
+    <div class="stat-label">Pending Orders</div>
+    <div class="stat-value">{{ pending_orders }}</div>
+    <div class="stat-sub">Awaiting SMS or action</div>
   </div>
 </div>
 
@@ -200,33 +187,27 @@
           <tr><th>User</th><th>Service</th><th>Phone</th><th>Country</th><th>Price</th><th>Status</th><th>Date</th></tr>
         </thead>
         <tbody>
+          {% for o in orders %}
           <tr>
-            <td><strong>Ada Lovelace</strong><div class="text-xs text-muted">ada@example.com</div></td>
-            <td>Whatsapp</td>
-            <td><span class="number-chip">+234 812 345 6789</span></td>
-            <td>Nigeria</td>
-            <td class="text-orange fw-bold">₦480.00</td>
-            <td><span class="badge badge-success">SMS Received</span></td>
-            <td class="text-xs text-muted">12m ago</td>
+            <td><strong>{{ o.user.first_name|default:o.user.email }}</strong><div class="text-xs text-muted">{{ o.user.email }}</div></td>
+            <td>{{ o.product }}</td>
+            <td><span class="number-chip">{{ o.phone }}</span></td>
+            <td>{{ o.country }}</td>
+            <td class="text-orange fw-bold">&#8358;{{ o.user_price|floatformat:2 }}</td>
+            <td>
+              {% if o.status == 'PENDING' %}<span class="badge badge-pending">Pending</span>
+              {% elif o.status == 'RECEIVED' %}<span class="badge badge-success">SMS Received</span>
+              {% elif o.status == 'FINISHED' %}<span class="badge badge-info">Finished</span>
+              {% elif o.status == 'CANCELED' %}<span class="badge badge-danger">Canceled</span>
+              {% elif o.status == 'TIMEOUT' %}<span class="badge badge-warning">Expired</span>
+              {% elif o.status == 'BANNED' %}<span class="badge badge-danger">Banned</span>
+              {% else %}<span class="badge badge-pending">{{ o.status }}</span>{% endif %}
+            </td>
+            <td class="text-xs text-muted">{{ o.created_at|date:"M j, Y H:i" }}</td>
           </tr>
-          <tr>
-            <td><strong>Kunle Adebayo</strong><div class="text-xs text-muted">kunle@example.com</div></td>
-            <td>Telegram</td>
-            <td><span class="number-chip">+44 7911 123456</span></td>
-            <td>England</td>
-            <td class="text-orange fw-bold">₦620.00</td>
-            <td><span class="badge badge-pending">Pending</span></td>
-            <td class="text-xs text-muted">38m ago</td>
-          </tr>
-          <tr>
-            <td><strong>Chidera Obi</strong><div class="text-xs text-muted">chidera@example.com</div></td>
-            <td>Google</td>
-            <td><span class="number-chip">+1 415 555 0192</span></td>
-            <td>Usa</td>
-            <td class="text-orange fw-bold">₦910.00</td>
-            <td><span class="badge badge-info">Finished</span></td>
-            <td class="text-xs text-muted">2h ago</td>
-          </tr>
+          {% empty %}
+          <tr><td colspan="7" class="text-muted text-sm" style="text-align:center;padding:18px">No orders yet.</td></tr>
+          {% endfor %}
         </tbody>
       </table>
     </div>
@@ -244,27 +225,21 @@
           <tr><th>Name</th><th>Email</th><th>Balance</th><th>Status</th><th>Joined</th></tr>
         </thead>
         <tbody>
+          {% for u in users %}
           <tr>
-            <td><strong>Ada Lovelace</strong></td>
-            <td class="text-muted text-sm">ada@example.com</td>
-            <td class="text-orange fw-bold">₦12,450.00</td>
-            <td><span class="badge badge-success">Active</span></td>
-            <td class="text-xs text-muted">3d ago</td>
+            <td><strong>{{ u.first_name|default:u.email }}</strong></td>
+            <td class="text-muted text-sm">{{ u.email }}</td>
+            <td class="text-orange fw-bold">&#8358;{{ u.balance|floatformat:2 }}</td>
+            <td>
+              {% if u.status == 'active' %}<span class="badge badge-success">Active</span>
+              {% elif u.status == 'banned' %}<span class="badge badge-danger">Banned</span>
+              {% else %}<span class="badge badge-warning">{{ u.status|title }}</span>{% endif %}
+            </td>
+            <td class="text-xs text-muted">{{ u.date_joined|date:"M j, Y" }}</td>
           </tr>
-          <tr>
-            <td><strong>Kunle Adebayo</strong></td>
-            <td class="text-muted text-sm">kunle@example.com</td>
-            <td class="text-orange fw-bold">₦3,200.00</td>
-            <td><span class="badge badge-success">Active</span></td>
-            <td class="text-xs text-muted">5d ago</td>
-          </tr>
-          <tr>
-            <td><strong>Chidera Obi</strong></td>
-            <td class="text-muted text-sm">chidera@example.com</td>
-            <td class="text-orange fw-bold">₦0.00</td>
-            <td><span class="badge badge-danger">Banned</span></td>
-            <td class="text-xs text-muted">9d ago</td>
-          </tr>
+          {% empty %}
+          <tr><td colspan="5" class="text-muted text-sm" style="text-align:center;padding:18px">No users yet.</td></tr>
+          {% endfor %}
         </tbody>
       </table>
     </div>

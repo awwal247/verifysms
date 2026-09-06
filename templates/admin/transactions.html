@@ -105,12 +105,12 @@
         <i class="fa-solid fa-moon" id="themeIcon"></i>
       </button>
       <div class="avatar-btn" onclick="toggleProfileMenu()">
-        <div class="avatar">A</div>
+        <div class="avatar">{{ user.first_name|default:user.email|slice:":1"|upper }}</div>
       </div>
       <div class="profile-menu" id="profileMenu">
         <div class="pm-user">
-          <div class="pm-name">Ada Lovelace</div>
-          <div class="pm-email">ada@example.com</div>
+          <div class="pm-name">{{ user.get_full_name|default:user.email }}</div>
+          <div class="pm-email">{{ user.email }}</div>
         </div>
         <a href="../user/settings.html" class="pm-item">
           <i class="fa-solid fa-gear"></i> Settings
@@ -126,6 +126,8 @@
   </header>
 
   <main class="page-content">
+
+{% if messages %}{% for message in messages %}<div class="alert alert-{% if message.tags == 'error' %}danger{% else %}{{ message.tags }}{% endif %}" style="margin-bottom:14px"><i class="fa-solid fa-circle-exclamation"></i> {{ message }}<button class="alert-close" onclick="this.parentElement.remove()">&times;</button></div>{% endfor %}{% endif %}
 <meta name="csrf" content="{{ csrf_token }}">
 
 <!-- ── Custom Confirm Modal ─────────────────────────────────────────────── -->
@@ -142,99 +144,118 @@
 </div>
 <div class="page-hero">
   <h2><i class="fa-solid fa-receipt" style="color:var(--orange)"></i> Transactions</h2>
-  <p>All orders and wallet transactions across the platform.</p>
+  <p>All orders, wallet movements and top-ups across the platform.</p>
 </div>
 
-<!-- Tabs -->
-<div style="display:flex;gap:4px;margin-bottom:16px;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-sm);padding:4px;width:fit-content">
-  <a href="transactions.html?tab=orders" class="btn btn-sm btn-primary" style="border:none">
-    <i class="fa-solid fa-mobile-screen"></i> Orders
-  </a>
-  <a href="transactions.html?tab=wallet" class="btn btn-sm btn-ghost" style="border:none">
-    <i class="fa-solid fa-wallet"></i> Wallet
-  </a>
-</div>
-
-<!-- Filter bar -->
-<form method="GET" action="/admin/transactions.html" class="filter-bar mb-3">
-  <input class="form-control" type="text" name="q" placeholder="Search user or phone...">
-  <select class="form-control" name="status" style="max-width:170px">
-    <option value="">All Statuses</option>
-    <option value="pending">Pending</option>
-    <option value="received">SMS Received</option>
-    <option value="finished">Finished</option>
-    <option value="expired">Expired</option>
-    <option value="cancelled">Cancelled</option>
-  </select>
-  <button type="submit" class="btn btn-secondary"><i class="fa-solid fa-filter"></i> Filter</button>
-</form>
-
-<div class="card">
+<div class="card mb-3">
+  <div class="card-header">
+    <div class="card-title"><i class="fa-solid fa-mobile-screen text-orange"></i> Orders</div>
+  </div>
   <div class="table-wrap">
     <table class="table">
       <thead>
         <tr>
           <th>#</th><th>User</th><th>Service</th><th>Phone</th><th>Country</th>
-          <th>Operator</th><th>Cost</th><th>Price</th><th>Status</th><th>Date</th>
+          <th>Price</th><th>Status</th><th>Date</th>
         </tr>
       </thead>
       <tbody>
+        {% for o in orders %}
         <tr>
-          <td class="text-xs text-dim">1047</td>
-          <td class="text-sm">Ada Lovelace</td>
-          <td>Whatsapp</td>
-          <td><span class="number-chip">+234 812 345 6789</span></td>
-          <td>Nigeria</td>
-          <td class="text-muted text-sm">Mtn</td>
-          <td class="text-muted text-sm">₦230.40</td>
-          <td class="text-orange fw-bold">₦480.00</td>
-          <td><span class="badge badge-success">SMS Received</span></td>
-          <td class="text-xs text-muted">12m ago</td>
+          <td class="text-xs text-dim">{{ o.id }}</td>
+          <td class="text-sm"><strong>{{ o.user.first_name|default:o.user.email }}</strong><div class="text-xs text-muted">{{ o.user.email }}</div></td>
+          <td>{{ o.product }}</td>
+          <td><span class="number-chip">{{ o.phone }}</span></td>
+          <td>{{ o.country }}</td>
+          <td class="text-orange fw-bold">&#8358;{{ o.user_price|floatformat:2 }}</td>
+          <td>
+            {% if o.status == 'PENDING' %}<span class="badge badge-pending">Pending</span>
+            {% elif o.status == 'RECEIVED' %}<span class="badge badge-success">SMS Received</span>
+            {% elif o.status == 'FINISHED' %}<span class="badge badge-info">Finished</span>
+            {% elif o.status == 'CANCELED' %}<span class="badge badge-danger">Canceled</span>
+            {% elif o.status == 'TIMEOUT' %}<span class="badge badge-warning">Expired</span>
+            {% elif o.status == 'BANNED' %}<span class="badge badge-danger">Banned</span>
+            {% else %}<span class="badge badge-pending">{{ o.status }}</span>{% endif %}
+          </td>
+          <td class="text-xs text-muted">{{ o.created_at|date:"M j, Y H:i" }}</td>
         </tr>
-        <tr>
-          <td class="text-xs text-dim">1046</td>
-          <td class="text-sm">Kunle Adebayo</td>
-          <td>Telegram</td>
-          <td><span class="number-chip">+44 7911 123456</span></td>
-          <td>England</td>
-          <td class="text-muted text-sm">Any</td>
-          <td class="text-muted text-sm">₦300.00</td>
-          <td class="text-orange fw-bold">₦620.00</td>
-          <td><span class="badge badge-pending">Pending</span></td>
-          <td class="text-xs text-muted">38m ago</td>
-        </tr>
-        <tr>
-          <td class="text-xs text-dim">1045</td>
-          <td class="text-sm">Chidera Obi</td>
-          <td>Google</td>
-          <td><span class="number-chip">+1 415 555 0192</span></td>
-          <td>Usa</td>
-          <td class="text-muted text-sm">Any</td>
-          <td class="text-muted text-sm">₦450.00</td>
-          <td class="text-orange fw-bold">₦910.00</td>
-          <td><span class="badge badge-info">Finished</span></td>
-          <td class="text-xs text-muted">2h ago</td>
-        </tr>
-        <tr>
-          <td class="text-xs text-dim">1044</td>
-          <td class="text-sm">Ada Lovelace</td>
-          <td>Amazon</td>
-          <td><span class="number-chip">+234 703 210 8842</span></td>
-          <td>Nigeria</td>
-          <td class="text-muted text-sm">Glo</td>
-          <td class="text-muted text-sm">₦260.00</td>
-          <td class="text-orange fw-bold">₦540.00</td>
-          <td><span class="badge badge-warning">Expired</span></td>
-          <td class="text-xs text-muted">1d ago</td>
-        </tr>
+        {% empty %}
+        <tr><td colspan="8" class="text-muted text-sm" style="text-align:center;padding:18px">No orders yet.</td></tr>
+        {% endfor %}
       </tbody>
     </table>
   </div>
-  <div class="pagination">
-    <a href="?tab=orders&page=1" class="page-btn active">1</a>
-    <a href="?tab=orders&page=2" class="page-btn">2</a>
-    <a href="?tab=orders&page=3" class="page-btn">3</a>
-    <a href="?tab=orders&page=2" class="page-btn">&#8594;</a>
+</div>
+
+<div class="card mb-3">
+  <div class="card-header">
+    <div class="card-title"><i class="fa-solid fa-wallet text-orange"></i> Wallet Transactions</div>
+  </div>
+  <div class="table-wrap">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>#</th><th>User</th><th>Type</th><th>Amount</th><th>Balance After</th>
+          <th>Description</th><th>Status</th><th>Date</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for t in transactions %}
+        <tr>
+          <td class="text-xs text-dim">{{ t.id }}</td>
+          <td class="text-sm"><strong>{{ t.user.first_name|default:t.user.email }}</strong></td>
+          <td>{{ t.type|title }}</td>
+          <td class="{% if t.amount < 0 %}text-danger{% else %}text-success{% endif %} fw-bold">&#8358;{{ t.amount|floatformat:2 }}</td>
+          <td class="text-muted text-sm">&#8358;{{ t.balance_after|floatformat:2 }}</td>
+          <td class="text-sm text-muted">{{ t.description|default:"—" }}</td>
+          <td>
+            {% if t.status == 'success' %}<span class="badge badge-success">Success</span>
+            {% elif t.status == 'pending' %}<span class="badge badge-pending">Pending</span>
+            {% else %}<span class="badge badge-danger">{{ t.status|title }}</span>{% endif %}
+          </td>
+          <td class="text-xs text-muted">{{ t.created_at|date:"M j, Y H:i" }}</td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="8" class="text-muted text-sm" style="text-align:center;padding:18px">No wallet transactions yet.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-header">
+    <div class="card-title"><i class="fa-solid fa-circle-dollar-to-slot text-orange"></i> Top-ups</div>
+  </div>
+  <div class="table-wrap">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>#</th><th>User</th><th>Paid</th><th>Fee</th><th>Credited</th>
+          <th>Reference</th><th>Status</th><th>Date</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for t in topups %}
+        <tr>
+          <td class="text-xs text-dim">{{ t.id }}</td>
+          <td class="text-sm"><strong>{{ t.user.first_name|default:t.user.email }}</strong></td>
+          <td class="text-muted text-sm">&#8358;{{ t.amount_paid|floatformat:2 }}</td>
+          <td class="text-muted text-sm">&#8358;{{ t.fee_amount|floatformat:2 }}</td>
+          <td class="text-success fw-bold">&#8358;{{ t.net_credited|floatformat:2 }}</td>
+          <td class="text-sm text-muted">{{ t.reference }}</td>
+          <td>
+            {% if t.status == 'success' %}<span class="badge badge-success">Success</span>
+            {% elif t.status == 'pending' %}<span class="badge badge-pending">Pending</span>
+            {% else %}<span class="badge badge-danger">{{ t.status|title }}</span>{% endif %}
+          </td>
+          <td class="text-xs text-muted">{{ t.created_at|date:"M j, Y H:i" }}</td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="8" class="text-muted text-sm" style="text-align:center;padding:18px">No top-ups yet.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
   </div>
 </div>
 

@@ -105,12 +105,12 @@
         <i class="fa-solid fa-moon" id="themeIcon"></i>
       </button>
       <div class="avatar-btn" onclick="toggleProfileMenu()">
-        <div class="avatar">A</div>
+        <div class="avatar">{{ user.first_name|default:user.email|slice:":1"|upper }}</div>
       </div>
       <div class="profile-menu" id="profileMenu">
         <div class="pm-user">
-          <div class="pm-name">Ada Lovelace</div>
-          <div class="pm-email">ada@example.com</div>
+          <div class="pm-name">{{ user.get_full_name|default:user.email }}</div>
+          <div class="pm-email">{{ user.email }}</div>
         </div>
         <a href="../user/settings.html" class="pm-item">
           <i class="fa-solid fa-gear"></i> Settings
@@ -126,6 +126,8 @@
   </header>
 
   <main class="page-content">
+
+{% if messages %}{% for message in messages %}<div class="alert alert-{% if message.tags == 'error' %}danger{% else %}{{ message.tags }}{% endif %}" style="margin-bottom:14px"><i class="fa-solid fa-circle-exclamation"></i> {{ message }}<button class="alert-close" onclick="this.parentElement.remove()">&times;</button></div>{% endfor %}{% endif %}
 <meta name="csrf" content="{{ csrf_token }}">
 
 <!-- ── Custom Confirm Modal ─────────────────────────────────────────────── -->
@@ -147,10 +149,10 @@
 
 <!-- Search bar -->
 <form method="GET" action="/admin/users.html" class="filter-bar mb-3">
-  <input class="form-control" type="text" name="q" placeholder="Search name or email...">
+  <input class="form-control" type="text" name="q" value="{{ request.GET.q }}" placeholder="Search name or email...">
   <button type="submit" class="btn btn-secondary"><i class="fa-solid fa-magnifying-glass"></i></button>
   <div style="margin-left:auto;color:var(--text-muted);font-size:0.82rem;white-space:nowrap">
-    1,284 users
+    {{ users|length }} user{{ users|length|pluralize }}
   </div>
 </form>
 
@@ -164,91 +166,65 @@
         </tr>
       </thead>
       <tbody>
+        {% for u in users %}
         <tr>
-          <td class="text-xs text-dim">1</td>
-          <td><strong>Ada Lovelace</strong></td>
-          <td class="text-muted text-sm">ada@example.com</td>
-          <td class="text-orange fw-bold">₦12,450.00</td>
-          <td>47</td>
-          <td><span class="badge badge-success">Active</span></td>
-          <td class="text-xs text-muted">Mar 4, 2025</td>
+          <td class="text-xs text-dim">{{ u.id }}</td>
+          <td><strong>{{ u.first_name|default:"—" }}</strong></td>
+          <td class="text-muted text-sm">{{ u.email }}</td>
+          <td class="text-orange fw-bold">&#8358;{{ u.balance|floatformat:2 }}</td>
+          <td>{{ u.order_count }}</td>
           <td>
-            <div class="admin-table-actions">
-              <button class="btn btn-ghost btn-sm btn-icon" title="Adjust Balance"
-                      onclick="openBalanceModal(1, 'Ada Lovelace', '₦12,450.00')">
-                <i class="fa-solid fa-wallet"></i>
-              </button>
-              <form method="POST" action="/admin/action/" style="display:inline">
-                {% csrf_token %}
-                <input type="hidden" name="action" value="ban">
-                <input type="hidden" name="user_id" value="1">
-                <button class="btn btn-danger btn-sm btn-icon" title="Ban User"
-                        onclick="confirmAndSubmit(event,'Ban this user? They will lose access immediately.',this,true)">
-                  <i class="fa-solid fa-ban"></i>
-                </button>
-              </form>
-            </div>
+            {% if u.status == 'active' %}<span class="badge badge-success">Active</span>
+            {% elif u.status == 'banned' %}<span class="badge badge-danger">Banned</span>
+            {% else %}<span class="badge badge-warning">{{ u.status|title }}</span>{% endif %}
           </td>
-        </tr>
-        <tr>
-          <td class="text-xs text-dim">2</td>
-          <td><strong>Kunle Adebayo</strong></td>
-          <td class="text-muted text-sm">kunle@example.com</td>
-          <td class="text-orange fw-bold">₦3,200.00</td>
-          <td>19</td>
-          <td><span class="badge badge-success">Active</span></td>
-          <td class="text-xs text-muted">Feb 21, 2025</td>
+          <td class="text-xs text-muted">{{ u.date_joined|date:"M j, Y" }}</td>
           <td>
             <div class="admin-table-actions">
               <button class="btn btn-ghost btn-sm btn-icon" title="Adjust Balance"
-                      onclick="openBalanceModal(2, 'Kunle Adebayo', '₦3,200.00')">
+                      onclick="openBalanceModal({{ u.id }}, '{{ u.first_name|default:u.email|escapejs }}', '{{ u.balance|floatformat:2 }}')">
                 <i class="fa-solid fa-wallet"></i>
               </button>
-              <form method="POST" action="/admin/action/" style="display:inline">
-                {% csrf_token %}
-                <input type="hidden" name="action" value="ban">
-                <input type="hidden" name="user_id" value="2">
-                <button class="btn btn-danger btn-sm btn-icon" title="Ban User"
-                        onclick="confirmAndSubmit(event,'Ban this user? They will lose access immediately.',this,true)">
-                  <i class="fa-solid fa-ban"></i>
-                </button>
-              </form>
-            </div>
-          </td>
-        </tr>
-        <tr>
-          <td class="text-xs text-dim">3</td>
-          <td><strong>Chidera Obi</strong></td>
-          <td class="text-muted text-sm">chidera@example.com</td>
-          <td class="text-orange fw-bold">₦0.00</td>
-          <td>6</td>
-          <td><span class="badge badge-danger">Banned</span></td>
-          <td class="text-xs text-muted">Jan 9, 2025</td>
-          <td>
-            <div class="admin-table-actions">
-              <button class="btn btn-ghost btn-sm btn-icon" title="Adjust Balance"
-                      onclick="openBalanceModal(3, 'Chidera Obi', '₦0.00')">
-                <i class="fa-solid fa-wallet"></i>
-              </button>
+              {% if u.status == 'banned' %}
               <form method="POST" action="/admin/action/" style="display:inline">
                 {% csrf_token %}
                 <input type="hidden" name="action" value="activate">
-                <input type="hidden" name="user_id" value="3">
-                <button class="btn btn-success btn-sm btn-icon" title="Activate User">
-                  <i class="fa-solid fa-check"></i>
+                <input type="hidden" name="user_id" value="{{ u.id }}">
+                <button class="btn btn-success btn-sm btn-icon" title="Activate User"
+                        onclick="confirmAndSubmit(event,'Activate this user? They will regain access.',this)">
+                  <i class="fa-solid fa-user-check"></i>
+                </button>
+              </form>
+              {% else %}
+              <form method="POST" action="/admin/action/" style="display:inline">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="ban">
+                <input type="hidden" name="user_id" value="{{ u.id }}">
+                <button class="btn btn-danger btn-sm btn-icon" title="Ban User"
+                        onclick="confirmAndSubmit(event,'Ban this user? They will lose access immediately.',this,true)">
+                  <i class="fa-solid fa-ban"></i>
+                </button>
+              </form>
+              {% endif %}
+              <form method="POST" action="/admin/action/" style="display:inline">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="delete">
+                <input type="hidden" name="user_id" value="{{ u.id }}">
+                <button class="btn btn-danger btn-sm btn-icon" title="Delete User"
+                        onclick="confirmAndSubmit(event,'Permanently delete this user and their history? This cannot be undone.',this,true)">
+                  <i class="fa-solid fa-trash"></i>
                 </button>
               </form>
             </div>
           </td>
         </tr>
+        {% empty %}
+        <tr><td colspan="8" class="text-muted text-sm" style="text-align:center;padding:18px">
+          {% if request.GET.q %}No users match "{{ request.GET.q }}".{% else %}No registered users yet.{% endif %}
+        </td></tr>
+        {% endfor %}
       </tbody>
     </table>
-  </div>
-  <div class="pagination">
-    <a href="?page=1" class="page-btn active">1</a>
-    <a href="?page=2" class="page-btn">2</a>
-    <a href="?page=3" class="page-btn">3</a>
-    <a href="?page=2" class="page-btn">&#8594;</a>
   </div>
 </div>
 

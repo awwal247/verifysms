@@ -105,12 +105,12 @@
         <i class="fa-solid fa-moon" id="themeIcon"></i>
       </button>
       <div class="avatar-btn" onclick="toggleProfileMenu()">
-        <div class="avatar">A</div>
+        <div class="avatar">{{ user.first_name|default:user.email|slice:":1"|upper }}</div>
       </div>
       <div class="profile-menu" id="profileMenu">
         <div class="pm-user">
-          <div class="pm-name">Ada Lovelace</div>
-          <div class="pm-email">ada@example.com</div>
+          <div class="pm-name">{{ user.get_full_name|default:user.email }}</div>
+          <div class="pm-email">{{ user.email }}</div>
         </div>
         <a href="../user/settings.html" class="pm-item">
           <i class="fa-solid fa-gear"></i> Settings
@@ -126,6 +126,8 @@
   </header>
 
   <main class="page-content">
+
+{% if messages %}{% for message in messages %}<div class="alert alert-{% if message.tags == 'error' %}danger{% else %}{{ message.tags }}{% endif %}" style="margin-bottom:14px"><i class="fa-solid fa-circle-exclamation"></i> {{ message }}<button class="alert-close" onclick="this.parentElement.remove()">&times;</button></div>{% endfor %}{% endif %}
 <meta name="csrf" content="{{ csrf_token }}">
 
 <!-- ── Custom Confirm Modal ─────────────────────────────────────────────── -->
@@ -198,24 +200,23 @@
     <table class="table">
       <thead><tr><th>User</th><th>Amount Paid</th><th>Fee</th><th>Credited</th><th>Reference</th><th>Status</th><th>Date</th></tr></thead>
       <tbody>
+        {% for t in topups %}
         <tr>
-          <td class="text-sm">Ada Lovelace</td>
-          <td class="fw-bold">₦10,000.00</td>
-          <td class="text-danger text-sm">−₦300.00</td>
-          <td class="text-success fw-bold">₦9,700.00</td>
-          <td class="text-xs text-dim">PSK_8271AB</td>
-          <td><span class="badge badge-success">Success</span></td>
-          <td class="text-xs text-muted">Aug 24, 3:12pm</td>
+          <td class="text-sm"><strong>{{ t.user.first_name|default:t.user.email }}</strong></td>
+          <td class="fw-bold">&#8358;{{ t.amount_paid|floatformat:2 }}</td>
+          <td class="text-danger text-sm">-&#8358;{{ t.fee_amount|floatformat:2 }}</td>
+          <td class="text-success fw-bold">&#8358;{{ t.net_credited|floatformat:2 }}</td>
+          <td class="text-xs text-dim">{{ t.reference }}</td>
+          <td>
+            {% if t.status == 'success' %}<span class="badge badge-success">Success</span>
+            {% elif t.status == 'pending' %}<span class="badge badge-pending">Pending</span>
+            {% else %}<span class="badge badge-danger">{{ t.status|title }}</span>{% endif %}
+          </td>
+          <td class="text-xs text-muted">{{ t.created_at|date:"M j, Y H:i" }}</td>
         </tr>
-        <tr>
-          <td class="text-sm">Kunle Adebayo</td>
-          <td class="fw-bold">₦2,000.00</td>
-          <td class="text-danger text-sm">−₦60.00</td>
-          <td class="text-success fw-bold">₦1,940.00</td>
-          <td class="text-xs text-dim">PSK_9910KL</td>
-          <td><span class="badge badge-pending">Pending</span></td>
-          <td class="text-xs text-muted">Aug 12, 8:47am</td>
-        </tr>
+        {% empty %}
+        <tr><td colspan="7" class="text-muted text-sm" style="text-align:center;padding:18px">No top-ups yet.</td></tr>
+        {% endfor %}
       </tbody>
     </table>
   </div>

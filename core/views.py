@@ -1,13 +1,13 @@
 import json
 import uuid
-from datetime import timedelta
+from datetime import datetime, timedelta
 from decimal import Decimal
 
 from django.contrib import messages
-from django.contrib.auth import authenticate, login, logout
+from django.contrib.auth import authenticate, login, logout, update_session_auth_hash
 from django.contrib.auth.decorators import login_required
 from django.db import transaction
-from django.db.models import Q, Sum
+from django.db.models import Count, Q, Sum
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
@@ -27,7 +27,7 @@ def _page_context(request, page):
     context = {"page": page, "current_user": user}
     if getattr(user, "is_authenticated", False):
         context["wallet_balance"] = format_ngn(user.balance)
-        context["active_orders_count"] = Order.objects.filter(user=user, status="PENDING").count()
+        context["active_orders_count"] = Order.objects.filter(user=user, status__in=("PENDING", "RECEIVED")).count()
     return context
 
 
@@ -97,19 +97,20 @@ def user_page(request, page):
     if page == "dashboard":
         context.update(
             total_orders=Order.objects.filter(user=request.user).count(),
-            active_orders=Order.objects.filter(user=request.user, status="PENDING").count(),
-            total_spent=Order.objects.filter(user=request.user).aggregate(total=Sum("user_price"))["total"] or Decimal("0"),
+            active_orders=Order.objects.filter(user=request.user, status__in=("PENDING", "RECEIVED")).count(),
+            total_spent=format_ngn(Order.objects.filter(user=request.user).aggregate(total=Sum("user_price"))["total"] or Decimal("0")),
             total_topups=Topup.objects.filter(user=request.user, status="success").aggregate(total=Sum("net_credited"))["total"] or Decimal("0"),
             recent_orders=Order.objects.filter(user=request.user).order_by("-created_at")[:3],
             recent_transactions=Transaction.objects.filter(user=request.user).order_by("-created_at")[:3],
         )
     elif page == "cart":
-        context["orders"] = Order.objects.filter(user=request.user).filter(
-            Q(status="PENDING") | Q(updated_at__gte=timezone.now() - timedelta(hours=2))
-        ).order_by("-created_at")
+        context["orders"] = Order.objects.filter(user=request.user, status__in=("PENDING", "RECEIVED")).order_by("-created_at")
     elif page == "history":
         context["orders"] = Order.objects.filter(user=request.user).order_by("-created_at")
         context["transactions"] = Transaction.objects.filter(user=request.user).order_by("-created_at")
+    elif page == "services":
+        context["site_rate"] = Setting.value("site_rate", "1600")
+        context["markup_percent"] = Setting.value("markup_percent", "20")
     elif page == "topup":
         context.update(
             min_topup=Setting.value("min_topup", "500"),
@@ -120,7 +121,18 @@ def user_page(request, page):
         )
     elif page == "sms":
         order_id = request.GET.get("order_id")
-        context["order"] = get_object_or_404(Order, pk=order_id, user=request.user) if order_id else None
+        qs = Order.objects.filter(user=request.user, status__in=("PENDING", "RECEIVED"))
+        if order_id:
+            try:
+                context["order"] = qs.get(pk=order_id)
+            except Order.DoesNotExist:
+                return redirect("/user/cart.html")
+        else:
+            # Default to the most useful active order: one with an SMS first.
+            context["order"] = qs.order_by("-status", "-created_at").first()
+        context["active_count"] = qs.count()
+    elif page == "settings":
+        context["total_spent"] = format_ngn(Order.objects.filter(user=request.user).aggregate(total=Sum("user_price"))["total"] or Decimal("0"))
     if request.method == "POST" and page == "settings":
         name = request.POST.get("name", "").strip()
         if name:
@@ -153,19 +165,21 @@ def admin_page(request, page):
             total_users=User.objects.filter(role="user").count(),
             total_orders=Order.objects.count(),
             pending_orders=Order.objects.filter(status="PENDING").count(),
-            total_revenue=Transaction.objects.filter(type="purchase").aggregate(total=Sum("amount"))["total"] or Decimal("0"),
+            total_revenue=abs(Transaction.objects.filter(type="purchase").aggregate(total=Sum("amount"))["total"] or Decimal("0")),
             users=User.objects.filter(role="user").order_by("-date_joined")[:5],
             orders=Order.objects.select_related("user").order_by("-created_at")[:8],
         )
     elif page == "users":
         query = request.GET.get("q", "").strip()
-        context["users"] = User.objects.filter(role="user").filter(Q(email__icontains=query) | Q(first_name__icontains=query)) if query else User.objects.filter(role="user")
+        users = User.objects.filter(role="user").filter(Q(email__icontains=query) | Q(first_name__icontains=query)) if query else User.objects.filter(role="user")
+        context["users"] = users.annotate(order_count=Count("orders")).order_by("-date_joined")
     elif page == "transactions":
         context["orders"] = Order.objects.select_related("user").order_by("-created_at")
         context["transactions"] = Transaction.objects.select_related("user").order_by("-created_at")
         context["topups"] = Topup.objects.select_related("user").order_by("-created_at")
     elif page == "coupons":
         context["coupons"] = Coupon.objects.order_by("-created_at")
+        context["now"] = timezone.now()
     elif page == "providers":
         context["provider_configured"] = bool(FiveSim._key())
         context["demo_mode"] = not bool(FiveSim._key())
@@ -175,6 +189,7 @@ def admin_page(request, page):
         context["fee_pct"] = Setting.value("topup_fee_percent", "3")
         context["min_topup"] = Setting.value("min_topup", "500")
         context["max_topup"] = Setting.value("max_topup", "500000")
+        context["topups"] = Topup.objects.select_related("user").order_by("-created_at")[:10]
     elif page == "settings":
         context["settings"] = {key: Setting.value(key, default) for key, default in {
             "site_name": "VerifySMS", "site_rate": "1600", "markup_percent": "20",
@@ -411,10 +426,19 @@ def admin_action(request):
             elif Coupon.objects.filter(code=code).exists():
                 messages.error(request, "That coupon code already exists.")
             else:
+                valid_until = request.POST.get("valid_until", "").strip()
+                try:
+                    valid_until = datetime.fromisoformat(valid_until) if valid_until else None
+                    if valid_until is not None and not timezone.is_aware(valid_until):
+                        valid_until = timezone.make_aware(valid_until)
+                except ValueError:
+                    valid_until = None
+                    messages.warning(request, "Expiry date ignored — invalid format.")
                 Coupon.objects.create(
                     code=code, description=request.POST.get("description", ""), discount_type=request.POST.get("discount_type", "percent"),
                     discount_value=money(request.POST.get("discount_value", "0")), min_purchase=money(request.POST.get("min_purchase", "0")),
                     max_uses=int(request.POST["max_uses"]) if request.POST.get("max_uses") else None, target_users=request.POST.get("target_users", "all"),
+                    valid_until=valid_until,
                 )
                 messages.success(request, "Coupon created.")
         else:
@@ -426,6 +450,19 @@ def admin_action(request):
                 coupon.delete()
             messages.success(request, "Coupon updated.")
         return redirect("/admin/coupons.html")
+    if action == "admin_password":
+        new_password = request.POST.get("new_password", "")
+        confirm_password = request.POST.get("confirm_password", "")
+        if len(new_password) < 6:
+            messages.error(request, "Password must be at least 6 characters.")
+        elif new_password != confirm_password:
+            messages.error(request, "Passwords do not match.")
+        else:
+            request.user.set_password(new_password)
+            request.user.save(update_fields=["password", "updated_at"])
+            update_session_auth_hash(request, request.user)
+            messages.success(request, "Password updated successfully.")
+        return redirect("/admin/settings.html")
     return _json({"success": False, "message": "Unknown admin action."}, 400)
 
 
