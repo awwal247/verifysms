@@ -22,7 +22,7 @@ class Command(BaseCommand):
             "site_rate": ("1600", "NGN per provider USD"),
             "markup_percent": ("20", "Provider price markup"),
             "topup_fee_percent": ("3", "Wallet top-up fee"),
-            "min_topup": ("500", "Minimum wallet top-up"),
+            "min_topup": ("100", "Minimum wallet top-up"),
             "max_topup": ("500000", "Maximum wallet top-up"),
             "sms_poll_interval": ("5", "SMS polling interval"),
             "maintenance_mode": ("0", "Maintenance mode"),

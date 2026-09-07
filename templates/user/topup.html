@@ -226,13 +226,15 @@
           border-radius:var(--radius-sm) 0 0 var(--radius-sm);
           color:var(--text-muted);font-weight:700;font-size:1rem">₦</span>
         <input class="form-control" type="number" id="amountInput"
-          placeholder="0.00" min="500" max="500000"
+          placeholder="0.00" min="100" max="500000"
           step="1" oninput="onAmountChange(this.value)"
           style="border-radius:0 var(--radius-sm) var(--radius-sm) 0">
       </div>
     </div>
 
     <div class="quick-amounts">
+      <button type="button" class="qa-btn" data-amount="100" onclick="setAmount(100)">₦100.00</button>
+      <button type="button" class="qa-btn" data-amount="200" onclick="setAmount(200)">₦200.00</button>
       <button type="button" class="qa-btn" data-amount="500" onclick="setAmount(500)">₦500.00</button>
       <button type="button" class="qa-btn" data-amount="1000" onclick="setAmount(1000)">₦1,000.00</button>
       <button type="button" class="qa-btn" data-amount="2000" onclick="setAmount(2000)">₦2,000.00</button>
@@ -321,7 +323,7 @@
    ── */
 const FEE_PCT  = parseFloat('{{ fee_percent|default:"3" }}') || 3;
 const WALLET   = parseFloat('{{ current_user.balance|default:"0" }}') || 0;
-const MIN_AMT  = parseFloat('{{ min_topup|default:"500" }}') || 500;
+const MIN_AMT  = parseFloat('{{ min_topup|default:"100" }}') || 100;
 const MAX_AMT  = parseFloat('{{ max_topup|default:"500000" }}') || 500000;
 
 function fmt(n){

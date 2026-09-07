@@ -113,7 +113,7 @@ def user_page(request, page):
         context["markup_percent"] = Setting.value("markup_percent", "20")
     elif page == "topup":
         context.update(
-            min_topup=Setting.value("min_topup", "500"),
+            min_topup=Setting.value("min_topup", "100"),
             max_topup=Setting.value("max_topup", "500000"),
             fee_percent=Setting.value("topup_fee_percent", "3"),
             paystack_public_key=Paystack.public_key(),
@@ -187,13 +187,13 @@ def admin_page(request, page):
         context["payment_configured"] = bool(Paystack.secret_key())
         context["public_key"] = Paystack.public_key()
         context["fee_pct"] = Setting.value("topup_fee_percent", "3")
-        context["min_topup"] = Setting.value("min_topup", "500")
+        context["min_topup"] = Setting.value("min_topup", "100")
         context["max_topup"] = Setting.value("max_topup", "500000")
         context["topups"] = Topup.objects.select_related("user").order_by("-created_at")[:10]
     elif page == "settings":
         context["settings"] = {key: Setting.value(key, default) for key, default in {
             "site_name": "VerifySMS", "site_rate": "1600", "markup_percent": "20",
-            "topup_fee_percent": "3", "min_topup": "500", "max_topup": "500000",
+            "topup_fee_percent": "3", "min_topup": "100", "max_topup": "500000",
             "sms_poll_interval": "5", "maintenance_mode": "0",
         }.items()}
     return render(request, f"admin/{page}.html", context)
@@ -473,7 +473,7 @@ def paystack_init(request):
         amount = money(request.POST.get("amount", "0"))
     except Exception:
         amount = Decimal("0")
-    minimum, maximum = money(Setting.value("min_topup", "500")), money(Setting.value("max_topup", "500000"))
+    minimum, maximum = money(Setting.value("min_topup", "100")), money(Setting.value("max_topup", "500000"))
     if amount < minimum or amount > maximum:
         return _json({"success": False, "message": f"Top-up must be between {format_ngn(minimum)} and {format_ngn(maximum)}."}, 400)
     if not Paystack.public_key() or not Paystack.secret_key():
