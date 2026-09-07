@@ -238,9 +238,19 @@ def provider_api(request):
     if action == "operators":
         country, product = request.GET.get("country", "").lower(), request.GET.get("product", "").lower()
         prices = FiveSim.get_prices(country, product)
-        country_map = prices.get(product, prices).get(country, {}) if isinstance(prices.get(product, prices), dict) else {}
+        # 5sim nests /guest/prices by PRODUCT when only ?product= is sent, but
+        # by COUNTRY when both ?country= and ?product= are sent. Accept either
+        # layout and descend to the operator dict (the innermost level).
+        country_map = {}
+        if isinstance(prices, dict):
+            if product in prices and isinstance(prices.get(product), dict):
+                inner = prices[product]
+                country_map = inner.get(country, {}) if isinstance(inner, dict) else {}
+            elif country in prices and isinstance(prices.get(country), dict):
+                inner = prices[country]
+                country_map = inner.get(product, {}) if isinstance(inner, dict) else {}
         output = []
-        for name, info in country_map.items():
+        for name, info in (country_map if isinstance(country_map, dict) else {}).items():
             if not isinstance(info, dict):
                 continue
             output.append({
