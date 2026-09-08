@@ -171,13 +171,29 @@
       </div>
       <div class="form-row">
         <div class="form-group">
-          <label class="form-label">Top-up Fee (%)</label>
+          <label class="form-label">Extra Fee (%) — added to every number price</label>
+          <input class="form-control" type="number" step="0.1" min="0" name="extra_fee_percent" value="{{ settings.extra_fee_percent }}">
+          <span class="text-sm text-muted">Applied on top of markup. Set to 0 to disable.</span>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Top-up Threshold (₦)</label>
+          <input class="form-control" type="number" step="0.01" min="0" name="topup_fee_threshold" value="{{ settings.topup_fee_threshold }}">
+          <span class="text-sm text-muted">Top-ups above this amount use the higher fee.</span>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Top-up Fee (%) — up to ₦{{ settings.topup_fee_threshold }}</label>
           <input class="form-control" type="number" step="0.1" min="0" name="topup_fee_percent" value="{{ settings.topup_fee_percent }}" required>
         </div>
         <div class="form-group">
-          <label class="form-label">SMS Poll Interval (seconds)</label>
-          <input class="form-control" type="number" step="1" min="2" name="sms_poll_interval" value="{{ settings.sms_poll_interval }}" required>
+          <label class="form-label">Top-up Fee (%) — above ₦{{ settings.topup_fee_threshold }}</label>
+          <input class="form-control" type="number" step="0.1" min="0" name="topup_fee_percent_high" value="{{ settings.topup_fee_percent_high }}" required>
         </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">SMS Poll Interval (seconds)</label>
+        <input class="form-control" type="number" step="1" min="2" name="sms_poll_interval" value="{{ settings.sms_poll_interval }}" required>
       </div>
       <div class="form-row">
         <div class="form-group">
@@ -196,6 +212,11 @@
           <span class="slider"></span>
         </label>
         <span class="text-sm text-muted">Maintenance mode — when enabled, only admins can access the site.</span>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Customer Care WhatsApp (digits only, e.g. 2348086218152)</label>
+        <input class="form-control" type="text" name="support_whatsapp" value="{{ settings.support_whatsapp }}" placeholder="2348086218152">
+        <span class="text-sm text-muted">Used by the floating WhatsApp button on the site.</span>
       </div>
       <button type="submit" class="btn btn-primary"><i class="fa-solid fa-floppy-disk"></i> Save Settings</button>
     </form>

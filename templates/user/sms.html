@@ -188,8 +188,8 @@
     <div>
       <div class="card-title">{{ o.product|title }} — {{ o.country }}</div>
       <div class="card-subtitle">Number: {{ o.phone }} &bull;
-        {% if o.status == 'RECEIVED' %}<span class="badge badge-success">SMS Received</span>
-        {% else %}<span class="badge badge-pending">Waiting for SMS</span>{% endif %}
+        <span id="statusBadge">{% if o.status == 'RECEIVED' %}<span class="badge badge-success">SMS Received</span>
+        {% else %}<span class="badge badge-pending">Waiting for SMS</span>{% endif %}</span>
       </div>
     </div>
     <div style="display:flex;gap:8px">
@@ -234,28 +234,11 @@
   </div>
 
   <div id="sms-live-wrap">
-    {% if o.status == 'RECEIVED' and o.sms_code %}
-    <div class="sms-inbox-card">
-      <div class="sms-sender-row">
-        <div class="sms-sender"><i class="fa-solid fa-user" style="color:var(--orange)"></i> {{ o.sms_sender|default:o.product|title }}</div>
-        <div class="sms-date">{{ o.updated_at|date:"M j, H:i" }}</div>
-      </div>
-      {% if o.sms_text %}<div class="sms-body">{{ o.sms_text }}</div>{% endif %}
-      <div class="otp-box">
-        <div class="otp-label"><i class="fa-solid fa-key"></i> Verification Code</div>
-        <div class="otp-code" id="otp-display">{{ o.sms_code }}</div>
-        <button class="btn btn-sm btn-secondary mt-1" onclick="copyText('{{ o.sms_code }}', this)">
-          <i class="fa-regular fa-copy"></i> Copy Code
-        </button>
-      </div>
-    </div>
-    {% else %}
     <div class="sms-inbox-card" style="text-align:center;padding:22px;color:var(--text-muted)">
       <div style="margin-bottom:8px"><span class="spinner" style="width:16px;height:16px;border-width:2px"></span></div>
-      Waiting for your verification code...<br>
-      <span style="font-size:.8rem">Keep this page open or hit Refresh. The number is reserved — you won't be charged until an SMS arrives.</span>
+      Checking for messages...<br>
+      <span style="font-size:.8rem">Every SMS sent to this number will appear here automatically.</span>
     </div>
-    {% endif %}
   </div>
 </div>
 {% endwith %}
@@ -277,5 +260,56 @@
     </footer>
 </div><!-- /.main-wrapper -->
 <script src="../assets/js/app.js"></script>
+{% if order %}
+<script>
+(function () {
+  var ORDER_ID = '{{ order.id }}';
+  var ROOT = document.getElementById('sms-live-wrap');
+  if (!ROOT) return;
+  var timer = null;
+
+  function esc(v) {
+    return String(v == null ? '' : v).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  }
+
+  function render(list) {
+    if (!list.length) {
+      ROOT.innerHTML = '<div class="sms-inbox-card" style="text-align:center;padding:22px;color:var(--text-muted)">' +
+        '<div style="margin-bottom:8px"><span class="spinner" style="width:16px;height:16px;border-width:2px"></span></div>' +
+        'Waiting for your verification code...<br>' +
+        '<span style="font-size:.8rem">Keep this page open. The number is reserved - you won&apos;t be charged until an SMS arrives.</span></div>';
+      return;
+    }
+    ROOT.innerHTML = list.map(function (m) {
+      var date = m.date ? '<div class="sms-date">' + esc(m.date) + '</div>' : '';
+      var body = m.text ? '<div class="sms-body">' + esc(m.text) + '</div>' : '';
+      var code = m.code ? '<div class="otp-box"><div class="otp-label"><i class="fa-solid fa-key"></i> Verification Code</div>' +
+        '<div class="otp-code">' + esc(m.code) + '</div>' +
+        '<button class="btn btn-sm btn-secondary mt-1" onclick="copyText(\'' + esc(m.code) + '\', this)"><i class="fa-regular fa-copy"></i> Copy Code</button></div>' : '';
+      var sender = m.sender || 'Notification';
+      return '<div class="sms-inbox-card"><div class="sms-sender-row"><div class="sms-sender"><i class="fa-solid fa-user" style="color:var(--orange)"></i> ' + esc(sender) + '</div>' + date + '</div>' + body + code + '</div>';
+    }).join('');
+  }
+
+  function poll() {
+    fetch('/api/orders/?action=check&order_id=' + ORDER_ID, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        if (data && Array.isArray(data.messages)) render(data.messages);
+        if (data && data.status === 'RECEIVED') {
+          var badge = document.getElementById('statusBadge');
+          if (badge) badge.innerHTML = '<span class="badge badge-success">SMS Received</span>';
+        }
+        var done = data && (data.status === 'FINISHED' || data.status === 'CANCELED' || data.status === 'TIMEOUT');
+        if (!done) { clearTimeout(timer); timer = setTimeout(poll, 4000); }
+      })
+      .catch(function () { clearTimeout(timer); timer = setTimeout(poll, 8000); });
+  }
+  poll();
+})();
+</script>
+{% endif %}
 </body>
 </html>

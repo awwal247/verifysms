@@ -33,7 +33,8 @@ def setting_number(key, default):
 def provider_to_user_ngn(provider_price):
     rate = setting_number("site_rate", 1600)
     markup = setting_number("markup_percent", 20)
-    return money(Decimal(str(provider_price)) * rate * (1 + markup / 100))
+    extra = setting_number("extra_fee_percent", 8)
+    return money(Decimal(str(provider_price)) * rate * (1 + markup / 100) * (1 + extra / 100))
 
 
 def format_ngn(amount):
@@ -312,7 +313,11 @@ class Paystack:
         if existing and existing.status == "success":
             return True
         amount_paid = money(amount_paid)
-        fee_percent = setting_number("topup_fee_percent", 3)
+        # Tiered processing fee: higher rate once the top-up passes the threshold.
+        low_pct = setting_number("topup_fee_percent", 3)
+        high_pct = setting_number("topup_fee_percent_high", 6)
+        threshold = setting_number("topup_fee_threshold", 1000)
+        fee_percent = high_pct if amount_paid > threshold else low_pct
         fee = money(amount_paid * fee_percent / 100)
         net = money(amount_paid - fee)
         user = User.objects.get(pk=user_id)

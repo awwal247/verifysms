@@ -1,4 +1,5 @@
 import json
+import re
 import uuid
 from datetime import datetime, timedelta
 from decimal import Decimal
@@ -116,6 +117,8 @@ def user_page(request, page):
             min_topup=Setting.value("min_topup", "100"),
             max_topup=Setting.value("max_topup", "500000"),
             fee_percent=Setting.value("topup_fee_percent", "3"),
+            fee_high=Setting.value("topup_fee_percent_high", "6"),
+            fee_threshold=Setting.value("topup_fee_threshold", "1000"),
             paystack_public_key=Paystack.public_key(),
             recent_topups=Topup.objects.filter(user=request.user).order_by("-created_at")[:6],
         )
@@ -193,14 +196,45 @@ def admin_page(request, page):
     elif page == "settings":
         context["settings"] = {key: Setting.value(key, default) for key, default in {
             "site_name": "VerifySMS", "site_rate": "1600", "markup_percent": "20",
-            "topup_fee_percent": "3", "min_topup": "100", "max_topup": "500000",
+            "extra_fee_percent": "8", "topup_fee_percent": "3",
+            "topup_fee_percent_high": "6", "topup_fee_threshold": "1000",
+            "min_topup": "100", "max_topup": "500000",
             "sms_poll_interval": "5", "maintenance_mode": "0",
+            "support_whatsapp": "2348086218152",
         }.items()}
     return render(request, f"admin/{page}.html", context)
 
 
 def _json(data, status=200):
     return JsonResponse(data, status=status)
+
+
+def support_info(request):
+    """Public contact info for the site-wide customer-care button."""
+    return _json({
+        "whatsapp": Setting.value("support_whatsapp", "2348086218152").strip(),
+        "label": Setting.value("support_label", "Customer Care").strip(),
+    })
+
+
+def _normalise_sms(msg):
+    """Turn a 5sim SMS entry into a display-friendly dict, parsing an OTP
+    code out of the text when 5sim does not return one explicitly."""
+    if not isinstance(msg, dict):
+        msg = {}
+    text = (msg.get("text") or "").strip()
+    code = (msg.get("code") or "").strip()
+    if not code:
+        found = re.findall(r"(?<![0-9])[0-9]{4,8}(?![0-9])", text)
+        if len(found) == 1:
+            code = found[0]
+    return {
+        "id": str(msg.get("id") or ""),
+        "sender": msg.get("sender") or "",
+        "text": text,
+        "code": code,
+        "date": msg.get("created_at") or msg.get("date") or "",
+    }
 
 
 @login_required(login_url="/login.html")
@@ -300,16 +334,17 @@ def orders_api(request):
         order_id = request.GET.get("order_id")
         order = get_object_or_404(Order, pk=order_id, user=request.user)
         data = FiveSim.check_order(order.provider_order_id)
+        messages = []
         if "error" not in data:
-            sms = data.get("sms") or []
-            latest = sms[-1] if sms else {}
-            fields = {"status": str(data.get("status", order.status)).upper(), "sms_code": latest.get("code"), "sms_text": latest.get("text"), "sms_sender": latest.get("sender")}
+            messages = [_normalise_sms(m) for m in (data.get("sms") or [])]
+            latest = messages[-1] if messages else {}
+            fields = {"status": str(data.get("status", order.status)).upper(), "sms_code": latest.get("code") or "", "sms_text": latest.get("text") or "", "sms_sender": latest.get("sender") or ""}
             if fields["status"] != order.status or fields["sms_code"]:
                 for key, value in fields.items():
                     if value is not None:
-                        setattr(order, key, value)
+                        setattr(order, key, value or None)
                 order.save()
-        return _json({"success": True, "status": order.status, "sms_code": order.sms_code, "sms_text": order.sms_text, "sms_sender": order.sms_sender, "phone": order.phone, "expires_at": order.expires_at})
+        return _json({"success": True, "status": order.status, "sms_code": order.sms_code, "sms_text": order.sms_text, "sms_sender": order.sms_sender, "phone": order.phone, "expires_at": order.expires_at, "messages": messages})
     action = request.POST.get("action", "")
     if action == "buy":
         country = request.POST.get("country", "").lower().strip()
@@ -411,7 +446,7 @@ def admin_action(request):
                 messages.success(request, "Balance credited.")
         return redirect("/admin/users.html")
     if action == "save_settings":
-        allowed = {"site_name", "site_rate", "markup_percent", "topup_fee_percent", "min_topup", "max_topup", "sms_poll_interval", "maintenance_mode", "paystack_public_key", "paystack_secret_key", "provider_api_key"}
+        allowed = {"site_name", "site_rate", "markup_percent", "extra_fee_percent", "topup_fee_percent", "topup_fee_percent_high", "topup_fee_threshold", "min_topup", "max_topup", "sms_poll_interval", "maintenance_mode", "paystack_public_key", "paystack_secret_key", "provider_api_key", "support_whatsapp"}
         for key in allowed:
             if key in request.POST:
                 Setting.set_value(key, request.POST.get(key, ""))

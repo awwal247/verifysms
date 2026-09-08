@@ -124,6 +124,16 @@ class Topup(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
+    @property
+    def fee_rate(self):
+        """Effective fee percentage for this top-up (for display)."""
+        try:
+            if not self.amount_paid:
+                return ""
+            return f"{(self.fee_amount / self.amount_paid) * 100:.1f}"
+        except Exception:
+            return ""
+
 
 class Coupon(models.Model):
     DISCOUNT_CHOICES = (("percent", "Percent"), ("fixed", "Fixed"))

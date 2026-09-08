@@ -287,3 +287,30 @@ document.addEventListener('DOMContentLoaded', function() {
   const csrfMeta = document.querySelector('meta[name=csrf]');
   if (csrfMeta) window._csrf = csrfMeta.content;
 });
+
+// ── Customer Care floating button ───────────────────────────────────────────
+(function initSupportFab() {
+  try {
+    fetch('/api/support/', { headers: { 'Accept': 'application/json' } })
+      .then(r => r.json())
+      .then(d => {
+        if (!d || !d.whatsapp) return;
+        const wa = String(d.whatsapp).replace(/[^0-9]/g, '');
+        if (!wa) return;
+        const a = document.createElement('a');
+        a.id = 'supportFab';
+        a.href = 'https://wa.me/' + wa + '?text=' + encodeURIComponent('Hello, I need help on VerifySMS');
+        a.target = '_blank';
+        a.rel = 'noopener';
+        a.title = d.label || 'Customer Care';
+        a.setAttribute('aria-label', d.label || 'Customer Care');
+        a.style.cssText = 'position:fixed;right:16px;bottom:16px;z-index:9999;width:56px;height:56px;border-radius:50%;' +
+          'background:var(--success,#22c55e);color:#fff;display:flex;align-items:center;justify-content:center;' +
+          'box-shadow:0 4px 14px rgba(0,0,0,.25);text-decoration:none;';
+        a.innerHTML = '<svg viewBox="0 0 32 32" width="30" height="30" fill="currentColor" aria-hidden="true">' +
+          '<path d="M16 .8C7.6.8.8 7.6.8 16c0 2.7.7 5.3 2 7.6L.9 31.1l7.7-1.9c2.2 1.2 4.7 1.9 7.4 1.9 8.4 0 15.2-6.8 15.2-15.2S24.4.8 16 .8zm0 27.7c-2.4 0-4.6-.6-6.5-1.7l-.5-.3-4.5 1.2 1.2-4.4-.3-.5C4 20.9 3.4 18.5 3.4 16 3.4 9 9 3.4 16 3.4S28.6 9 28.6 16 23 28.5 16 28.5zm7-8.5c-.4-.2-2.3-1.1-2.7-1.2-.3-.1-.6-.2-.8.2-.2.4-.9 1.2-1.1 1.5-.2.2-.4.3-.8.1-2.3-1.1-3.8-2-5.3-4.5-.4-.7.4-.7 1.1-2.2.1-.3 0-.5 0-.7-.1-.2-.8-2-1.1-2.7-.3-.7-.6-.6-.8-.6h-.7c-.2 0-.6.1-.9.4-1.5 1.5-2 3.6-.4 6 1.6 2.7 3.2 4.3 5.7 5.5 2.4 1.1 4.8 1.4 5.8 1.5.7.1 2.3.2 2.9-1 .6-1.2.8-2 .9-2.1-.1-.1-.4-.2-.8-.4z"/></svg>';
+        document.body.appendChild(a);
+      })
+      .catch(() => {});
+  } catch (e) {}
+})();

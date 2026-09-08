@@ -196,7 +196,7 @@
     <div class="info-pills">
       <div class="info-pill"><i class="fa-solid fa-shield-check"></i> Secured by Paystack</div>
       <div class="info-pill"><i class="fa-solid fa-bolt"></i> Instant credit</div>
-      <div class="info-pill"><i class="fa-solid fa-percent"></i> {{ fee_percent }}% processing fee</div>
+      <div class="info-pill"><i class="fa-solid fa-percent"></i> {{ fee_percent }}%–{{ fee_high }}% processing fee</div>
     </div>
   </div>
   <div style="text-align:center"><i class="fa-solid fa-wallet" style="font-size:2.5rem;color:var(--orange);opacity:.3"></i></div>
@@ -250,7 +250,7 @@
       </div>
       <div class="fb-row">
         <span><i class="fa-solid fa-percent" style="color:var(--danger);margin-right:6px"></i>
-          Processing fee <span class="fb-badge">{{ fee_percent }}%</span></span>
+          Processing fee <span class="fb-badge" id="fb-pct">{{ fee_percent }}%</span></span>
         <strong id="fb-fee" style="color:var(--danger)">−₦0.00</strong>
       </div>
       <div class="fb-row total">
@@ -299,7 +299,7 @@
         <tr>
           <td class="text-sm">{{ t.created_at|date:"M j, H:i" }}</td>
           <td class="fw-bold">₦{{ t.amount_paid|floatformat:2 }}</td>
-          <td><span class="text-danger text-sm">-₦{{ t.fee_amount|floatformat:2 }}</span> <span style="font-size:.65rem;color:var(--text-dim)">({{ fee_percent }}%)</span></td>
+          <td><span class="text-danger text-sm">-₦{{ t.fee_amount|floatformat:2 }}</span> <span style="font-size:.65rem;color:var(--text-dim)">({{ t.fee_rate }}%)</span></td>
           <td class="text-success fw-bold">₦{{ t.net_credited|floatformat:2 }}</td>
           <td>
             {% if t.status == 'success' %}<span class="badge badge-success"><i class="fa-solid fa-check-circle"></i> Success</span>
@@ -321,7 +321,9 @@
    Paystack-hosted checkout page, then Paystack redirects back to
    /api/paystack/callback/ for server-side verification and wallet credit.
    ── */
-const FEE_PCT  = parseFloat('{{ fee_percent|default:"3" }}') || 3;
+const FEE_PCT    = parseFloat('{{ fee_percent|default:"3" }}') || 3;
+const FEE_HIGH   = parseFloat('{{ fee_high|default:"6" }}') || 6;
+const FEE_THRESH = parseFloat('{{ fee_threshold|default:"1000" }}') || 1000;
 const WALLET   = parseFloat('{{ current_user.balance|default:"0" }}') || 0;
 const MIN_AMT  = parseFloat('{{ min_topup|default:"100" }}') || 100;
 const MAX_AMT  = parseFloat('{{ max_topup|default:"500000" }}') || 500000;
@@ -334,9 +336,11 @@ function onAmountChange(val){
   const amt=parseFloat(val);
   if(!amt||amt<=0){document.getElementById('feeBreakdown').style.display='none';
     document.querySelectorAll('.qa-btn').forEach(b=>b.classList.remove('active'));return;}
-  const fee=parseFloat((amt*FEE_PCT/100).toFixed(2));
+  const pct = amt > FEE_THRESH ? FEE_HIGH : FEE_PCT;
+  const fee=parseFloat((amt*pct/100).toFixed(2));
   const net=parseFloat((amt-fee).toFixed(2));
   const nb=parseFloat((WALLET+net).toFixed(2));
+  document.getElementById('fb-pct').textContent = pct + '%';
   document.getElementById('fb-pay').textContent=fmt(amt);
   document.getElementById('fb-fee').textContent='−'+fmt(fee);
   document.getElementById('fb-net').textContent=fmt(net);

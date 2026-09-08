@@ -12,6 +12,7 @@ urlpatterns = [
     re_path(r"^user/(?P<page>[a-z]+)\.html$", views.user_page, name="user-page"),
     re_path(r"^admin/(?P<page>[a-z]+)\.html$", views.admin_page, name="admin-page"),
     path("admin/action/", views.admin_action, name="admin-action"),
+    path("api/support/", views.support_info, name="support-info"),
     path("api/provider/", views.provider_api, name="provider-api"),
     path("api/orders/", views.orders_api, name="orders-api"),
     path("api/coupon/", views.coupon_api, name="coupon-api"),
