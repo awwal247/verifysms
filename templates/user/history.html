@@ -230,7 +230,9 @@
             {% elif o.status == 'BANNED' %}<span class="badge badge-danger">Banned</span>
             {% else %}<span class="badge badge-pending">{{ o.status }}</span>{% endif %}
           </td>
-          <td class="text-sm text-muted">{{ o.created_at|date:"M j, Y H:i" }}</td>
+          <td class="text-sm text-muted">{{ o.created_at|date:"M j, Y H:i" }}
+            <div><a href="sms.html?order_id={{ o.id }}" style="color:var(--orange);font-size:.72rem">View SMS</a></div>
+          </td>
         </tr>
         {% empty %}
         <tr><td colspan="8" class="text-muted text-sm" style="text-align:center;padding:18px">No orders yet. <a href="services.html" style="color:var(--orange)">Buy your first number</a>.</td></tr>

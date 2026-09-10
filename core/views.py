@@ -15,11 +15,14 @@ from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 
-from .models import Coupon, CouponUse, Order, Setting, Topup, Transaction, User
+from .models import Coupon, CouponUse, Order, Setting, SmsMessage, Topup, Transaction, User
 from .services import FiveSim, Paystack, credit_balance, debit_balance, format_ngn, friendly_provider_error, money, provider_to_user_ngn
 
 
 USER_PAGES = {"dashboard", "services", "cart", "topup", "history", "settings", "sms"}
+
+# Orders still able to receive SMS from the provider (others are read-only history).
+ACTIVE_ORDER_STATUSES = ("PENDING", "RECEIVED")
 ADMIN_PAGES = {"dashboard", "users", "transactions", "providers", "payment", "coupons", "settings"}
 
 
@@ -123,17 +126,19 @@ def user_page(request, page):
             recent_topups=Topup.objects.filter(user=request.user).order_by("-created_at")[:6],
         )
     elif page == "sms":
+        own = Order.objects.filter(user=request.user)
         order_id = request.GET.get("order_id")
-        qs = Order.objects.filter(user=request.user, status__in=("PENDING", "RECEIVED"))
         if order_id:
-            try:
-                context["order"] = qs.get(pk=order_id)
-            except Order.DoesNotExist:
-                return redirect("/user/cart.html")
+            # Any past order can be reopened to read its stored SMS.
+            order = get_object_or_404(own, pk=order_id)
         else:
-            # Default to the most useful active order: one with an SMS first.
-            context["order"] = qs.order_by("-status", "-created_at").first()
-        context["active_count"] = qs.count()
+            # Default to the most useful active order, else the latest one.
+            order = (own.filter(status__in=ACTIVE_ORDER_STATUSES).order_by("-status", "-created_at").first()
+                     or own.order_by("-created_at").first())
+        context["order"] = order
+        context["is_active"] = bool(order and order.status in ACTIVE_ORDER_STATUSES)
+        context["sms_messages"] = _stored_sms(order) if order else []
+        context["active_count"] = own.filter(status__in=ACTIVE_ORDER_STATUSES).count()
     elif page == "settings":
         context["total_spent"] = format_ngn(Order.objects.filter(user=request.user).aggregate(total=Sum("user_price"))["total"] or Decimal("0"))
     if request.method == "POST" and page == "settings":
@@ -237,6 +242,30 @@ def _normalise_sms(msg):
     }
 
 
+def _record_sms(order, messages):
+    """Persist SMS rows we have not stored yet. Dedupe by provider message id,
+    falling back to the text when the provider gives no id."""
+    for m in messages or []:
+        pid = str(m.get("id") or "").strip()
+        text = (m.get("text") or "").strip()
+        if not pid and not text:
+            continue
+        existing = SmsMessage.objects.filter(order=order)
+        if pid:
+            if existing.filter(provider_message_id=pid).exists():
+                continue
+        elif existing.filter(text=text).exists():
+            continue
+        SmsMessage.objects.create(order=order, provider_message_id=pid, sender=m.get("sender") or "",
+                                  text=text, code=m.get("code") or "", provider_date=m.get("date") or "")
+
+
+def _stored_sms(order):
+    """All persisted SMS for an order, in the shape the page and JS expect."""
+    return [{"id": m.provider_message_id, "sender": m.sender, "text": m.text,
+             "code": m.code, "date": m.provider_date} for m in order.sms_messages.all()]
+
+
 @login_required(login_url="/login.html")
 @require_http_methods(["GET"])
 def provider_api(request):
@@ -333,18 +362,22 @@ def orders_api(request):
     if request.method == "GET":
         order_id = request.GET.get("order_id")
         order = get_object_or_404(Order, pk=order_id, user=request.user)
-        data = FiveSim.check_order(order.provider_order_id)
-        messages = []
-        if "error" not in data:
-            messages = [_normalise_sms(m) for m in (data.get("sms") or [])]
-            latest = messages[-1] if messages else {}
-            fields = {"status": str(data.get("status", order.status)).upper(), "sms_code": latest.get("code") or "", "sms_text": latest.get("text") or "", "sms_sender": latest.get("sender") or ""}
-            if fields["status"] != order.status or fields["sms_code"]:
-                for key, value in fields.items():
-                    if value is not None:
-                        setattr(order, key, value or None)
-                order.save()
-        return _json({"success": True, "status": order.status, "sms_code": order.sms_code, "sms_text": order.sms_text, "sms_sender": order.sms_sender, "phone": order.phone, "expires_at": order.expires_at, "messages": messages})
+        is_active = order.status in ACTIVE_ORDER_STATUSES
+        # Only still-open orders hit the provider; ended orders are served from
+        # the permanent store so the page can always be reopened.
+        if is_active:
+            data = FiveSim.check_order(order.provider_order_id)
+            if "error" not in data:
+                live = [_normalise_sms(m) for m in (data.get("sms") or [])]
+                _record_sms(order, live)
+                latest = live[-1] if live else {}
+                fields = {"status": str(data.get("status", order.status)).upper(), "sms_code": latest.get("code") or "", "sms_text": latest.get("text") or "", "sms_sender": latest.get("sender") or ""}
+                if fields["status"] != order.status or fields["sms_code"]:
+                    for key, value in fields.items():
+                        if value is not None:
+                            setattr(order, key, value or None)
+                    order.save()
+        return _json({"success": True, "status": order.status, "sms_code": order.sms_code, "sms_text": order.sms_text, "sms_sender": order.sms_sender, "phone": order.phone, "expires_at": order.expires_at, "is_active": is_active, "messages": _stored_sms(order)})
     action = request.POST.get("action", "")
     if action == "buy":
         country = request.POST.get("country", "").lower().strip()

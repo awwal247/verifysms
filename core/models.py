@@ -135,6 +135,32 @@ class Topup(models.Model):
             return ""
 
 
+class SmsMessage(models.Model):
+    """A single inbound SMS for an order, kept permanently so the customer can
+    reopen the page and read the code after the order has ended."""
+    order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name="sms_messages")
+    provider_message_id = models.CharField(max_length=64, blank=True, default="")
+    sender = models.CharField(max_length=100, blank=True, default="")
+    text = models.TextField(blank=True, default="")
+    code = models.CharField(max_length=50, blank=True, default="")
+    provider_date = models.CharField(max_length=64, blank=True, default="")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["id"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["order", "provider_message_id"],
+                condition=~models.Q(provider_message_id=""),
+                name="uniq_order_provider_sms",
+            )
+        ]
+
+    @property
+    def display_sender(self):
+        return self.sender or "Notification"
+
+
 class Coupon(models.Model):
     DISCOUNT_CHOICES = (("percent", "Percent"), ("fixed", "Fixed"))
     TARGET_CHOICES = (("all", "All"), ("new", "New"), ("old", "Old"), ("date_range", "Date range"))

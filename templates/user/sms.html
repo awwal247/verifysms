@@ -261,9 +261,13 @@
 </div><!-- /.main-wrapper -->
 <script src="../assets/js/app.js"></script>
 {% if order %}
+{{ sms_messages|json_script:"smsInitial" }}
 <script>
 (function () {
   var ORDER_ID = '{{ order.id }}';
+  var ACTIVE = {{ is_active|yesno:"true,false" }};
+  var INITIAL = [];
+  try { INITIAL = JSON.parse(document.getElementById('smsInitial').textContent || '[]'); } catch (e) {}
   var ROOT = document.getElementById('sms-live-wrap');
   if (!ROOT) return;
   var timer = null;
@@ -276,10 +280,14 @@
 
   function render(list) {
     if (!list.length) {
-      ROOT.innerHTML = '<div class="sms-inbox-card" style="text-align:center;padding:22px;color:var(--text-muted)">' +
-        '<div style="margin-bottom:8px"><span class="spinner" style="width:16px;height:16px;border-width:2px"></span></div>' +
-        'Waiting for your verification code...<br>' +
-        '<span style="font-size:.8rem">Keep this page open. The number is reserved - you won&apos;t be charged until an SMS arrives.</span></div>';
+      ROOT.innerHTML = ACTIVE
+        ? '<div class="sms-inbox-card" style="text-align:center;padding:22px;color:var(--text-muted)">' +
+          '<div style="margin-bottom:8px"><span class="spinner" style="width:16px;height:16px;border-width:2px"></span></div>' +
+          'Waiting for your verification code...<br>' +
+          '<span style="font-size:.8rem">Keep this page open. The number is reserved - you won&apos;t be charged until an SMS arrives.</span></div>'
+        : '<div class="sms-inbox-card" style="text-align:center;padding:22px;color:var(--text-muted)">' +
+          '<i class="fa-solid fa-envelope-open-text" style="font-size:1.6rem;color:var(--text-dim)"></i><br>' +
+          'No SMS was received for this number.</div>';
       return;
     }
     ROOT.innerHTML = list.map(function (m) {
@@ -303,11 +311,12 @@
           if (badge) badge.innerHTML = '<span class="badge badge-success">SMS Received</span>';
         }
         var done = data && (data.status === 'FINISHED' || data.status === 'CANCELED' || data.status === 'TIMEOUT');
-        if (!done) { clearTimeout(timer); timer = setTimeout(poll, 4000); }
+        if (ACTIVE && !done) { clearTimeout(timer); timer = setTimeout(poll, 4000); }
       })
-      .catch(function () { clearTimeout(timer); timer = setTimeout(poll, 8000); });
+      .catch(function () { if (ACTIVE) { clearTimeout(timer); timer = setTimeout(poll, 8000); } });
   }
-  poll();
+  render(INITIAL);
+  if (ACTIVE) poll();
 })();
 </script>
 {% endif %}
