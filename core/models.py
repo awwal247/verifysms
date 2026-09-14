@@ -180,6 +180,47 @@ class Coupon(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
 
+class Broadcast(models.Model):
+    """One message an admin sent to a group of users. Each recipient gets a
+    Notification row of their own, so read state is per person."""
+    LEVEL_CHOICES = (("info", "Info"), ("success", "Success"), ("warning", "Warning"))
+    TARGET_CHOICES = (("all", "All users"), ("active", "Active users"), ("funded", "Users with a balance"))
+    title = models.CharField(max_length=150)
+    body = models.TextField()
+    level = models.CharField(max_length=10, choices=LEVEL_CHOICES, default="info")
+    target = models.CharField(max_length=12, choices=TARGET_CHOICES, default="all")
+    recipient_count = models.PositiveIntegerField(default=0)
+    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, blank=True, null=True, related_name="broadcasts")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return self.title
+
+
+class Notification(models.Model):
+    """A message shown to one user in their notification centre. Created by an
+    admin broadcast (broadcast is set) or by the system (broadcast is null)."""
+    LEVEL_CHOICES = (("info", "Info"), ("success", "Success"), ("warning", "Warning"))
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="notifications")
+    broadcast = models.ForeignKey(Broadcast, on_delete=models.CASCADE, blank=True, null=True, related_name="notifications")
+    title = models.CharField(max_length=150)
+    body = models.TextField()
+    level = models.CharField(max_length=10, choices=LEVEL_CHOICES, default="info")
+    read_at = models.DateTimeField(blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at", "-id"]
+        indexes = [models.Index(fields=["user", "read_at"], name="notif_user_unread_idx")]
+
+    @property
+    def is_unread(self):
+        return self.read_at is None
+
+
 class CouponUse(models.Model):
     coupon = models.ForeignKey(Coupon, on_delete=models.CASCADE, related_name="uses")
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="coupon_uses")

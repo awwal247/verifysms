@@ -111,6 +111,11 @@
       <span>Settings</span>
       
     </a>
+    <a href="notifications.html" class="nav-item ">
+      <i class="fa-solid fa-bell"></i>
+      <span>Notifications</span>
+      {% if unread_notifications %}<span class="nav-badge">{{ unread_notifications }}</span>{% endif %}
+    </a>
   </nav>
 
   <div class="sidebar-footer">

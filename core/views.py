@@ -15,15 +15,20 @@ from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 
-from .models import Coupon, CouponUse, Order, Setting, SmsMessage, Topup, Transaction, User
+from .models import Broadcast, Coupon, CouponUse, Notification, Order, Setting, SmsMessage, Topup, Transaction, User
 from .services import FiveSim, Paystack, credit_balance, debit_balance, format_ngn, friendly_provider_error, money, provider_to_user_ngn
 
 
-USER_PAGES = {"dashboard", "services", "cart", "topup", "history", "settings", "sms"}
+USER_PAGES = {"dashboard", "services", "cart", "topup", "history", "settings", "sms", "notifications"}
 
 # Orders still able to receive SMS from the provider (others are read-only history).
 ACTIVE_ORDER_STATUSES = ("PENDING", "RECEIVED")
-ADMIN_PAGES = {"dashboard", "users", "transactions", "providers", "payment", "coupons", "settings"}
+ADMIN_PAGES = {"dashboard", "users", "transactions", "providers", "payment", "coupons", "settings", "broadcast"}
+
+
+def _unread_notifications(user):
+    """Unread messages waiting for this user — drives the sidebar badge."""
+    return Notification.objects.filter(user=user, read_at__isnull=True).count()
 
 
 def _page_context(request, page):
@@ -32,6 +37,7 @@ def _page_context(request, page):
     if getattr(user, "is_authenticated", False):
         context["wallet_balance"] = format_ngn(user.balance)
         context["active_orders_count"] = Order.objects.filter(user=user, status__in=("PENDING", "RECEIVED")).count()
+        context["unread_notifications"] = _unread_notifications(user)
     return context
 
 
@@ -97,6 +103,15 @@ def user_page(request, page):
         return render(request, "maintenance.html")
     if page not in USER_PAGES:
         return render(request, "404.html", status=404)
+    # Dismissing a notification (or clearing them all) is a POST from any page.
+    if request.method == "POST" and request.POST.get("action") in {"dismiss_notification", "mark_all_read"}:
+        if request.POST["action"] == "mark_all_read":
+            Notification.objects.filter(user=request.user, read_at__isnull=True).update(read_at=timezone.now())
+        else:
+            Notification.objects.filter(user=request.user, pk=request.POST.get("notification_id"),
+                                        read_at__isnull=True).update(read_at=timezone.now())
+        back = request.POST.get("next", "")
+        return redirect(back if back.startswith("/user/") else "/user/notifications.html")
     context = _page_context(request, page)
     if page == "dashboard":
         context.update(
@@ -106,6 +121,7 @@ def user_page(request, page):
             total_topups=Topup.objects.filter(user=request.user, status="success").aggregate(total=Sum("net_credited"))["total"] or Decimal("0"),
             recent_orders=Order.objects.filter(user=request.user).order_by("-created_at")[:3],
             recent_transactions=Transaction.objects.filter(user=request.user).order_by("-created_at")[:3],
+            announcement=Notification.objects.filter(user=request.user, read_at__isnull=True).first(),
         )
     elif page == "cart":
         context["orders"] = Order.objects.filter(user=request.user, status__in=("PENDING", "RECEIVED")).order_by("-created_at")
@@ -139,6 +155,14 @@ def user_page(request, page):
         context["is_active"] = bool(order and order.status in ACTIVE_ORDER_STATUSES)
         context["sms_messages"] = _stored_sms(order) if order else []
         context["active_count"] = own.filter(status__in=ACTIVE_ORDER_STATUSES).count()
+    elif page == "notifications":
+        items = list(Notification.objects.filter(user=request.user))
+        context["notifications"] = items
+        context["new_count"] = sum(1 for n in items if n.is_unread)
+        # Opening the centre counts as reading: the badge clears, and the list
+        # still marks which ones arrived since the last visit.
+        Notification.objects.filter(user=request.user, read_at__isnull=True).update(read_at=timezone.now())
+        context["unread_notifications"] = 0
     elif page == "settings":
         context["total_spent"] = format_ngn(Order.objects.filter(user=request.user).aggregate(total=Sum("user_price"))["total"] or Decimal("0"))
     if request.method == "POST" and page == "settings":
@@ -188,6 +212,11 @@ def admin_page(request, page):
     elif page == "coupons":
         context["coupons"] = Coupon.objects.order_by("-created_at")
         context["now"] = timezone.now()
+    elif page == "broadcast":
+        context["broadcasts"] = Broadcast.objects.select_related("created_by").order_by("-created_at")[:50]
+        context["user_total"] = User.objects.filter(role="user").count()
+        context["active_total"] = User.objects.filter(role="user", status="active").count()
+        context["funded_total"] = User.objects.filter(role="user", balance__gt=0).count()
     elif page == "providers":
         context["provider_configured"] = bool(FiveSim._key())
         context["demo_mode"] = not bool(FiveSim._key())
@@ -528,6 +557,42 @@ def admin_action(request):
                 coupon.delete()
             messages.success(request, "Coupon updated.")
         return redirect("/admin/coupons.html")
+    if action in {"send_broadcast", "delete_broadcast"}:
+        if action == "delete_broadcast":
+            broadcast = get_object_or_404(Broadcast, pk=request.POST.get("broadcast_id"))
+            recipients = broadcast.recipient_count
+            broadcast.delete()  # notifications cascade away with it
+            messages.success(request, f"Broadcast deleted, removed from {recipients} user(s).")
+            return redirect("/admin/broadcast.html")
+        title = request.POST.get("title", "").strip()
+        body = request.POST.get("body", "").strip()
+        level = request.POST.get("level", "info")
+        target = request.POST.get("target", "all")
+        if level not in {"info", "success", "warning"}:
+            level = "info"
+        if target not in {"all", "active", "funded"}:
+            target = "all"
+        if not title or not body:
+            messages.error(request, "Both a title and a message are required.")
+            return redirect("/admin/broadcast.html")
+        recipients = User.objects.filter(role="user")
+        if target == "active":
+            recipients = recipients.filter(status="active")
+        elif target == "funded":
+            recipients = recipients.filter(balance__gt=0)
+        recipients = list(recipients.only("id"))
+        with transaction.atomic():
+            broadcast = Broadcast.objects.create(title=title, body=body, level=level, target=target,
+                                                 recipient_count=len(recipients), created_by=request.user)
+            Notification.objects.bulk_create(
+                [Notification(user_id=u.id, broadcast=broadcast, title=title, body=body, level=level) for u in recipients],
+                batch_size=500,
+            )
+        if recipients:
+            messages.success(request, f"Broadcast sent to {len(recipients)} user(s).")
+        else:
+            messages.warning(request, "Nobody matched that audience — nothing was sent.")
+        return redirect("/admin/broadcast.html")
     if action == "admin_password":
         new_password = request.POST.get("new_password", "")
         confirm_password = request.POST.get("confirm_password", "")

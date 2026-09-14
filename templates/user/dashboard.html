@@ -84,6 +84,11 @@
       <span>Settings</span>
       
     </a>
+    <a href="notifications.html" class="nav-item ">
+      <i class="fa-solid fa-bell"></i>
+      <span>Notifications</span>
+      {% if unread_notifications %}<span class="nav-badge">{{ unread_notifications }}</span>{% endif %}
+    </a>
   </nav>
 
   <div class="sidebar-footer">
@@ -148,6 +153,23 @@
     </div>
   </div>
 </div>
+{% if announcement %}
+<div class="alert alert-{% if announcement.level == 'success' %}success{% elif announcement.level == 'warning' %}warning{% else %}info{% endif %}">
+  <i class="fa-solid fa-bullhorn" style="margin-top:2px"></i>
+  <div style="flex:1;min-width:0;padding-right:18px">
+    <strong>{{ announcement.title }}</strong>
+    <div style="margin-top:4px;white-space:pre-line">{{ announcement.body }}</div>
+    <a href="notifications.html" style="color:inherit;text-decoration:underline;font-size:.78rem;display:inline-block;margin-top:6px">All notifications</a>
+  </div>
+  <form method="POST" action="/user/dashboard.html" style="margin:0">
+    {% csrf_token %}
+    <input type="hidden" name="action" value="dismiss_notification">
+    <input type="hidden" name="notification_id" value="{{ announcement.id }}">
+    <input type="hidden" name="next" value="/user/dashboard.html">
+    <button class="alert-close" type="submit" title="Dismiss" style="position:static">&times;</button>
+  </form>
+</div>
+{% endif %}
 <div class="page-hero">
   <h2><i class="fa-solid fa-hand-wave" style="color:var(--orange)"></i> Welcome back, {{ user.first_name|default:"there" }}!</h2>
   <p>Here's an overview of your account activity.</p>
