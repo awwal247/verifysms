@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+
+<title>How To — VerifySMS</title>
+<meta name="description" content="Short video tutorials that show you how to fund your wallet and buy a virtual number on VerifySMS.">
+<meta name="author" content="VerifySMS">
+<meta name="robots" content="noindex,nofollow">
+<meta name="theme-color" content="#f97316">
+
+<link rel="icon" type="image/svg+xml" href="../assets/img/favicon.svg">
+<link rel="shortcut icon" href="../assets/img/favicon.svg">
+<link rel="apple-touch-icon" href="../assets/img/favicon.svg">
+
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="VerifySMS">
+<meta property="og:title" content="How To — VerifySMS">
+<meta property="og:description" content="Short video tutorials that show you how to fund your wallet and buy a virtual number on VerifySMS.">
+<meta property="og:image" content="../assets/img/og-image.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="How To — VerifySMS">
+<meta name="twitter:description" content="Short video tutorials that show you how to fund your wallet and buy a virtual number on VerifySMS.">
+<meta name="twitter:image" content="../assets/img/og-image.png">
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<link rel="stylesheet" href="../assets/css/style.css">
+<style>
+  .tut-card { display: grid; grid-template-columns: 340px 1fr; gap: 18px; align-items: start; }
+  .tut-video {
+    width: 100%; max-width: 340px; display: block; background: #000;
+    border-radius: var(--radius-sm); aspect-ratio: 9 / 16; object-fit: contain;
+  }
+  .tut-steps { margin: 10px 0 0; padding-left: 20px; }
+  .tut-steps li { margin-bottom: 7px; font-size: 0.875rem; line-height: 1.55; }
+  .tut-meta { display: flex; gap: 14px; flex-wrap: wrap; margin-top: 8px; font-size: 0.75rem; color: var(--text-muted); }
+  @media (max-width: 760px) {
+    .tut-card { grid-template-columns: 1fr; }
+    .tut-video { margin: 0 auto; }
+  }
+</style>
+</head>
+<body class="">
+
+<div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
+
+<aside class="sidebar" id="sidebar">
+  <div class="sidebar-header">
+    <a href="../index.html" class="sidebar-logo">
+      <div class="sidebar-logo-icon"><i class="fa-solid fa-shield-halved"></i></div>
+      <span class="sidebar-logo-text">VerifySMS</span>
+    </a>
+    <button class="sidebar-close" onclick="closeSidebar()"><i class="fa-solid fa-xmark"></i></button>
+  </div>
+
+  <div class="sidebar-balance">
+    <div class="sb-label">Wallet Balance</div>
+    <div class="sb-amount">{{ wallet_balance }}</div>
+    <a href="topup.html" class="sb-topup-btn">
+      <i class="fa-solid fa-plus"></i> Top Up
+    </a>
+  </div>
+
+  <nav class="sidebar-nav">
+    <div class="nav-section-label">MENU</div>
+    <a href="dashboard.html" class="nav-item ">
+      <i class="fa-solid fa-gauge-high"></i>
+      <span>Dashboard</span>
+
+    </a>
+    <a href="services.html" class="nav-item ">
+      <i class="fa-solid fa-mobile-screen"></i>
+      <span>Services</span>
+
+    </a>
+    <a href="cart.html" class="nav-item ">
+      <i class="fa-solid fa-inbox"></i>
+      <span>Active</span>
+      {% if active_orders_count %}<span class="nav-badge">{{ active_orders_count }}</span>{% endif %}
+    </a>
+    <a href="topup.html" class="nav-item ">
+      <i class="fa-solid fa-wallet"></i>
+      <span>Top Up</span>
+
+    </a>
+    <a href="history.html" class="nav-item ">
+      <i class="fa-solid fa-clock-rotate-left"></i>
+      <span>History</span>
+
+    </a>
+    <a href="tutorials.html" class="nav-item active">
+      <i class="fa-solid fa-circle-play"></i>
+      <span>How To</span>
+
+    </a>
+    <a href="notifications.html" class="nav-item ">
+      <i class="fa-solid fa-bell"></i>
+      <span>Notifications</span>
+      {% if unread_notifications %}<span class="nav-badge">{{ unread_notifications }}</span>{% endif %}
+    </a>
+    <a href="settings.html" class="nav-item ">
+      <i class="fa-solid fa-gear"></i>
+      <span>Settings</span>
+
+    </a>
+  </nav>
+
+  <div class="sidebar-footer">
+    {% if user.role == 'admin' %}<a href="../admin/dashboard.html" class="nav-item nav-item-sm">
+      <i class="fa-solid fa-shield-halved"></i><span>Admin Panel</span>
+    </a>{% endif %}
+    <a href="../logout.html" class="nav-item nav-item-sm nav-item-danger">
+      <i class="fa-solid fa-arrow-right-from-bracket"></i><span>Sign Out</span>
+    </a>
+  </div>
+</aside>
+
+<div class="main-wrapper">
+  <header class="top-header">
+    <button class="hamburger" onclick="openSidebar()">
+      <span></span><span></span><span></span>
+    </button>
+    <div class="top-header-title">How To</div>
+    <div class="top-header-right">
+      <a href="topup.html" class="header-balance">
+        <i class="fa-solid fa-wallet"></i>
+        <span>{{ wallet_balance }}</span>
+      </a>
+      <button class="theme-toggle" id="themeToggleBtn" onclick="toggleTheme()" title="Toggle light/dark mode">
+        <i class="fa-solid fa-moon" id="themeIcon"></i>
+      </button>
+      <div class="avatar-btn" onclick="toggleProfileMenu()">
+        <div class="avatar">{{ user.first_name|default:user.email|slice:":1"|upper }}</div>
+      </div>
+      <div class="profile-menu" id="profileMenu">
+        <div class="pm-user">
+          <div class="pm-name">{{ user.get_full_name|default:user.email }}</div>
+          <div class="pm-email">{{ user.email }}</div>
+        </div>
+        <a href="settings.html" class="pm-item">
+          <i class="fa-solid fa-gear"></i> Settings
+        </a>
+        {% if user.role == 'admin' %}<a href="../admin/dashboard.html" class="pm-item">
+          <i class="fa-solid fa-shield-halved"></i> Admin Panel
+        </a>{% endif %}
+        <a href="../logout.html" class="pm-item pm-item-danger">
+          <i class="fa-solid fa-arrow-right-from-bracket"></i> Sign Out
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <main class="page-content">
+
+{% if messages %}{% for message in messages %}<div class="alert alert-{% if message.tags == 'error' %}danger{% else %}{{ message.tags }}{% endif %}" style="margin-bottom:14px"><i class="fa-solid fa-circle-exclamation"></i> {{ message }}<button class="alert-close" onclick="this.parentElement.remove()">&times;</button></div>{% endfor %}{% endif %}
+<meta name="csrf" content="{{ csrf_token }}">
+
+<div class="page-hero">
+  <h2><i class="fa-solid fa-circle-play" style="color:var(--orange)"></i> How To</h2>
+  <p>Short videos that show you exactly how VerifySMS works. Watch once, then do it yourself.</p>
+</div>
+
+<div style="display:grid;gap:14px">
+
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title"><i class="fa-solid fa-wallet text-orange"></i> Funding your wallet</div>
+    </div>
+    <div class="tut-card">
+      <video class="tut-video" controls preload="metadata" playsinline
+             poster="../assets/video/fund-your-wallet.jpg">
+        <source src="../assets/video/fund-your-wallet.mp4" type="video/mp4">
+        Your browser cannot play this video.
+        <a href="../assets/video/fund-your-wallet.mp4">Download it instead</a>.
+      </video>
+      <div>
+        <div class="text-sm" style="margin-bottom:4px">You need money in your wallet before you can buy anything. This walkthrough takes you from the dashboard to a topped-up balance.</div>
+        <ol class="tut-steps">
+          <li>Open <b>Top Up</b> from the menu.</li>
+          <li>Enter an amount — anything from {{ min_topup|default:"100" }} to {{ max_topup|default:"500000" }}. The fee and the exact amount that reaches your wallet are shown before you pay.</li>
+          <li>Press <b>Pay</b>. You are taken to Paystack, our payment provider, to complete the payment.</li>
+          <li>Pay with your card or a bank transfer, whichever is easier for you.</li>
+          <li>You come back to your dashboard with the new balance already there.</li>
+        </ol>
+        <div class="tut-meta">
+          <span><i class="fa-regular fa-clock"></i> 1 min 44 sec</span>
+          <span><i class="fa-solid fa-shield-halved"></i> Payment handled by Paystack</span>
+        </div>
+        <a href="topup.html" class="btn btn-primary btn-sm" style="margin-top:12px"><i class="fa-solid fa-wallet"></i> Top Up Now</a>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title"><i class="fa-solid fa-mobile-screen text-orange"></i> Buying a number</div>
+    </div>
+    <div class="tut-card">
+      <video class="tut-video" controls preload="metadata" playsinline
+             poster="../assets/video/buy-a-number.jpg">
+        <source src="../assets/video/buy-a-number.mp4" type="video/mp4">
+        Your browser cannot play this video.
+        <a href="../assets/video/buy-a-number.mp4">Download it instead</a>.
+      </video>
+      <div>
+        <div class="text-sm" style="margin-bottom:4px">Pick a service, pick a country, buy the number. The whole thing takes under a minute once your wallet has money in it.</div>
+        <ol class="tut-steps">
+          <li>Open <b>Services</b>. Everything you can buy is listed there with the live price.</li>
+          <li>Pick the <b>service</b> you need the code for — WhatsApp, Telegram, Google, and so on. Read the descriptions: some services have their own rules about how long the number stays yours.</li>
+          <li>Pick the <b>country</b> of the number you want.</li>
+          <li>Pick an <b>operator</b>. Only operators with numbers in stock are shown, so anything you can click is available right now.</li>
+          <li>Check the summary — the price, and what your wallet balance will be after. Have a coupon? Type it in and press <b>Apply</b> before you buy.</li>
+          <li>Press <b>Buy Number</b>. The price comes straight out of your wallet, and the number appears under <b>Active</b>.</li>
+          <li>Open that order and your phone number is at the top — enter it in the app you're verifying. When the code lands it shows up in the same order, usually within a minute. It stays there, and <b>History</b> keeps it after the order ends.</li>
+        </ol>
+        <div class="tut-meta">
+          <span><i class="fa-regular fa-clock"></i> 2 min 32 sec</span>
+          <span><i class="fa-solid fa-wallet"></i> Paid from your wallet balance</span>
+          <span><i class="fa-solid fa-shield-halved"></i> No SIM, no personal number</span>
+        </div>
+        <a href="services.html" class="btn btn-primary btn-sm" style="margin-top:12px"><i class="fa-solid fa-mobile-screen"></i> Buy a Number</a>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title"><i class="fa-solid fa-lightbulb text-orange"></i> Good to know</div>
+    </div>
+    <div class="text-sm" style="line-height:1.7">
+      <b>Keep your wallet funded first.</b> Numbers are paid for from your balance the moment you order, so top up before you start.
+      <br><br>
+      <b>Know the app you're verifying.</b> Pick the service you need the code for — WhatsApp, Telegram, Signal, and so on. The number works for that service only.
+      <br><br>
+      <b>The code arrives in the app.</b> Open the order in <b>Active</b> and the message appears there as soon as it lands, usually within a minute. The page can be closed and reopened, and <b>History</b> keeps every past order with a "View SMS" link.
+      <br><br>
+      <b>Something not working?</b> The Customer Care button reaches support on WhatsApp.
+      <br><br>
+      <b>Restocks and price drops.</b> We post stock alerts, newly supported countries and giveaway codes on our WhatsApp channel — join it once and you will not miss a drop.
+      <div style="margin-top:14px">
+        <a href="https://whatsapp.com/channel/0029VbByKus0AgWDTBYs6X1O" class="btn btn-primary btn-sm" target="_blank" rel="noopener">
+          <i class="fa-brands fa-whatsapp"></i> Join our Channel
+        </a>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+    </main>
+
+    <footer class="page-footer">
+      <span><a href="https://whatsapp.com/channel/0029VbByKus0AgWDTBYs6X1O" class="footer-channel-link" target="_blank" rel="noopener"><i class="fa-brands fa-whatsapp"></i> Join our channel</a></span>
+      <span>&copy; 2026 VerifySMS. All rights reserved.</span>
+      <span>v1.0.0</span>
+    </footer>
+</div><!-- /.main-wrapper -->
+<script src="../assets/js/app.js"></script>
+</body>
+</html>

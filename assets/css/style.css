@@ -230,6 +230,11 @@ h4 { font-size: 0.95rem; font-weight: 600; }
   display: flex; justify-content: space-between;
   font-size: 0.75rem; color: var(--text-dim); flex-shrink: 0;
 }
+.footer-channel-link { display: inline-flex; align-items: center; gap: 6px; color: var(--success); font-weight: 600; text-decoration: none; }
+.footer-channel-link:hover { text-decoration: underline; }
+@media (max-width: 560px) {
+  .page-footer { flex-wrap: wrap; gap: 6px; justify-content: center; }
+}
 
 /* ══ CARDS ══════════════════════════════════════════════════════════════════ */
 .card {
@@ -515,6 +520,21 @@ select.form-control option,
 .home-feature h3 { font-size: 0.9rem; margin-bottom: 5px; }
 .home-feature p { font-size: 0.8rem; color: var(--text-muted); }
 .home-footer { text-align: center; padding: 16px; border-top: 1px solid var(--border); font-size: 0.75rem; color: var(--text-dim); }
+.home-footer-link { display: inline-flex; align-items: center; gap: 6px; color: var(--success); font-weight: 600; text-decoration: none; margin-bottom: 8px; }
+.home-footer-link:hover { text-decoration: underline; }
+.home-channel {
+  display: flex; align-items: center; gap: 18px; flex-wrap: wrap;
+  max-width: 880px; margin: 0 auto; width: calc(100% - 40px);
+  padding: 22px 24px; border-radius: var(--radius);
+  background: linear-gradient(135deg, rgba(37,211,102,0.10), rgba(37,211,102,0.02));
+  border: 1px solid rgba(37,211,102,0.28);
+}
+.home-channel-icon { width: 52px; height: 52px; flex: 0 0 52px; border-radius: 14px; background: #25D366; color: #fff; font-size: 1.5rem; display: flex; align-items: center; justify-content: center; }
+.home-channel-text { flex: 1 1 260px; }
+.home-channel-text h3 { font-size: 1rem; margin-bottom: 4px; }
+.home-channel-text p { font-size: 0.82rem; color: var(--text-muted); line-height: 1.65; }
+.home-channel-btn, .home-channel-btn:hover { background: #25D366; border-color: #25D366; }
+.home-channel-btn:hover { background: #1eb757; border-color: #1eb757; }
 
 /* ══ TOAST ══════════════════════════════════════════════════════════════════ */
 #toast-container { position: fixed; bottom: 20px; right: 14px; z-index: 9999; display: flex; flex-direction: column; gap: 7px; pointer-events: none; max-width: calc(100vw - 28px); }

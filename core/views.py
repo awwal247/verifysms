@@ -19,7 +19,7 @@ from .models import Broadcast, Coupon, CouponUse, Notification, Order, Setting, 
 from .services import FiveSim, Paystack, credit_balance, debit_balance, format_ngn, friendly_provider_error, money, provider_to_user_ngn
 
 
-USER_PAGES = {"dashboard", "services", "cart", "topup", "history", "settings", "sms", "notifications"}
+USER_PAGES = {"dashboard", "services", "cart", "topup", "history", "settings", "sms", "notifications", "tutorials"}
 
 # Orders still able to receive SMS from the provider (others are read-only history).
 ACTIVE_ORDER_STATUSES = ("PENDING", "RECEIVED")
@@ -155,6 +155,9 @@ def user_page(request, page):
         context["is_active"] = bool(order and order.status in ACTIVE_ORDER_STATUSES)
         context["sms_messages"] = _stored_sms(order) if order else []
         context["active_count"] = own.filter(status__in=ACTIVE_ORDER_STATUSES).count()
+    elif page == "tutorials":
+        context["min_topup"] = Setting.value("min_topup", "100")
+        context["max_topup"] = Setting.value("max_topup", "500000")
     elif page == "notifications":
         items = list(Notification.objects.filter(user=request.user))
         context["notifications"] = items
@@ -234,7 +237,9 @@ def admin_page(request, page):
             "topup_fee_percent_high": "6", "topup_fee_threshold": "1000",
             "min_topup": "100", "max_topup": "500000",
             "sms_poll_interval": "5", "maintenance_mode": "0",
-            "support_whatsapp": "2348086218152",
+            "support_whatsapp": DEFAULT_SUPPORT_WHATSAPP,
+            "support_channel": DEFAULT_SUPPORT_CHANNEL,
+            "support_channel_label": "Join our channel",
         }.items()}
     return render(request, f"admin/{page}.html", context)
 
@@ -243,11 +248,17 @@ def _json(data, status=200):
     return JsonResponse(data, status=status)
 
 
+DEFAULT_SUPPORT_WHATSAPP = "2348086218152"
+DEFAULT_SUPPORT_CHANNEL = "https://whatsapp.com/channel/0029VbByKus0AgWDTBYs6X1O"
+
+
 def support_info(request):
-    """Public contact info for the site-wide customer-care button."""
+    """Public contact info for the site-wide customer-care and channel buttons."""
     return _json({
-        "whatsapp": Setting.value("support_whatsapp", "2348086218152").strip(),
+        "whatsapp": Setting.value("support_whatsapp", DEFAULT_SUPPORT_WHATSAPP).strip(),
         "label": Setting.value("support_label", "Customer Care").strip(),
+        "channel": Setting.value("support_channel", DEFAULT_SUPPORT_CHANNEL).strip(),
+        "channel_label": Setting.value("support_channel_label", "Join our channel").strip(),
     })
 
 
@@ -508,7 +519,7 @@ def admin_action(request):
                 messages.success(request, "Balance credited.")
         return redirect("/admin/users.html")
     if action == "save_settings":
-        allowed = {"site_name", "site_rate", "markup_percent", "extra_fee_percent", "topup_fee_percent", "topup_fee_percent_high", "topup_fee_threshold", "min_topup", "max_topup", "sms_poll_interval", "maintenance_mode", "paystack_public_key", "paystack_secret_key", "provider_api_key", "support_whatsapp"}
+        allowed = {"site_name", "site_rate", "markup_percent", "extra_fee_percent", "topup_fee_percent", "topup_fee_percent_high", "topup_fee_threshold", "min_topup", "max_topup", "sms_poll_interval", "maintenance_mode", "paystack_public_key", "paystack_secret_key", "provider_api_key", "support_whatsapp", "support_channel", "support_channel_label"}
         for key in allowed:
             if key in request.POST:
                 Setting.set_value(key, request.POST.get(key, ""))

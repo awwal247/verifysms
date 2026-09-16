@@ -120,15 +120,20 @@
       <span>History</span>
       
     </a>
-    <a href="settings.html" class="nav-item ">
-      <i class="fa-solid fa-gear"></i>
-      <span>Settings</span>
+    <a href="tutorials.html" class="nav-item ">
+      <i class="fa-solid fa-circle-play"></i>
+      <span>How To</span>
       
     </a>
     <a href="notifications.html" class="nav-item ">
       <i class="fa-solid fa-bell"></i>
       <span>Notifications</span>
       {% if unread_notifications %}<span class="nav-badge">{{ unread_notifications }}</span>{% endif %}
+    </a>
+    <a href="settings.html" class="nav-item ">
+      <i class="fa-solid fa-gear"></i>
+      <span>Settings</span>
+      
     </a>
   </nav>
 
@@ -202,6 +207,7 @@
       <div class="info-pill"><i class="fa-solid fa-shield-check"></i> Secured by Paystack</div>
       <div class="info-pill"><i class="fa-solid fa-bolt"></i> Instant credit</div>
       <div class="info-pill"><i class="fa-solid fa-percent"></i> {{ fee_percent }}%–{{ fee_high }}% processing fee</div>
+      <a href="tutorials.html" class="info-pill" style="text-decoration:none"><i class="fa-solid fa-circle-play"></i> New here? Watch how to fund your wallet</a>
     </div>
   </div>
   <div style="text-align:center"><i class="fa-solid fa-wallet" style="font-size:2.5rem;color:var(--orange);opacity:.3"></i></div>
@@ -394,6 +400,7 @@ document.addEventListener('DOMContentLoaded',()=>{
     </main>
 
     <footer class="page-footer">
+      <span><a href="https://whatsapp.com/channel/0029VbByKus0AgWDTBYs6X1O" class="footer-channel-link" target="_blank" rel="noopener"><i class="fa-brands fa-whatsapp"></i> Join our channel</a></span>
       <span>&copy; 2026 VerifySMS. All rights reserved.</span>
       <span>v1.0.0</span>
     </footer>
