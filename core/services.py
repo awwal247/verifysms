@@ -233,6 +233,112 @@ class FiveSim:
         return cls._request(f"/user/sms/inbox/{provider_order_id}")
 
 
+class SmsMan:
+    """Second SMS-number provider. Prices are quoted in the account's own
+    currency, so callers get a provider-currency cost that is converted with
+    the same rate/markup ladder as the primary provider."""
+
+    base_url = "https://api.sms-man.com/control"
+
+    @classmethod
+    def _key(cls):
+        return Setting.value("smsman_api_key", "") or getattr(settings, "SMSMAN_API_KEY", "")
+
+    @classmethod
+    def _request(cls, endpoint, params=None, authenticated=True):
+        key = cls._key()
+        if authenticated and not key:
+            return {"error": "api key not configured"}
+        query = {"token": key} if authenticated else {}
+        query.update(params or {})
+        url = f"{cls.base_url}{endpoint}?{urlencode(query)}"
+        try:
+            request = Request(url, headers={"Accept": "application/json", "User-Agent": "VerifySMS-Django/1.0"})
+            with urlopen(request, timeout=20) as response:
+                payload = response.read().decode("utf-8")
+            data = json.loads(payload)
+            return data if isinstance(data, (dict, list)) else {"error": "invalid json response"}
+        except HTTPError as exc:
+            return {"error": f"api error {exc.code}"}
+        except (URLError, TimeoutError, OSError):
+            return {"error": "connection error"}
+        except (ValueError, UnicodeDecodeError):
+            return {"error": "invalid json response"}
+
+    @classmethod
+    def get_prices(cls, country="", product=""):
+        """Return {country_slug: {operator: {"cost": float, "count": int}}}.
+
+        SMS Man's /get-prices takes a country id and returns the product map
+        for it — one country per call, so the caller asks per selected country.
+        """
+        if not cls._key():
+            return {}
+        params = {}
+        if country:
+            params["country_id"] = country
+        data = cls._request("/get-prices", params)
+        if not isinstance(data, dict) or "error" in data:
+            return {}
+        prices = data.get("prices") if "prices" in data else data
+        if not isinstance(prices, dict):
+            return {}
+        out = {}
+        for key, info in prices.items():
+            if not isinstance(info, dict):
+                continue
+            slug = str(info.get("country_id") or country or "")
+            entry = out.setdefault(slug, {})
+            entry[str(info.get("operator") or "any")] = {
+                "cost": info.get("cost", info.get("price", 0)),
+                "count": info.get("count", 0),
+            }
+        return out
+
+
+def cheapest_price(product, country, operator="any", providers=None):
+    """Cheapest provider-currency cost for one product/country/operator slot.
+
+    Queries every configured provider that can serve the slot and returns the
+    lowest cost together with which provider it came from. Providers with no
+    key configured (or that return nothing for the slot) are skipped, so the
+    comparison degrades to whichever single provider is live rather than
+    failing. Returns None when no provider has a price.
+    """
+    candidates = providers if providers is not None else (
+        ("5sim", FiveSim.get_prices),
+        ("smsman", SmsMan.get_prices),
+    )
+    best = None
+    for name, fetch in candidates:
+        try:
+            prices = fetch(country, product)
+        except Exception:
+            continue
+        if not isinstance(prices, dict) or not prices:
+            continue
+        # 5sim nests product-first or country-first depending on the query.
+        inner = prices.get(product) if isinstance(prices.get(product), dict) else prices.get(country)
+        if not isinstance(inner, dict):
+            continue
+        slot = inner.get(country) if isinstance(inner.get(country), dict) else inner
+        if isinstance(slot.get(operator), dict):
+            info = slot[operator]
+        elif isinstance(slot.get("any"), dict):
+            info = slot["any"]
+        else:
+            continue
+        try:
+            cost = float(info.get("cost", info.get("price", 0)) or 0)
+        except (TypeError, ValueError):
+            continue
+        if cost <= 0:
+            continue
+        if best is None or cost < best["cost"]:
+            best = {"cost": cost, "provider": name, "count": int(info.get("count", 0) or 0)}
+    return best
+
+
 class Paystack:
     base_url = "https://api.paystack.co"
 

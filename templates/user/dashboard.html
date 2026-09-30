@@ -19,14 +19,14 @@
 <meta property="og:site_name" content="VerifySMS">
 <meta property="og:title" content="Dashboard — VerifySMS">
 <meta property="og:description" content="Buy temporary virtual phone numbers from 180+ countries instantly. No SIM needed. Pay with Paystack. Privacy-first SMS verification.">
-<meta property="og:image" content="../assets/img/og-image.png">
+<meta property="og:image" content="../assets/img/og-image.jpg">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Dashboard — VerifySMS">
 <meta name="twitter:description" content="Buy temporary virtual phone numbers from 180+ countries instantly. No SIM needed. Pay with Paystack. Privacy-first SMS verification.">
-<meta name="twitter:image" content="../assets/img/og-image.png">
+<meta name="twitter:image" content="../assets/img/og-image.jpg">
 
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 <link rel="stylesheet" href="../assets/css/style.css">
@@ -179,6 +179,23 @@
   <h2><i class="fa-solid fa-hand-wave" style="color:var(--orange)"></i> Welcome back, {{ user.first_name|default:"there" }}!</h2>
   <p>Here's an overview of your account activity.</p>
 </div>
+
+{% if slides %}
+<!-- Promo slider — CSS-only, no JS. Slides are driven by the asset pair in
+     Admin → Settings; the whole strip fades between panels on a timer. -->
+<div class="promo-slider" aria-label="Promotions" role="region">
+  {% for slide in slides %}
+  <a href="{{ slide.href }}" class="promo-slide{% if forloop.first %} is-active{% endif %}"
+     {% if slide.external %}target="_blank" rel="noopener"{% endif %}
+     style="animation-delay:{{ forloop.counter0 }}s;background-image:url('{{ slide.image }}')">
+    <span class="promo-slide-label">{{ slide.title }}</span>
+  </a>
+  {% endfor %}
+  <div class="promo-dots" aria-hidden="true">
+    {% for slide in slides %}<span class="promo-dot{% if forloop.first %} is-active{% endif %}"></span>{% endfor %}
+  </div>
+</div>
+{% endif %}
 
 <!-- Stats Grid -->
 <div class="stats-grid mb-3">

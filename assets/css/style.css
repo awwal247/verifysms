@@ -856,3 +856,69 @@ select.form-control option,
   display: flex; gap: 10px; justify-content: center;
 }
 .vsms-modal-actions .btn { min-width: 90px; }
+
+/* ── Promo slider (user dashboard) ────────────────────────────────────────
+   CSS-only crossfade between the panels handed down from the view. Panels are
+   absolutely stacked; each one fades in on its own share of a shared cycle so
+   the strip cycles left-to-right without any JS. Height is lockstep across
+   breakpoints so the layout never jumps as panels swap. */
+.promo-slider {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1200 / 400;
+  min-height: 150px;
+  max-height: 320px;
+  margin-bottom: 18px;
+  border-radius: var(--radius);
+  overflow: hidden;
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+}
+.promo-slide {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  text-decoration: none;
+  display: flex;
+  align-items: flex-end;
+  animation: promoCycle var(--promo-duration, 12s) infinite;
+  transition: transform .35s ease;
+}
+.promo-slide.is-active { opacity: 1; }
+.promo-slide::after {
+  content: '';
+  position: absolute; inset: 0;
+  background: linear-gradient(to top, rgba(6,9,26,.82) 0%, rgba(6,9,26,.15) 45%, transparent 70%);
+}
+.promo-slide-label {
+  position: relative; z-index: 1;
+  padding: 0 18px 16px;
+  font-size: .95rem; font-weight: 700; color: #fff;
+  text-shadow: 0 2px 8px rgba(0,0,0,.6);
+}
+.promo-slide:hover { transform: scale(1.015); }
+.promo-dots {
+  position: absolute; z-index: 2;
+  right: 14px; bottom: 16px;
+  display: flex; gap: 6px;
+}
+.promo-dot {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: rgba(255,255,255,.45);
+}
+.promo-dot.is-active { background: #fff; width: 20px; border-radius: 4px; }
+
+@keyframes promoCycle {
+  0%     { opacity: 0; }
+  4%     { opacity: 1; }
+  46%    { opacity: 1; }
+  50%    { opacity: 0; }
+  100%   { opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .promo-slide { animation: none; }
+  .promo-slide.is-active { opacity: 1; }
+}

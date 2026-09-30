@@ -16,7 +16,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 
 from .models import Broadcast, Coupon, CouponUse, Notification, Order, Setting, SmsMessage, Topup, Transaction, User
-from .services import FiveSim, Paystack, credit_balance, debit_balance, format_ngn, friendly_provider_error, money, provider_to_user_ngn
+from .services import FiveSim, Paystack, SmsMan, cheapest_price, credit_balance, debit_balance, format_ngn, friendly_provider_error, money, provider_to_user_ngn
 
 
 USER_PAGES = {"dashboard", "services", "cart", "topup", "history", "settings", "sms", "notifications", "tutorials"}
@@ -122,6 +122,7 @@ def user_page(request, page):
             recent_orders=Order.objects.filter(user=request.user).order_by("-created_at")[:3],
             recent_transactions=Transaction.objects.filter(user=request.user).order_by("-created_at")[:3],
             announcement=Notification.objects.filter(user=request.user, read_at__isnull=True).first(),
+            slides=promo_slides(),
         )
     elif page == "cart":
         context["orders"] = Order.objects.filter(user=request.user, status__in=("PENDING", "RECEIVED")).order_by("-created_at")
@@ -238,8 +239,12 @@ def admin_page(request, page):
             "min_topup": "100", "max_topup": "500000",
             "sms_poll_interval": "5", "maintenance_mode": "0",
             "support_whatsapp": DEFAULT_SUPPORT_WHATSAPP,
+            "support_label": "Customer Care",
             "support_channel": DEFAULT_SUPPORT_CHANNEL,
             "support_channel_label": "Join our channel",
+            "logs_bot_url": DEFAULT_LOGS_BOT_URL,
+            "logs_bot_label": "Buy Social Media Logs",
+            "promo_slides": DEFAULT_PROMO_SLIDES,
         }.items()}
     return render(request, f"admin/{page}.html", context)
 
@@ -250,6 +255,40 @@ def _json(data, status=200):
 
 DEFAULT_SUPPORT_WHATSAPP = "2348086218152"
 DEFAULT_SUPPORT_CHANNEL = "https://whatsapp.com/channel/0029VbByKus0AgWDTBYs6X1O"
+DEFAULT_LOGS_BOT_URL = "https://t.me/davide_store_logsbot"
+
+
+DEFAULT_PROMO_SLIDES = (
+    f"../assets/img/social-logs.jpg | {DEFAULT_LOGS_BOT_URL} | Buy Social Media Logs\n"
+    "../assets/img/og-image.jpg | services.html | Rent a Number in Seconds"
+)
+
+
+def promo_slides():
+    """Promo panels for the dashboard slider, one per configured line.
+
+    Each line is "image | link | caption". Links starting with http(s) open in
+    a new tab; site-relative ones navigate in place. Bad lines are skipped
+    rather than raising, so a typo in one line never blanks the whole strip.
+    """
+    raw = Setting.value("promo_slides", DEFAULT_PROMO_SLIDES) or ""
+    slides = []
+    for line in raw.splitlines():
+        parts = [part.strip() for part in line.split("|")]
+        if not parts or not parts[0]:
+            continue
+        image = parts[0]
+        href = parts[1] if len(parts) > 1 and parts[1] else "services.html"
+        title = parts[2] if len(parts) > 2 and parts[2] else ""
+        slides.append({
+            "image": image,
+            "href": href,
+            "title": title,
+            "external": href.startswith("http://") or href.startswith("https://"),
+        })
+        if len(slides) == 4:
+            break
+    return slides
 
 
 def support_info(request):
@@ -259,6 +298,8 @@ def support_info(request):
         "label": Setting.value("support_label", "Customer Care").strip(),
         "channel": Setting.value("support_channel", DEFAULT_SUPPORT_CHANNEL).strip(),
         "channel_label": Setting.value("support_channel_label", "Join our channel").strip(),
+        "logs": Setting.value("logs_bot_url", DEFAULT_LOGS_BOT_URL).strip(),
+        "logs_label": Setting.value("logs_bot_label", "Buy Social Media Logs").strip(),
     })
 
 
@@ -356,10 +397,19 @@ def provider_api(request):
         for name, info in (country_map if isinstance(country_map, dict) else {}).items():
             if not isinstance(info, dict):
                 continue
+            # Show the cheapest of the configured providers for this slot, not
+            # just the primary one — the user should always see the best price
+            # we can actually serve the number at.
+            best = cheapest_price(product, country, name)
+            cost = best["cost"] if best else info.get("cost", 0)
+            qty = best["count"] if best else int(info.get("count", 0))
+            if not qty:
+                qty = int(info.get("count", 0))
             output.append({
                 "name": name, "label": name.replace("_", " ").title(), "is_any": name == "any",
-                "provider_price": float(info.get("cost", 0)), "user_price": float(provider_to_user_ngn(info.get("cost", 0))),
-                "user_price_fmt": format_ngn(provider_to_user_ngn(info.get("cost", 0))), "qty": int(info.get("count", 0)),
+                "provider_price": float(cost), "user_price": float(provider_to_user_ngn(cost)),
+                "user_price_fmt": format_ngn(provider_to_user_ngn(cost)), "qty": qty,
+                "provider": best["provider"] if best else "5sim",
             })
         return _json({"success": True, "data": output})
     return _json({"success": False, "message": "Unknown action."}, 400)
@@ -519,7 +569,7 @@ def admin_action(request):
                 messages.success(request, "Balance credited.")
         return redirect("/admin/users.html")
     if action == "save_settings":
-        allowed = {"site_name", "site_rate", "markup_percent", "extra_fee_percent", "topup_fee_percent", "topup_fee_percent_high", "topup_fee_threshold", "min_topup", "max_topup", "sms_poll_interval", "maintenance_mode", "paystack_public_key", "paystack_secret_key", "provider_api_key", "support_whatsapp", "support_channel", "support_channel_label"}
+        allowed = {"site_name", "site_rate", "markup_percent", "extra_fee_percent", "topup_fee_percent", "topup_fee_percent_high", "topup_fee_threshold", "min_topup", "max_topup", "sms_poll_interval", "maintenance_mode", "paystack_public_key", "paystack_secret_key", "provider_api_key", "smsman_api_key", "support_whatsapp", "support_label", "support_channel", "support_channel_label", "logs_bot_url", "logs_bot_label", "promo_slides"}
         for key in allowed:
             if key in request.POST:
                 Setting.set_value(key, request.POST.get(key, ""))

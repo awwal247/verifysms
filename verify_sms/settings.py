@@ -97,6 +97,7 @@ SITE_URL = os.getenv("SITE_URL", "http://127.0.0.1:8000").rstrip("/")
 # only while you need to trigger a remote migrate+seed, then remove it.
 DEPLOY_SETUP_TOKEN = os.getenv("DEPLOY_SETUP_TOKEN", "")
 FIVESIM_API_KEY = os.getenv("FIVESIM_API_KEY", "")
+SMSMAN_API_KEY = os.getenv("SMSMAN_API_KEY", "")
 PAYSTACK_PUBLIC_KEY = os.getenv("PAYSTACK_PUBLIC_KEY", "")
 PAYSTACK_SECRET_KEY = os.getenv("PAYSTACK_SECRET_KEY", "")
 SESSION_COOKIE_NAME = "vsms_session"

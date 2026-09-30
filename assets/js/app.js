@@ -311,6 +311,7 @@ document.addEventListener('DOMContentLoaded', function() {
           '<path d="M16 .8C7.6.8.8 7.6.8 16c0 2.7.7 5.3 2 7.6L.9 31.1l7.7-1.9c2.2 1.2 4.7 1.9 7.4 1.9 8.4 0 15.2-6.8 15.2-15.2S24.4.8 16 .8zm0 27.7c-2.4 0-4.6-.6-6.5-1.7l-.5-.3-4.5 1.2 1.2-4.4-.3-.5C4 20.9 3.4 18.5 3.4 16 3.4 9 9 3.4 16 3.4S28.6 9 28.6 16 23 28.5 16 28.5zm7-8.5c-.4-.2-2.3-1.1-2.7-1.2-.3-.1-.6-.2-.8.2-.2.4-.9 1.2-1.1 1.5-.2.2-.4.3-.8.1-2.3-1.1-3.8-2-5.3-4.5-.4-.7.4-.7 1.1-2.2.1-.3 0-.5 0-.7-.1-.2-.8-2-1.1-2.7-.3-.7-.6-.6-.8-.6h-.7c-.2 0-.6.1-.9.4-1.5 1.5-2 3.6-.4 6 1.6 2.7 3.2 4.3 5.7 5.5 2.4 1.1 4.8 1.4 5.8 1.5.7.1 2.3.2 2.9-1 .6-1.2.8-2 .9-2.1-.1-.1-.4-.2-.8-.4z"/></svg>';
         document.body.appendChild(a);
         addChannelButton(d);
+        addLogsButton(d);
       })
       .catch(() => {});
   } catch (e) {}
@@ -340,5 +341,67 @@ function addChannelButton(d) {
       '<span></span>';
     a.querySelector('span').textContent = a.title;
     document.body.appendChild(a);
+    stackFabs();
   } catch (e) {}
 }
+
+// ── "Buy Social Media Logs" button ──────────────────────────────────────────
+// Deliberately the loudest of the three: a pulsing accent pill sitting on top
+// of the stack, because it is the one action we most want the eye to catch.
+// The bot URL comes from /api/support/ (admin → Settings → Logs Bot URL), so
+// it can be repointed or hidden without a deploy.
+function addLogsButton(d) {
+  try {
+    const url = (d && d.logs) ? String(d.logs).trim() : '';
+    if (!url) return;
+    if (document.getElementById('logsFab')) return;
+
+    const a = document.createElement('a');
+    a.id = 'logsFab';
+    a.href = url;
+    a.target = '_blank';
+    a.rel = 'noopener';
+    a.title = (d && d.logs_label) || 'Buy Social Media Logs';
+    a.setAttribute('aria-label', a.title);
+    a.style.cssText = 'position:fixed;right:16px;bottom:148px;z-index:9999;display:inline-flex;align-items:center;gap:8px;' +
+      'height:46px;padding:0 20px 0 14px;border-radius:23px;background:linear-gradient(135deg,#f97316,#ea6a0a);' +
+      'color:#fff;font-size:14px;font-weight:700;font-family:inherit;text-decoration:none;white-space:nowrap;' +
+      'box-shadow:0 6px 20px rgba(249,115,22,.45);animation:logsFabPulse 2.4s ease-in-out infinite;';
+    a.innerHTML = '<svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor" aria-hidden="true">' +
+      '<path d="M12 2 4 6v6c0 5 3.4 9.2 8 10 4.6-.8 8-5 8-10V6l-8-4zm0 4.2 5 2.5v3.3c0 3.4-2.1 6.4-5 7.2-2.9-.8-5-3.8-5-7.2V8.7l5-2.5z"/>' +
+      '<path d="M11.2 9.2h1.6v4.2h-1.6zM11.2 14.6h1.6v1.6h-1.6z"/></svg>' +
+      '<span></span>';
+    a.querySelector('span').textContent = a.title;
+    document.body.appendChild(a);
+    stackFabs();
+  } catch (e) {}
+}
+
+// Keep the floating buttons in one clean column, tallest stack element on top,
+// regardless of which of them happen to be enabled at the moment.
+function stackFabs() {
+  try {
+    const order = [['logsFab', '#f97316'], ['channelFab', '#25D366'], ['supportFab', 'var(--success,#22c55e)']];
+    let bottom = 16;
+    for (const [id] of order) {
+      const el = document.getElementById(id);
+      if (!el) continue;
+      el.style.bottom = bottom + 'px';
+      bottom += el.offsetHeight ? el.offsetHeight + 12 : 56;
+    }
+  } catch (e) {}
+}
+
+// Pulsing halo for the logs button. Injected once into <head>.
+(function injectFabStyles() {
+  try {
+    if (document.getElementById('vsmsFabStyles')) return;
+    const s = document.createElement('style');
+    s.id = 'vsmsFabStyles';
+    s.textContent = '@keyframes logsFabPulse{' +
+      '0%,100%{box-shadow:0 6px 20px rgba(249,115,22,.45);transform:scale(1)}' +
+      '50%{box-shadow:0 6px 26px rgba(249,115,22,.75);transform:scale(1.03)}}' +
+      '@media (prefers-reduced-motion:reduce){#logsFab{animation:none!important}}';
+    document.head.appendChild(s);
+  } catch (e) {}
+})();
