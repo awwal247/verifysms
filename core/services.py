@@ -84,259 +84,339 @@ def credit_balance(user_id, amount, kind, description, reference=None):
 
 
 def friendly_provider_error(raw):
-    raw = str(raw or "").lower().strip()
+    """Map a provider error token onto something the buyer can act on."""
+    raw = str(raw or "").upper().strip()
     messages = {
-        "low user balance": "Service temporarily unavailable. Please try again later.",
-        "no free phones": "No numbers available for this selection right now. Try a different country or operator.",
-        "bad country": "Invalid country selected.",
-        "bad operator": "Invalid operator selected.",
-        "bad product": "Invalid service selected.",
-        "order not found": "Order not found.",
-        "order expired": "This order has expired.",
-        "order already finished": "This order was already completed.",
-        "order already canceled": "This order was already cancelled.",
-        "order already banned": "This order was already reported.",
-        "connection error": "Connection to provider failed. Please try again.",
-        "invalid json response": "Provider returned an unexpected response.",
-        "api error 401": "Invalid API key. Check Admin → Providers.",
-        "api error 400": "Invalid request to provider.",
-        "api error 500": "Provider is temporarily unavailable.",
+        "BAD_KEY": "Service temporarily unavailable. Please try again later.",
+        "NO_BALANCE": "Service temporarily unavailable. Please try again later.",
+        "NO_NUMBERS": "No numbers available for this selection right now. Try a different country or service.",
+        "BAD_SERVICE": "Invalid service selected.",
+        "BAD_ACTION": "Invalid request to provider.",
+        "BAD_STATUS": "This order can no longer be updated.",
+        "NO_ACTIVATION": "Order not found.",
+        "BANNED": "This service has been reported and is no longer available.",
+        "SERVICE_UNAVAILABLE_REGION": "This service is not available in your region.",
+        "ACCESS_CANCEL": "This order was already cancelled.",
+        "EMPTY_RESPONSE": "Provider returned an unexpected response.",
+        "INVALID_JSON": "Provider returned an unexpected response.",
+        "BAD_COUNTRY": "Invalid country selected.",
     }
     for key, message in messages.items():
         if key in raw:
             return message
-    return "Provider error. Please try again or contact support." if "api error" in raw else "An error occurred. Please try again."
+    if raw.startswith("HTTP_5") or "TIMEOUT" in raw:
+        return "Provider is temporarily unavailable. Please try again."
+    if raw.startswith("HTTP_"):
+        return "Connection to provider failed. Please try again."
+    return "An error occurred. Please try again."
 
 
-class FiveSim:
-    """5sim adapter with a deterministic demo catalog when no API key is set."""
+class GrizzlySms:
+    """GrizzlySMS adapter — the app's only SMS number provider.
 
-    base_url = "https://5sim.net/v1"
-    demo_catalog = {
-        "whatsapp": {
-            "nigeria": {"any": {"cost": 0.05, "count": 42}, "mtn": {"cost": 0.06, "count": 18}, "airtel": {"cost": 0.055, "count": 24}},
-            "usa": {"any": {"cost": 0.08, "count": 31}},
-            "india": {"any": {"cost": 0.04, "count": 58}},
-            "united_kingdom": {"any": {"cost": 0.09, "count": 14}},
-        },
-        "telegram": {
-            "nigeria": {"any": {"cost": 0.05, "count": 33}},
-            "usa": {"any": {"cost": 0.08, "count": 22}},
-            "india": {"any": {"cost": 0.04, "count": 41}},
-        },
-        "google": {
-            "nigeria": {"any": {"cost": 0.07, "count": 19}},
-            "usa": {"any": {"cost": 0.10, "count": 17}},
-        },
-        "facebook": {
-            "nigeria": {"any": {"cost": 0.06, "count": 26}},
-            "usa": {"any": {"cost": 0.09, "count": 20}},
-        },
+    GrizzlySMS speaks the sms-activate wire protocol: a single
+    ``handler_api.php`` endpoint, a bare ``api_key`` query parameter (not a
+    bearer header), and responses that are colon-delimited plain text rather
+    than JSON. Every call returns a parsed dict; ``{"error": ...}`` marks a
+    provider-level failure the caller surfaces to the user.
+
+    Prices and balances are quoted in USD.
+    """
+
+    base_url = "https://api.grizzlysms.com/stubs/handler_api.php"
+
+    # GrizzlySMS identifies services by short code, not product name. Keys are
+    # the codes the API expects; values are what the storefront shows. Codes
+    # not listed here are used verbatim.
+    service_labels = {
+        "wa": "WhatsApp", "tg": "Telegram", "go": "Google", "fb": "Facebook",
+        "ig": "Instagram", "tw": "Twitter", "oi": "Tinder", "am": "Amazon",
+        "mm": "Microsoft", "nf": "Netflix", "bb": "Uber", "vi": "Viber",
+        "ds": "Discord", "sn": "Snapchat", "tt": "TikTok", "av": "Avito",
+        "fd": "Foodpanda", "vk": "VKontakte", "ok": "Odnoklassniki",
+    }
+
+    demo_countries = {
+        "22": ("Nigeria", "ng"), "18": ("India", "in"), "187": ("United States", "us"),
+        "16": ("United Kingdom", "gb"), "6": ("Indonesia", "id"), "12": ("Philippines", "ph"),
+        "49": ("Germany", "de"), "36": ("Canada", "ca"), "0": ("Russia", "ru"),
+        "2": ("Kazakhstan", "kz"), "10": ("Vietnam", "vn"), "1": ("Ukraine", "ua"),
+    }
+
+    demo_prices = {
+        "wa": {"22": 0.35, "18": 0.42, "187": 0.55, "16": 0.48},
+        "tg": {"22": 0.29, "18": 0.33, "187": 0.45, "16": 0.51},
+        "go": {"22": 0.44, "18": 0.52, "187": 0.72},
+        "fb": {"22": 0.30, "18": 0.38, "187": 0.61},
+        "ig": {"22": 0.41, "18": 0.47, "187": 0.68},
+        "tt": {"22": 0.33, "18": 0.40, "187": 0.58},
     }
 
     @classmethod
     def _key(cls):
-        return Setting.value("provider_api_key", "") or settings.FIVESIM_API_KEY
+        return Setting.value("provider_api_key", "") or settings.GRIZZLY_API_KEY
 
     @classmethod
-    def _request(cls, endpoint, authenticated=True):
-        headers = {"Accept": "application/json", "User-Agent": "VerifySMS-Django/1.0"}
-        if authenticated:
-            key = cls._key()
-            if not key:
-                return {"error": "API key not configured. See Admin → Providers."}
-            headers["Authorization"] = f"Bearer {key}"
+    def _request(cls, params):
+        """Call the activation endpoint. Returns a parsed dict, or
+        ``{"error": <token>}`` — the plain-text wire format is normalised here
+        so no caller has to know it."""
+        key = cls._key()
+        if not key:
+            return {"error": "BAD_KEY"}
+        query = urlencode({"api_key": key, **{k: v for k, v in params.items() if v not in (None, "")}})
+        request = Request(cls.base_url + "?" + query, headers={
+            "Accept": "text/plain, application/json",
+            "User-Agent": "VerifySMS-Django/1.0",
+        })
         try:
-            request = Request(cls.base_url + endpoint, headers=headers)
             with urlopen(request, timeout=20) as response:
-                payload = response.read().decode("utf-8")
-            data = json.loads(payload)
-            return data if isinstance(data, (dict, list)) else {"error": "invalid json response"}
+                body = response.read().decode("utf-8", "replace").strip()
         except HTTPError as exc:
-            return {"error": f"api error {exc.code}"}
-        except (URLError, TimeoutError, OSError) as exc:
-            return {"error": f"connection error: {exc}"}
-        except (ValueError, UnicodeDecodeError):
-            return {"error": "invalid json response"}
+            return {"error": f"HTTP_{exc.code}"}
+        except (URLError, TimeoutError, OSError):
+            return {"error": "SERVICE_UNAVAILABLE_REGION"}
+        return cls._parse(body)
+
+    @staticmethod
+    def _parse(body):
+        """Normalise a GrizzlySMS reply into a dict.
+
+        Success shapes: ``ACCESS_BALANCE:12.34``, ``ACCESS_NUMBER:id:phone``,
+        ``STATUS_OK:1234``, ``ACCESS_READY``. JSON replies (getPrices,
+        getCountries, getServicesList) decode as-is. A bare error token
+        becomes ``{"error": token}``.
+        """
+        if not body:
+            return {"error": "EMPTY_RESPONSE"}
+        if body[0] in "{[":
+            try:
+                return json.loads(body)
+            except ValueError:
+                return {"error": "INVALID_JSON"}
+        head, _, tail = body.partition(":")
+        head, tail = head.strip(), tail.strip()
+        if head == "ACCESS_NUMBER":
+            activation_id, _, phone = tail.partition(":")
+            return {"id": activation_id.strip(), "phone": phone.strip()}
+        if head in {"ACCESS_BALANCE", "ACCESS_ACTIVATION", "ACCESS_READY",
+                    "ACCESS_RETRY_GET", "STATUS_WAIT_CODE", "STATUS_WAIT_RESEND",
+                    "STATUS_CANCEL", "STATUS_OK", "STATUS_WAIT_RETRY"}:
+            return {"status": head, "value": tail} if tail else {"status": head}
+        return {"error": body.split("\n")[0][:120]}
+
+    # -- catalog -----------------------------------------------------------
 
     @classmethod
     def get_countries(cls):
+        """``{country_id: {"id", "eng", "iso"}}``. The id is what every other
+        call takes, so it doubles as the storefront's internal slug."""
         if not cls._key():
-            return {
-                "nigeria": {"iso": {"ng": "Nigeria"}, "text_en": "Nigeria"},
-                "usa": {"iso": {"us": "United States"}, "text_en": "United States"},
-                "india": {"iso": {"in": "India"}, "text_en": "India"},
-                "united_kingdom": {"iso": {"gb": "United Kingdom"}, "text_en": "United Kingdom"},
-            }
-        data = cls._request("/guest/countries", authenticated=False)
-        return {} if "error" in data else data
+            return {cid: {"id": int(cid), "eng": name, "iso": iso}
+                    for cid, (name, iso) in cls.demo_countries.items()}
+        data = cls._request({"action": "getCountries"})
+        if not isinstance(data, dict) or "error" in data:
+            return {}
+        items = data.get("countries") if isinstance(data.get("countries"), list) else data
+        out = {}
+        for item in items if isinstance(items, list) else []:
+            if isinstance(item, dict) and item.get("id") is not None:
+                out[str(item["id"])] = {
+                    "id": item["id"],
+                    "eng": item.get("eng") or item.get("rus") or str(item["id"]),
+                    "iso": str(item.get("iso") or "").lower(),
+                }
+        return out
+
+    @classmethod
+    def get_services(cls):
+        """Service-code -> human name, from getServicesList.
+
+        Returns {} when the endpoint is unreachable or the key is absent, so
+        callers fall back to the local service_labels map rather than blowing
+        up on an offline/demo container.
+        """
+        try:
+            data = cls._request({"action": "getServicesList"})
+        except Exception:
+            return {}
+        if not isinstance(data, dict):
+            return {}
+        out = {}
+        for item in data.get("services") or []:
+            code = str(item.get("code", "")).strip()
+            if code:
+                out[code] = str(item.get("name") or code)
+        return out
 
     @classmethod
     def get_products(cls, country="any", operator="any"):
+        """``{service_code: {"Price", "Qty", "Category"}}`` for one country.
+
+        GrizzlySMS has no products endpoint; the catalog comes from
+        /getPricesV3, which is keyed by service code. That endpoint does not
+        expose stock, so a service carrying a price counts as available.
+        """
         if not cls._key():
-            if country == "any":
-                return {name: {"Qty": sum(v.get("any", {}).get("count", 0) for v in countries.values()), "Category": "activation"} for name, countries in cls.demo_catalog.items()}
             result = {}
-            for product, countries in cls.demo_catalog.items():
-                info = countries.get(country, {}).get(operator) or countries.get(country, {}).get("any")
-                if info:
-                    result[product] = {"Price": info["cost"], "Qty": info["count"], "Category": "activation"}
+            for code, by_country in cls.demo_prices.items():
+                cost = by_country.get(str(country)) or by_country.get("22")
+                if cost:
+                    result[code] = {"Price": cost, "Qty": 25, "Category": "activation"}
             return result
-        data = cls._request(f"/guest/products/{quote(country)}/{quote(operator)}", authenticated=False)
-        return {} if "error" in data else data
+        if str(country) in ("", "any"):
+            return {}
+        return {code: {"Price": info["price"], "Qty": info.get("count", 1), "Category": "activation"}
+                for code, info in cls._prices_for(str(country), "").items()}
+
+    @classmethod
+    def _prices_for(cls, country, product=""):
+        """``{service_code: {"price": float, "count": int}}`` for one country."""
+        params = {"action": "getPricesV3", "country": str(country)}
+        if product:
+            params["service"] = product
+        data = cls._request(params)
+        if not isinstance(data, dict) or "error" in data:
+            return {}
+        block = data.get(str(country))
+        if not isinstance(block, dict):
+            return {}
+        services = block.get("services") if isinstance(block.get("services"), dict) else block
+        out = {}
+        for code, info in services.items():
+            if not isinstance(info, dict):
+                continue
+            try:
+                price = float(info.get("price", info.get("cost")))
+            except (TypeError, ValueError):
+                continue
+            out[str(code)] = {"price": price, "count": int(info.get("count", info.get("qty", 1)) or 1)}
+        return out
 
     @classmethod
     def get_prices(cls, country="", product=""):
+        """``{country_id: {service_code: {"cost", "count"}}}`` — the shape the
+        catalog views descend into. Only the requested country is returned."""
         if not cls._key():
-            if product:
-                return {product: cls.demo_catalog.get(product, {})}
-            return cls.demo_catalog
-        query = urlencode({key: value for key, value in {"country": country, "product": product}.items() if value})
-        data = cls._request("/guest/prices" + (f"?{query}" if query else ""), authenticated=False)
-        return {} if "error" in data else data
+            cid = str(country or "22")
+            codes = [product] if product else list(cls.demo_prices)
+            return {cid: {code: {"cost": cls.demo_prices.get(code, {}).get(cid, 0.4), "count": 25}
+                          for code in codes}}
+        if str(country) in ("", "any"):
+            return {}
+        return {str(country): {code: {"cost": info["price"], "count": info["count"]}
+                               for code, info in cls._prices_for(country, product).items()}}
+
+    # -- activations -------------------------------------------------------
 
     @classmethod
-    def buy_activation(cls, country, operator, product):
+    def get_balance(cls):
         if not cls._key():
-            info = cls.demo_catalog.get(product, {}).get(country, {}).get(operator) or cls.demo_catalog.get(product, {}).get(country, {}).get("any")
-            if not info or not info["count"]:
-                return {"error": "no free phones"}
-            return {
-                "id": secrets.randbelow(900000) + 100000,
-                "phone": "+2348000000000",
-                "product": product,
-                "country": country,
-                "operator": operator,
-                "price": info["cost"],
-                "status": "PENDING",
-                "expires": (timezone.now() + timedelta(minutes=20)).isoformat(),
-                "sms": [],
-            }
-        return cls._request(f"/user/buy/activation/{quote(country)}/{quote(operator)}/{quote(product)}")
+            return {"balance": 0.0, "demo": True}
+        data = cls._request({"action": "getBalance"})
+        if "error" in data:
+            return data
+        try:
+            return {"balance": float(data.get("value") or 0)}
+        except (TypeError, ValueError):
+            return {"error": "INVALID_JSON"}
 
     @classmethod
-    def order_action(cls, action, provider_order_id):
+    def buy_activation(cls, country, operator, product, max_price=None):
+        """Book a number. Returns ``{"id", "phone", "status"}``."""
         if not cls._key():
-            return {"status": {"cancel": "CANCELED", "finish": "FINISHED", "ban": "BANNED"}.get(action, "PENDING")}
-        return cls._request(f"/user/{action}/{provider_order_id}")
+            return {"id": str(secrets.randbelow(9000000) + 1000000),
+                    "phone": "2348000000000", "service": product,
+                    "country": country, "status": "PENDING"}
+        if str(country) in ("", "any"):
+            return {"error": "NO_NUMBERS"}
+        data = cls._request({
+            "action": "getNumber", "service": product, "country": str(country),
+            "maxPrice": max_price if max_price else None,
+        })
+        if "error" in data:
+            return data
+        if not data.get("id"):
+            return {"error": "NO_NUMBERS"}
+        return data
 
     @classmethod
     def check_order(cls, provider_order_id):
+        """Activation status, normalised onto Order.STATUS_CHOICES."""
         if not cls._key():
             return {"status": "PENDING", "sms": []}
-        return cls._request(f"/user/check/{provider_order_id}")
+        data = cls._request({"action": "getStatusV2", "id": str(provider_order_id)})
+        if "error" in data:
+            return data
+        sms_block = data.get("sms") if isinstance(data, dict) else None
+        if isinstance(sms_block, dict):
+            return {"status": "RECEIVED", "sms": [{
+                "sender": "",
+                "text": sms_block.get("text") or sms_block.get("code") or "",
+                "code": sms_block.get("code") or "",
+                "date": sms_block.get("dateTime") or "",
+            }]}
+        raw = data.get("status", "") if isinstance(data, dict) else str(data)
+        return {"status": cls._normalise_status(raw, data), "sms": []}
+
+    @staticmethod
+    def _normalise_status(raw, data=None):
+        token = str(raw or "").upper()
+        if data and isinstance(data, dict) and data.get("sms"):
+            return "RECEIVED"
+        if token.startswith("STATUS_OK") or token.startswith("ACCESS_ACTIVATION"):
+            return "RECEIVED"
+        if token in {"STATUS_CANCEL", "STATUS_CANCELLED"}:
+            return "CANCELED"
+        if token in {"STATUS_WAIT_RESEND", "STATUS_WAIT_RETRY", "STATUS_WAIT_CODE",
+                     "ACCESS_READY", "ACCESS_RETRY_GET"}:
+            return "PENDING"
+        if token in {"STATUS_TIMEOUT", "EXPIRED"}:
+            return "TIMEOUT"
+        return "PENDING"
+
+    @classmethod
+    def order_action(cls, action, provider_order_id):
+        """cancel -> -1, finish -> 6, ban -> 8 (reported)."""
+        code = {"cancel": "-1", "finish": "6", "ban": "8"}.get(action)
+        if code is None:
+            return {"error": "BAD_ACTION"}
+        if not cls._key():
+            return {"status": {"cancel": "STATUS_CANCEL", "finish": "ACCESS_ACTIVATION",
+                               "ban": "STATUS_CANCEL"}[action]}
+        return cls._request({"action": "setStatus", "status": code, "id": str(provider_order_id)})
 
     @classmethod
     def sms_inbox(cls, provider_order_id):
-        if not cls._key():
-            return {"sms": []}
-        return cls._request(f"/user/sms/inbox/{provider_order_id}")
+        return {"sms": cls.check_order(provider_order_id).get("sms", [])}
 
 
-class SmsMan:
-    """Second SMS-number provider. Prices are quoted in the account's own
-    currency, so callers get a provider-currency cost that is converted with
-    the same rate/markup ladder as the primary provider."""
+def provider_price(product, country, operator="any"):
+    """Best price for one product/country slot.
 
-    base_url = "https://api.sms-man.com/control"
-
-    @classmethod
-    def _key(cls):
-        return Setting.value("smsman_api_key", "") or getattr(settings, "SMSMAN_API_KEY", "")
-
-    @classmethod
-    def _request(cls, endpoint, params=None, authenticated=True):
-        key = cls._key()
-        if authenticated and not key:
-            return {"error": "api key not configured"}
-        query = {"token": key} if authenticated else {}
-        query.update(params or {})
-        url = f"{cls.base_url}{endpoint}?{urlencode(query)}"
-        try:
-            request = Request(url, headers={"Accept": "application/json", "User-Agent": "VerifySMS-Django/1.0"})
-            with urlopen(request, timeout=20) as response:
-                payload = response.read().decode("utf-8")
-            data = json.loads(payload)
-            return data if isinstance(data, (dict, list)) else {"error": "invalid json response"}
-        except HTTPError as exc:
-            return {"error": f"api error {exc.code}"}
-        except (URLError, TimeoutError, OSError):
-            return {"error": "connection error"}
-        except (ValueError, UnicodeDecodeError):
-            return {"error": "invalid json response"}
-
-    @classmethod
-    def get_prices(cls, country="", product=""):
-        """Return {country_slug: {operator: {"cost": float, "count": int}}}.
-
-        SMS Man's /get-prices takes a country id and returns the product map
-        for it — one country per call, so the caller asks per selected country.
-        """
-        if not cls._key():
-            return {}
-        params = {}
-        if country:
-            params["country_id"] = country
-        data = cls._request("/get-prices", params)
-        if not isinstance(data, dict) or "error" in data:
-            return {}
-        prices = data.get("prices") if "prices" in data else data
-        if not isinstance(prices, dict):
-            return {}
-        out = {}
-        for key, info in prices.items():
-            if not isinstance(info, dict):
-                continue
-            slug = str(info.get("country_id") or country or "")
-            entry = out.setdefault(slug, {})
-            entry[str(info.get("operator") or "any")] = {
-                "cost": info.get("cost", info.get("price", 0)),
-                "count": info.get("count", 0),
-            }
-        return out
-
-
-def cheapest_price(product, country, operator="any", providers=None):
-    """Cheapest provider-currency cost for one product/country/operator slot.
-
-    Queries every configured provider that can serve the slot and returns the
-    lowest cost together with which provider it came from. Providers with no
-    key configured (or that return nothing for the slot) are skipped, so the
-    comparison degrades to whichever single provider is live rather than
-    failing. Returns None when no provider has a price.
+    There is a single provider now, so this is a thin lookup that keeps the
+    callers, which used to compare providers, unchanged in shape. Returns
+    ``{"cost", "provider", "count"}`` or None when the slot has no price.
     """
-    candidates = providers if providers is not None else (
-        ("5sim", FiveSim.get_prices),
-        ("smsman", SmsMan.get_prices),
-    )
-    best = None
-    for name, fetch in candidates:
-        try:
-            prices = fetch(country, product)
-        except Exception:
-            continue
-        if not isinstance(prices, dict) or not prices:
-            continue
-        # 5sim nests product-first or country-first depending on the query.
-        inner = prices.get(product) if isinstance(prices.get(product), dict) else prices.get(country)
-        if not isinstance(inner, dict):
-            continue
-        slot = inner.get(country) if isinstance(inner.get(country), dict) else inner
-        if isinstance(slot.get(operator), dict):
-            info = slot[operator]
-        elif isinstance(slot.get("any"), dict):
-            info = slot["any"]
-        else:
-            continue
-        try:
-            cost = float(info.get("cost", info.get("price", 0)) or 0)
-        except (TypeError, ValueError):
-            continue
-        if cost <= 0:
-            continue
-        if best is None or cost < best["cost"]:
-            best = {"cost": cost, "provider": name, "count": int(info.get("count", 0) or 0)}
-    return best
+    try:
+        prices = GrizzlySms.get_prices(country, product)
+    except Exception:
+        return None
+    if not isinstance(prices, dict) or not prices:
+        return None
+    block = prices.get(str(country)) or next(iter(prices.values()), None)
+    if not isinstance(block, dict):
+        return None
+    info = block.get(product)
+    if not isinstance(info, dict):
+        return None
+    try:
+        cost = float(info.get("cost", info.get("price", 0)) or 0)
+    except (TypeError, ValueError):
+        return None
+    if cost <= 0:
+        return None
+    return {"cost": cost, "provider": "grizzly", "count": int(info.get("count", 0) or 0)}
 
 
 class Paystack:

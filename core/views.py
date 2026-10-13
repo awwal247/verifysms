@@ -16,7 +16,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 
 from .models import Broadcast, Coupon, CouponUse, Notification, Order, Setting, SmsMessage, Topup, Transaction, User
-from .services import FiveSim, Paystack, SmsMan, cheapest_price, credit_balance, debit_balance, format_ngn, friendly_provider_error, money, provider_to_user_ngn
+from .services import GrizzlySms, Paystack, credit_balance, debit_balance, format_ngn, friendly_provider_error, money, provider_price, provider_to_user_ngn
 
 
 USER_PAGES = {"dashboard", "services", "cart", "topup", "history", "settings", "sms", "notifications", "tutorials"}
@@ -222,8 +222,8 @@ def admin_page(request, page):
         context["active_total"] = User.objects.filter(role="user", status="active").count()
         context["funded_total"] = User.objects.filter(role="user", balance__gt=0).count()
     elif page == "providers":
-        context["provider_configured"] = bool(FiveSim._key())
-        context["demo_mode"] = not bool(FiveSim._key())
+        context["provider_configured"] = bool(GrizzlySms._key())
+        context["demo_mode"] = not bool(GrizzlySms._key())
     elif page == "payment":
         context["payment_configured"] = bool(Paystack.secret_key())
         context["public_key"] = Paystack.public_key()
@@ -304,8 +304,8 @@ def support_info(request):
 
 
 def _normalise_sms(msg):
-    """Turn a 5sim SMS entry into a display-friendly dict, parsing an OTP
-    code out of the text when 5sim does not return one explicitly."""
+    """Turn a provider SMS entry into a display-friendly dict, parsing an OTP
+    code out of the text when the provider does not return one explicitly."""
     if not isinstance(msg, dict):
         msg = {}
     text = (msg.get("text") or "").strip()
@@ -352,65 +352,76 @@ def _stored_sms(order):
 def provider_api(request):
     action = request.GET.get("action", "")
     if action == "services":
-        raw = FiveSim.get_products("any", "any")
-        if not raw or "error" in raw:
+        # GrizzlySMS has no global service catalog: /getPricesV3 is per country
+        # and keyed by service code. So a service counts as offered when at
+        # least one country prices it, and the label comes from the provider's
+        # own /getServicesList when reachable, else the local code map.
+        country = request.GET.get("country", "").strip()
+        codes = GrizzlySms.get_products(country) if country not in ("", "any") else {}
+        if not codes:
+            for cid in list(GrizzlySms.get_countries())[:8]:
+                codes.update(GrizzlySms.get_products(cid))
+        if not codes:
             return _json({"success": False, "message": "Could not reach the provider. Check API key or try again."})
+        labels = GrizzlySms.get_services()
         data = {
-            name: {"name": name, "category": str(info.get("Category", "activation")).lower(), "qty": int(info.get("Qty", 0))}
-            for name, info in raw.items()
-            if str(info.get("Category", "activation")).lower() == "activation" and int(info.get("Qty", 0)) > 0
+            code: {
+                "name": labels.get(code, GrizzlySms.service_labels.get(code, code.upper())),
+                "code": code,
+                "category": "activation",
+                "qty": int(info.get("Qty", 0)),
+            }
+            for code, info in codes.items()
+            if int(info.get("Qty", 0)) > 0
         }
         return _json({"success": True, "data": dict(sorted(data.items()))})
+
     if action == "countries":
         product = request.GET.get("product", "").strip().lower()
-        prices = FiveSim.get_prices("", product)
-        country_map = prices.get(product, prices if product in prices else {})
-        labels = FiveSim.get_countries()
+        labels = GrizzlySms.get_countries()
         countries = {}
-        for country, operators in country_map.items():
-            qty = sum(int(info.get("count", 0)) for info in operators.values() if isinstance(info, dict))
-            if qty:
-                item = labels.get(country, {})
-                iso_data = item.get("iso", {}) if isinstance(item, dict) else {}
-                countries[country] = {
-                    "name": country,
-                    "label": item.get("text_en", country.replace("_", " ").title()) if isinstance(item, dict) else country.title(),
-                    "iso": next(iter(iso_data), ""),
-                    "qty": qty,
+        if product:
+            # Walk the country list and keep the ones that price this service.
+            for cid in labels:
+                prices = GrizzlySms.get_prices(cid, product)
+                block = prices.get(str(cid)) or {}
+                info = block.get(product)
+                if not isinstance(info, dict) or not int(info.get("count", 0) or 0):
+                    continue
+                item = labels.get(str(cid), {})
+                countries[str(cid)] = {
+                    "name": str(cid),
+                    "label": item.get("eng", str(cid)),
+                    "iso": item.get("iso", ""),
+                    "qty": int(info.get("count", 0) or 0),
+                }
+        else:
+            for cid, item in labels.items():
+                countries[str(cid)] = {
+                    "name": str(cid),
+                    "label": item.get("eng", str(cid)),
+                    "iso": item.get("iso", ""),
+                    "qty": 0,
                 }
         return _json({"success": True, "data": sorted(countries.values(), key=lambda x: (-x["qty"], x["label"]))})
+
     if action == "operators":
-        country, product = request.GET.get("country", "").lower(), request.GET.get("product", "").lower()
-        prices = FiveSim.get_prices(country, product)
-        # 5sim nests /guest/prices by PRODUCT when only ?product= is sent, but
-        # by COUNTRY when both ?country= and ?product= are sent. Accept either
-        # layout and descend to the operator dict (the innermost level).
-        country_map = {}
-        if isinstance(prices, dict):
-            if product in prices and isinstance(prices.get(product), dict):
-                inner = prices[product]
-                country_map = inner.get(country, {}) if isinstance(inner, dict) else {}
-            elif country in prices and isinstance(prices.get(country), dict):
-                inner = prices[country]
-                country_map = inner.get(product, {}) if isinstance(inner, dict) else {}
-        output = []
-        for name, info in (country_map if isinstance(country_map, dict) else {}).items():
-            if not isinstance(info, dict):
-                continue
-            # Show the cheapest of the configured providers for this slot, not
-            # just the primary one — the user should always see the best price
-            # we can actually serve the number at.
-            best = cheapest_price(product, country, name)
-            cost = best["cost"] if best else info.get("cost", 0)
-            qty = best["count"] if best else int(info.get("count", 0))
-            if not qty:
-                qty = int(info.get("count", 0))
-            output.append({
-                "name": name, "label": name.replace("_", " ").title(), "is_any": name == "any",
-                "provider_price": float(cost), "user_price": float(provider_to_user_ngn(cost)),
-                "user_price_fmt": format_ngn(provider_to_user_ngn(cost)), "qty": qty,
-                "provider": best["provider"] if best else "5sim",
-            })
+        # GrizzlySMS sells a country/service slot as a whole — there is no
+        # operator (carrier) dimension to choose, so this returns the single
+        # "any" offer carrying the live price and stock.
+        country, product = request.GET.get("country", "").strip(), request.GET.get("product", "").strip().lower()
+        prices = GrizzlySms.get_prices(country, product)
+        block = prices.get(str(country)) or {}
+        info = block.get(product) or {}
+        best = provider_price(product, country, "any")
+        cost = best["cost"] if best else info.get("cost", 0)
+        qty = best["count"] if best else int(info.get("count", 0) or 0)
+        output = [{
+            "name": "any", "label": "Any available number", "is_any": True,
+            "provider_price": float(cost), "user_price": float(provider_to_user_ngn(cost)),
+            "user_price_fmt": format_ngn(provider_to_user_ngn(cost)), "qty": qty,
+            "provider": "grizzly",
+        }]
         return _json({"success": True, "data": output})
     return _json({"success": False, "message": "Unknown action."}, 400)
 
@@ -456,7 +467,7 @@ def orders_api(request):
         # Only still-open orders hit the provider; ended orders are served from
         # the permanent store so the page can always be reopened.
         if is_active:
-            data = FiveSim.check_order(order.provider_order_id)
+            data = GrizzlySms.check_order(order.provider_order_id)
             if "error" not in data:
                 live = [_normalise_sms(m) for m in (data.get("sms") or [])]
                 _record_sms(order, live)
@@ -475,7 +486,7 @@ def orders_api(request):
         product = request.POST.get("product", "").lower().strip()
         if not country or not product:
             return _json({"success": False, "message": "Please complete all selections."}, 400)
-        products = FiveSim.get_products(country, operator)
+        products = GrizzlySms.get_products(country, operator)
         product_info = products.get(product)
         if not product_info:
             return _json({"success": False, "message": "This service is no longer available in the selected country. Please choose another."})
@@ -487,7 +498,7 @@ def orders_api(request):
         final_price = coupon_result["final_price"] if coupon_result else user_price
         if request.user.balance < final_price:
             return _json({"success": False, "message": f"Insufficient wallet balance. You need {format_ngn(final_price)}."})
-        provider_order = FiveSim.buy_activation(country, operator, product)
+        provider_order = GrizzlySms.buy_activation(country, operator, product)
         if "error" in provider_order:
             return _json({"success": False, "message": friendly_provider_error(provider_order["error"])})
         with transaction.atomic():
@@ -509,7 +520,7 @@ def orders_api(request):
     allowed = {"cancel": {"PENDING"}, "finish": {"PENDING", "RECEIVED"}, "ban": {"PENDING", "RECEIVED"}}
     if order.status not in allowed[action]:
         return _json({"success": False, "message": "This order can no longer be updated."})
-    result = FiveSim.order_action(action, order.provider_order_id)
+    result = GrizzlySms.order_action(action, order.provider_order_id)
     if "error" in result and "already" not in result["error"].lower():
         return _json({"success": False, "message": friendly_provider_error(result["error"])})
     order.status = {"cancel": "CANCELED", "finish": "FINISHED", "ban": "BANNED"}[action]
@@ -569,7 +580,7 @@ def admin_action(request):
                 messages.success(request, "Balance credited.")
         return redirect("/admin/users.html")
     if action == "save_settings":
-        allowed = {"site_name", "site_rate", "markup_percent", "extra_fee_percent", "topup_fee_percent", "topup_fee_percent_high", "topup_fee_threshold", "min_topup", "max_topup", "sms_poll_interval", "maintenance_mode", "paystack_public_key", "paystack_secret_key", "provider_api_key", "smsman_api_key", "support_whatsapp", "support_label", "support_channel", "support_channel_label", "logs_bot_url", "logs_bot_label", "promo_slides"}
+        allowed = {"site_name", "site_rate", "markup_percent", "extra_fee_percent", "topup_fee_percent", "topup_fee_percent_high", "topup_fee_threshold", "min_topup", "max_topup", "sms_poll_interval", "maintenance_mode", "paystack_public_key", "paystack_secret_key", "provider_api_key", "support_whatsapp", "support_label", "support_channel", "support_channel_label", "logs_bot_url", "logs_bot_label", "promo_slides"}
         for key in allowed:
             if key in request.POST:
                 Setting.set_value(key, request.POST.get(key, ""))

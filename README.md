@@ -5,7 +5,7 @@ This package is the VerifySMS frontend built as a Django application:
 - Django sessions for registration, login, logout, active/banned users, and admin authorization
 - SQLite by default, with Django ORM models for users, orders, wallet transactions, top-ups, settings, coupons, and coupon usage
 - Atomic wallet debit/credit operations with a ledger entry for every purchase, refund, top-up, and adjustment
-- 5sim provider adapter for service/country/operator discovery, buying numbers, polling SMS, finishing, cancelling, and banning orders
+- GrizzlySMS provider adapter for service/country discovery, buying numbers, polling SMS, finishing, cancelling, and banning orders
 - Paystack initialization, verification, webhook signature validation, idempotent top-up crediting, and fee calculation
 - Admin actions for users, balance adjustments, coupons, provider settings, payment settings, and site settings
 
@@ -28,7 +28,7 @@ a real signup). Change both before using the application anywhere public,
 or pass `--email`, `--password`, `--test-email`, `--test-password` to
 `seed_demo` to set your own.
 
-The app uses a small demo 5sim catalog when `FIVESIM_API_KEY` is empty, so the
+The app uses a small demo GrizzlySMS catalog when `GRIZZLY_API_KEY` is empty, so the
 service browser can be explored immediately. Add a real key in the environment
 or in Admin → Providers to use live inventory and phone numbers. Paystack
 requires both `PAYSTACK_PUBLIC_KEY` and `PAYSTACK_SECRET_KEY`.
@@ -108,7 +108,7 @@ Required env vars for a production deploy:
 | `DATABASE_URL` | Your Supabase Postgres connection string. Leave unset only for local SQLite dev. |
 | `DB_SSL_REQUIRE` | Leave at `1` (default) for Supabase. |
 | `DB_CONN_MAX_AGE` | Optional; connection reuse in seconds (default `60`). |
-| `FIVESIM_API_KEY` | 5sim provider key for buying real phone numbers. Optional — empty means demo catalog. Can also be set later via `/admin/providers.html`. |
+| `GRIZZLY_API_KEY` | GrizzlySMS provider key for buying real phone numbers. Optional — empty means demo catalog. Can also be set later via `/admin/providers.html`. |
 
 Optional (fallback only — prefer setting these in `/admin/payment.html` once deployed):
 
