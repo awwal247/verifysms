@@ -16,7 +16,12 @@ from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 
 from .models import Broadcast, Coupon, CouponUse, Notification, Order, Setting, SmsMessage, Topup, Transaction, User
-from .services import GrizzlySms, Paystack, credit_balance, debit_balance, format_ngn, friendly_provider_error, money, provider_price, provider_to_user_ngn
+from .services import (
+    Paystack, buy_number, catalog_countries, catalog_operators, catalog_products,
+    catalog_services, check_order, credit_balance, debit_balance, demo_mode,
+    format_ngn, friendly_provider_error, get_cheap_price, money, order_action,
+    provider_configured, provider_to_user_ngn,
+)
 
 
 USER_PAGES = {"dashboard", "services", "cart", "topup", "history", "settings", "sms", "notifications", "tutorials"}
@@ -222,8 +227,11 @@ def admin_page(request, page):
         context["active_total"] = User.objects.filter(role="user", status="active").count()
         context["funded_total"] = User.objects.filter(role="user", balance__gt=0).count()
     elif page == "providers":
-        context["provider_configured"] = bool(GrizzlySms._key())
-        context["demo_mode"] = not bool(GrizzlySms._key())
+        configured = provider_configured()
+        context["provider_configured"] = any(configured.values())
+        context["demo_mode"] = demo_mode()
+        context["fivesim_configured"] = configured.get("5sim", False)
+        context["grizzly_configured"] = configured.get("grizzly", False)
     elif page == "payment":
         context["payment_configured"] = bool(Paystack.secret_key())
         context["public_key"] = Paystack.public_key()
@@ -351,77 +359,29 @@ def _stored_sms(order):
 @require_http_methods(["GET"])
 def provider_api(request):
     action = request.GET.get("action", "")
+    country = request.GET.get("country", "").strip()
+    product = request.GET.get("product", "").strip().lower()
+
     if action == "services":
-        # GrizzlySMS has no global service catalog: /getPricesV3 is per country
-        # and keyed by service code. So a service counts as offered when at
-        # least one country prices it, and the label comes from the provider's
-        # own /getServicesList when reachable, else the local code map.
-        country = request.GET.get("country", "").strip()
-        codes = GrizzlySms.get_products(country) if country not in ("", "any") else {}
+        # Both servers are consulted behind the scenes; the picker never asks
+        # the buyer which one to use.
+        codes = catalog_services(country)
         if not codes:
-            for cid in list(GrizzlySms.get_countries())[:8]:
-                codes.update(GrizzlySms.get_products(cid))
-        if not codes:
-            return _json({"success": False, "message": "Could not reach the provider. Check API key or try again."})
-        labels = GrizzlySms.get_services()
-        data = {
-            code: {
-                "name": labels.get(code, GrizzlySms.service_labels.get(code, code.upper())),
-                "code": code,
-                "category": "activation",
-                "qty": int(info.get("Qty", 0)),
-            }
-            for code, info in codes.items()
-            if int(info.get("Qty", 0)) > 0
-        }
-        return _json({"success": True, "data": dict(sorted(data.items()))})
+            return _json({"success": False, "message": "Could not reach a provider. Check API keys or try again."})
+        return _json({"success": True, "data": codes})
 
     if action == "countries":
-        product = request.GET.get("product", "").strip().lower()
-        labels = GrizzlySms.get_countries()
-        countries = {}
-        if product:
-            # Walk the country list and keep the ones that price this service.
-            for cid in labels:
-                prices = GrizzlySms.get_prices(cid, product)
-                block = prices.get(str(cid)) or {}
-                info = block.get(product)
-                if not isinstance(info, dict) or not int(info.get("count", 0) or 0):
-                    continue
-                item = labels.get(str(cid), {})
-                countries[str(cid)] = {
-                    "name": str(cid),
-                    "label": item.get("eng", str(cid)),
-                    "iso": item.get("iso", ""),
-                    "qty": int(info.get("count", 0) or 0),
-                }
-        else:
-            for cid, item in labels.items():
-                countries[str(cid)] = {
-                    "name": str(cid),
-                    "label": item.get("eng", str(cid)),
-                    "iso": item.get("iso", ""),
-                    "qty": 0,
-                }
-        return _json({"success": True, "data": sorted(countries.values(), key=lambda x: (-x["qty"], x["label"]))})
+        countries = catalog_countries(product)
+        if not countries:
+            return _json({"success": False, "message": "Could not reach a provider. Try again."})
+        return _json({"success": True, "data": countries})
 
     if action == "operators":
-        # GrizzlySMS sells a country/service slot as a whole — there is no
-        # operator (carrier) dimension to choose, so this returns the single
-        # "any" offer carrying the live price and stock.
-        country, product = request.GET.get("country", "").strip(), request.GET.get("product", "").strip().lower()
-        prices = GrizzlySms.get_prices(country, product)
-        block = prices.get(str(country)) or {}
-        info = block.get(product) or {}
-        best = provider_price(product, country, "any")
-        cost = best["cost"] if best else info.get("cost", 0)
-        qty = best["count"] if best else int(info.get("count", 0) or 0)
-        output = [{
-            "name": "any", "label": "Any available number", "is_any": True,
-            "provider_price": float(cost), "user_price": float(provider_to_user_ngn(cost)),
-            "user_price_fmt": format_ngn(provider_to_user_ngn(cost)), "qty": qty,
-            "provider": "grizzly",
-        }]
+        # Neither provider sells a carrier dimension here: each returns the
+        # single "any" offer carrying the cheapest live price and stock.
+        output = catalog_operators(country, product)
+        if not output:
+            return _json({"success": False, "message": "No numbers available for this selection right now."})
         return _json({"success": True, "data": output})
     return _json({"success": False, "message": "Unknown action."}, 400)
 
@@ -467,7 +427,9 @@ def orders_api(request):
         # Only still-open orders hit the provider; ended orders are served from
         # the permanent store so the page can always be reopened.
         if is_active:
-            data = GrizzlySms.check_order(order.provider_order_id)
+            # Poll the server that actually owns this order — never the other
+            # one, whose ids are unrelated.
+            data = check_order(order)
             if "error" not in data:
                 live = [_normalise_sms(m) for m in (data.get("sms") or [])]
                 _record_sms(order, live)
@@ -486,26 +448,31 @@ def orders_api(request):
         product = request.POST.get("product", "").lower().strip()
         if not country or not product:
             return _json({"success": False, "message": "Please complete all selections."}, 400)
-        products = GrizzlySms.get_products(country, operator)
-        product_info = products.get(product)
-        if not product_info:
+        product_info = catalog_products(country).get(product)
+        quote = get_cheap_price(product, country, operator)
+        # Either server may be the one that actually has it; only refuse when
+        # neither publishes this service for the country.
+        if not product_info and not quote:
             return _json({"success": False, "message": "This service is no longer available in the selected country. Please choose another."})
-        provider_price = Decimal(str(product_info.get("Price", product_info.get("cost", 0))))
-        user_price = provider_to_user_ngn(provider_price)
+        quoted_cost = Decimal(str(quote["cost"] if quote else product_info.get("Price", 0) or 0))
+        user_price = provider_to_user_ngn(quoted_cost)
         coupon_result, coupon_error = _coupon_check(request.user, request.POST.get("coupon_code", ""), user_price) if request.POST.get("coupon_code") else (None, None)
         if coupon_error:
             return _json({"success": False, "message": coupon_error})
         final_price = coupon_result["final_price"] if coupon_result else user_price
         if request.user.balance < final_price:
             return _json({"success": False, "message": f"Insufficient wallet balance. You need {format_ngn(final_price)}."})
-        provider_order = GrizzlySms.buy_activation(country, operator, product)
+        # Server 1 first; any provider-level failure falls through to server 2.
+        provider_order = buy_number(product, country, operator)
         if "error" in provider_order:
             return _json({"success": False, "message": friendly_provider_error(provider_order["error"])})
+        provider_cost = Decimal(str(provider_order.get("provider_cost") or quoted_cost))
         with transaction.atomic():
             order = Order.objects.create(
-                user=request.user, provider_order_id=int(provider_order.get("id", uuid.uuid4().int % 900000)),
+                user=request.user, provider=str(provider_order.get("provider", "grizzly")),
+                provider_order_id=int(str(provider_order.get("id") or uuid.uuid4().int % 900000)),
                 phone=str(provider_order.get("phone", "+2348000000000")), country=country, operator=operator,
-                product=product, provider_cost=provider_price, user_price=final_price,
+                product=product, provider_cost=provider_cost, user_price=final_price,
                 status=str(provider_order.get("status", "PENDING")).upper(),
                 expires_at=timezone.now() + timedelta(minutes=20),
             )
@@ -520,7 +487,7 @@ def orders_api(request):
     allowed = {"cancel": {"PENDING"}, "finish": {"PENDING", "RECEIVED"}, "ban": {"PENDING", "RECEIVED"}}
     if order.status not in allowed[action]:
         return _json({"success": False, "message": "This order can no longer be updated."})
-    result = GrizzlySms.order_action(action, order.provider_order_id)
+    result = order_action(order, action)
     if "error" in result and "already" not in result["error"].lower():
         return _json({"success": False, "message": friendly_provider_error(result["error"])})
     order.status = {"cancel": "CANCELED", "finish": "FINISHED", "ban": "BANNED"}[action]
@@ -580,14 +547,22 @@ def admin_action(request):
                 messages.success(request, "Balance credited.")
         return redirect("/admin/users.html")
     if action == "save_settings":
-        allowed = {"site_name", "site_rate", "markup_percent", "extra_fee_percent", "topup_fee_percent", "topup_fee_percent_high", "topup_fee_threshold", "min_topup", "max_topup", "sms_poll_interval", "maintenance_mode", "paystack_public_key", "paystack_secret_key", "provider_api_key", "support_whatsapp", "support_label", "support_channel", "support_channel_label", "logs_bot_url", "logs_bot_label", "promo_slides"}
+        allowed = {"site_name", "site_rate", "markup_percent", "extra_fee_percent", "topup_fee_percent", "topup_fee_percent_high", "topup_fee_threshold", "min_topup", "max_topup", "sms_poll_interval", "maintenance_mode", "paystack_public_key", "paystack_secret_key", "provider_api_key", "fivesim_api_key", "support_whatsapp", "support_label", "support_channel", "support_channel_label", "logs_bot_url", "logs_bot_label", "promo_slides"}
         for key in allowed:
             if key in request.POST:
                 Setting.set_value(key, request.POST.get(key, ""))
         messages.success(request, "Settings saved successfully.")
         return redirect("/admin/settings.html")
     if action == "save_provider":
-        Setting.set_value("provider_api_key", request.POST.get("provider_api_key", ""))
+        # Empty submits keep the saved key: the forms never render the value
+        # back, so an untouched field must not erase it.
+        fivesim_key = request.POST.get("fivesim_api_key", "").strip()
+        grizzly_key = request.POST.get("provider_api_key", "").strip()
+        if fivesim_key:
+            Setting.set_value("fivesim_api_key", fivesim_key)
+        if grizzly_key:
+            Setting.set_value("provider_api_key", grizzly_key)
+        Setting.set_value("active_provider", "auto", "Routing is automatic: 5SIM first, GrizzlySMS fallback.")
         messages.success(request, "Provider settings saved.")
         return redirect("/admin/providers.html")
     if action == "save_payment":

@@ -74,6 +74,7 @@ class Order(models.Model):
         ("BANNED", "Banned"),
     )
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="orders")
+    provider = models.CharField(max_length=20, default="grizzly")
     provider_order_id = models.BigIntegerField()
     phone = models.CharField(max_length=30)
     country = models.CharField(max_length=80)

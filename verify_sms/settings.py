@@ -96,6 +96,7 @@ SITE_URL = os.getenv("SITE_URL", "http://127.0.0.1:8000").rstrip("/")
 # Leave unset in normal operation; set it temporarily in Vercel's env vars
 # only while you need to trigger a remote migrate+seed, then remove it.
 DEPLOY_SETUP_TOKEN = os.getenv("DEPLOY_SETUP_TOKEN", "")
+FIVESIM_API_KEY = os.getenv("FIVESIM_API_KEY", "")
 GRIZZLY_API_KEY = os.getenv("GRIZZLY_API_KEY", "")
 PAYSTACK_PUBLIC_KEY = os.getenv("PAYSTACK_PUBLIC_KEY", "")
 PAYSTACK_SECRET_KEY = os.getenv("PAYSTACK_SECRET_KEY", "")
