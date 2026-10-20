@@ -273,6 +273,45 @@ class FiveSim:
         return {"cost": min(costs), "count": count}
 
     @classmethod
+    def get_operator_prices(cls, country, product):
+        """``{operator: {"cost", "count"}}`` for one country/product.
+
+        Unlike :meth:`get_prices`, this keeps the operator dimension intact:
+        5sim sells the same product through many carriers (``virtual34``,
+        ``virtual51``, ``o2``, …), each with its own price and stock. Folding
+        them into one "best" number hides the real offers and makes the
+        cheapest quote a blend of unrelated suppliers. Zero-stock operators
+        are returned with ``count == 0`` so callers can show them as
+        unavailable rather than silently skipping the name.
+        """
+        if str(country) in ("", "any") or not product:
+            return {}
+        data = cls._request(
+            "/guest/prices", {"country": str(country), "product": str(product)}
+        )
+        if not isinstance(data, dict) or "error" in data:
+            return {}
+        block = data.get(str(country))
+        if not isinstance(block, dict):
+            block = next((value for value in data.values() if isinstance(value, dict)), {})
+        operators = block.get(str(product)) if isinstance(block, dict) else None
+        if not isinstance(operators, dict):
+            return {}
+        out = {}
+        for name, entry in operators.items():
+            if not isinstance(entry, dict):
+                continue
+            cost = cls._to_usd(entry.get("cost"))
+            if cost <= 0:
+                continue
+            try:
+                count = int(float(entry.get("count", 0) or 0))
+            except (TypeError, ValueError):
+                count = 0
+            out[str(name)] = {"cost": cost, "count": count}
+        return out
+
+    @classmethod
     def get_prices(cls, country="", product=""):
         """``{country_slug: {product: {"cost": usd, "count"}}}``.
 
@@ -683,10 +722,53 @@ PROVIDER_ORDER = ("5sim", "grizzly")
 PROVIDER_LABELS = {"5sim": "5SIM", "grizzly": "GrizzlySMS", "demo": "Demo"}
 _PROVIDERS = {"5sim": FiveSim, "grizzly": GrizzlySms}
 
+# GrizzlySMS country id -> 5sim country slug. Source: the numbered country
+# list published in Grizzly's own docs (grizzlysms.com/docs/activation,
+# pulled 2026-10-19). Do NOT guess these ids: they are not the sms-activate
+# ids people tend to remember (Nigeria is 19, not 22; India is 22, not 18;
+# the Philippines is 4, not 12; Germany is 43, not 49). A wrong id buys a
+# working number in the wrong country, which fails after the customer paid.
+# 5sim lists 153 countries; 152 have a Grizzly counterpart (no Solomon
+# Islands). 5sim does not carry Russia/Ukraine/Belarus, so they are absent.
 GRIZZLY_TO_FIVESIM_COUNTRY = {
-    "22": "nigeria", "18": "india", "187": "usa", "16": "england",
-    "6": "indonesia", "12": "philippines", "49": "germany", "36": "canada",
-    "0": "russia", "2": "kazakhstan", "10": "vietnam", "1": "ukraine",
+    "2": "kazakhstan", "4": "philippines", "6": "indonesia", "7": "malaysia",
+    "8": "kenya", "9": "tanzania", "10": "vietnam", "11": "kyrgyzstan",
+    "13": "israel", "14": "hongkong", "15": "poland", "16": "england",
+    "17": "madagascar", "19": "nigeria", "20": "macau", "21": "egypt",
+    "22": "india", "23": "ireland", "24": "cambodia", "25": "laos",
+    "26": "haiti", "27": "ivorycoast", "28": "gambia", "29": "serbia",
+    "31": "southafrica", "32": "romania", "33": "colombia", "34": "estonia",
+    "35": "azerbaijan", "36": "canada", "37": "morocco", "38": "ghana",
+    "39": "argentina", "40": "uzbekistan", "41": "cameroon", "42": "chad",
+    "43": "germany", "44": "lithuania", "45": "croatia", "46": "sweden",
+    "48": "netherlands", "49": "latvia", "50": "austria", "52": "thailand",
+    "53": "saudiarabia", "54": "mexico", "55": "taiwan", "56": "spain",
+    "58": "algeria", "59": "slovenia", "60": "bangladesh", "61": "senegal",
+    "63": "czech", "64": "srilanka", "65": "peru", "66": "pakistan",
+    "68": "guinea", "70": "venezuela", "71": "ethiopia", "72": "mongolia",
+    "73": "brazil", "74": "afghanistan", "75": "uganda", "76": "angola",
+    "77": "cyprus", "78": "france", "79": "papuanewguinea", "80": "mozambique",
+    "81": "nepal", "82": "belgium", "83": "bulgaria", "84": "hungary",
+    "85": "moldova", "86": "italy", "87": "paraguay", "88": "honduras",
+    "89": "tunisia", "90": "nicaragua", "91": "easttimor", "92": "bolivia",
+    "93": "costarica", "94": "guatemala", "97": "puertorico", "99": "togo",
+    "100": "kuwait", "101": "salvador", "103": "jamaica", "104": "tit",
+    "105": "ecuador", "106": "swaziland", "107": "oman", "108": "bih",
+    "109": "dominicana", "112": "panama", "114": "mauritania", "115": "sierraleone",
+    "116": "jordan", "117": "portugal", "118": "barbados", "119": "burundi",
+    "120": "benin", "122": "bahamas", "123": "botswana", "124": "belize",
+    "128": "georgia", "129": "greece", "130": "guineabissau", "131": "guyana",
+    "133": "comoros", "134": "saintkittsandnevis", "135": "liberia", "136": "lesotho",
+    "137": "malawi", "138": "namibia", "140": "rwanda", "141": "slovakia",
+    "142": "suriname", "143": "tajikistan", "145": "bahrain", "146": "reunion",
+    "147": "zambia", "148": "armenia", "150": "congo", "151": "chile",
+    "152": "burkinafaso", "154": "gabon", "155": "albania", "156": "uruguay",
+    "157": "mauritius", "158": "bhutane", "159": "maldives", "160": "guadeloupe",
+    "161": "turkmenistan", "162": "frenchguiana", "163": "finland", "164": "saintlucia",
+    "165": "luxembourg", "166": "saintvincentandgrenadines", "167": "equatorialguinea", "168": "djibouti",
+    "169": "antiguaandbarbuda", "171": "montenegro", "172": "denmark", "174": "norway",
+    "175": "australia", "179": "aruba", "183": "northmacedonia", "184": "seychelles",
+    "185": "newcaledonia", "186": "capeverde", "187": "usa", "231": "samoa",
 }
 FIVESIM_TO_GRIZZLY_COUNTRY = {slug: cid for cid, slug in GRIZZLY_TO_FIVESIM_COUNTRY.items()}
 
@@ -890,31 +972,135 @@ def catalog_countries(product=""):
     return []
 
 
+_OPERATOR_LABELS = {
+    "any": "Any available number",
+    "o2": "O2", "ee": "EE", "three": "Three", "vodafone": "Vodafone",
+    "lycamobile": "Lycamobile", "tele2": "Tele2",
+}
+
+
+def _operator_label(name):
+    """Human label for a 5sim operator slug."""
+    name = str(name or "")
+    if name in _OPERATOR_LABELS:
+        return _OPERATOR_LABELS[name]
+    if name.startswith("virtual") and name[7:].isdigit():
+        return "Virtual " + name[7:]
+    return name.replace("_", " ").title()
+
+
 def catalog_operators(country, product):
-    """The single synthetic "any" offer the storefront renders."""
+    """Every real operator offer for one country/product.
+
+    Each 5sim operator is its own product with its own price and stock, so
+    ``virtual34`` and ``virtual51`` get separate rows — never one blended
+    "best operator" quote. The "any" row stays on top and means "backend
+    picks the cheapest buyable number across all operators and servers".
+    """
     product = str(product or "").strip().lower()
+    fivesim = _PROVIDERS["5sim"]
+    provider_country = _country_for("5sim", country)
+    provider_service = _service_for("5sim", product)
+    operators = {}
+    if _live("5sim") and provider_country and provider_service:
+        try:
+            operators = fivesim.get_operator_prices(provider_country, provider_service)
+        except Exception:
+            operators = {}
+    per_operator = []
+    for name, info in operators.items():
+        cost = float(info.get("cost") or 0)
+        qty = int(info.get("count") or 0)
+        if cost <= 0 or qty <= 0:
+            continue
+        per_operator.append({
+            "name": name, "label": _operator_label(name), "is_any": False,
+            "provider_price": cost,
+            "user_price": float(provider_to_user_ngn(cost)),
+            "user_price_fmt": format_ngn(provider_to_user_ngn(cost)),
+            "qty": qty, "provider": "5sim",
+        })
+    rows = []
+    # The "any" row is the cheapest buyable number across every operator and
+    # both servers; the backend resolves it at purchase time.
+    cheapest = min(per_operator, key=lambda row: row["provider_price"], default=None)
+    any_cost = cheapest["provider_price"] if cheapest else None
+    any_provider = "5sim" if cheapest else None
+    any_qty = cheapest["qty"] if cheapest else 0
+    other = _price_from("grizzly", product, country, "any")
+    if other and (any_cost is None or other["cost"] < any_cost):
+        any_cost, any_provider = float(other["cost"]), "grizzly"
+        any_qty = int(other["count"])
+    if any_cost is not None:
+        rows.append({
+            "name": "any", "label": _operator_label("any"), "is_any": True,
+            "provider_price": float(any_cost),
+            "user_price": float(provider_to_user_ngn(any_cost)),
+            "user_price_fmt": format_ngn(provider_to_user_ngn(any_cost)),
+            "qty": any_qty, "provider": any_provider,
+        })
+    rows.extend(sorted(per_operator, key=lambda row: row["provider_price"]))
+    if rows:
+        return rows
     info = catalog_products(country).get(product)
-    best = get_cheap_price(product, country)
-    if not info and not best:
+    if not info:
         return []
-    cost = best["cost"] if best else float(info.get("Price", 0) or 0)
-    qty = best["count"] if best else int(info.get("Qty", 0) or 0)
-    provider = best["provider"] if best else None
+    cost = float(info.get("Price", 0) or 0)
     return [{
-        "name": "any", "label": "Any available number", "is_any": True,
-        "provider_price": float(cost), "user_price": float(provider_to_user_ngn(cost)),
-        "user_price_fmt": format_ngn(provider_to_user_ngn(cost)), "qty": qty,
-        "provider": provider,
+        "name": "any", "label": _operator_label("any"), "is_any": True,
+        "provider_price": cost,
+        "user_price": float(provider_to_user_ngn(cost)),
+        "user_price_fmt": format_ngn(provider_to_user_ngn(cost)),
+        "qty": int(info.get("Qty", 0) or 0), "provider": None,
     }]
 
 
-def _price_from(provider, product, country):
+def _price_from(provider, product, country, operator="any"):
+    """Quote one server for a product.
+
+    For 5sim the operator is honoured: a named operator is quoted on its own
+    price/stock, and ``"any"`` picks the cheapest *stocked* operator — the
+    comparison is made across operators, not by merging them first. The
+    second server sells a country/product slot with no operator dimension,
+    so it only answers the ``"any"`` question.
+    """
     if not _live(provider):
         return None
     adapter = _PROVIDERS[provider]
     provider_country = _country_for(provider, country)
     provider_service = _service_for(provider, product)
     if not provider_country or not provider_service:
+        return None
+    operator = str(operator or "any").lower().strip() or "any"
+    if hasattr(adapter, "get_operator_prices"):
+        try:
+            operators = adapter.get_operator_prices(provider_country, provider_service)
+        except Exception:
+            return None
+        if not isinstance(operators, dict) or not operators:
+            return None
+        if operator != "any":
+            info = operators.get(operator)
+            if not isinstance(info, dict) or int(info.get("count", 0) or 0) <= 0:
+                return None
+            return {
+                "cost": float(info["cost"]), "count": int(info["count"]),
+                "operator": operator,
+            }
+        stocked = [
+            (name, info) for name, info in operators.items()
+            if isinstance(info, dict) and float(info.get("cost") or 0) > 0
+            and int(info.get("count", 0) or 0) > 0
+        ]
+        if not stocked:
+            return None
+        name, info = min(stocked, key=lambda row: float(row[1]["cost"]))
+        return {
+            "cost": float(info["cost"]), "count": int(info["count"]),
+            "operator": name,
+        }
+    if operator != "any":
+        # The server cannot honour a specific carrier.
         return None
     try:
         prices = adapter.get_prices(provider_country, provider_service)
@@ -933,23 +1119,28 @@ def _price_from(provider, product, country):
         return None
     if cost <= 0:
         return None
-    return {"cost": cost, "count": count}
+    return {"cost": cost, "count": count, "operator": "any"}
 
 
 def get_cheap_price(product, country, operator="any"):
     """Cheapest live quote across both servers.
 
-    Returns ``{"cost", "provider", "count"}`` or None. A server that errors,
-    times out or has no stock simply does not participate, so the caller
-    always gets whichever number is actually buyable.
+    With ``operator="any"`` this compares the cheapest stocked operator on
+    each server. With a named operator only servers that actually offer that
+    operator participate. Returns ``{"cost", "provider", "count", "operator"}``
+    or None; a server that errors, times out or has no stock simply does not
+    participate.
     """
     best = None
     for name in PROVIDER_ORDER:
-        price = _price_from(name, product, country)
+        price = _price_from(name, product, country, operator)
         if not price:
             continue
         if best is None or price["cost"] < best["cost"]:
-            best = {"cost": price["cost"], "provider": name, "count": price["count"]}
+            best = {
+                "cost": price["cost"], "provider": name,
+                "count": price["count"], "operator": price["operator"],
+            }
     return best
 
 
@@ -970,15 +1161,22 @@ def buy_number(product, country, operator="any"):
             "phone": "2348000000000", "status": "PENDING", "provider": "demo",
             "provider_cost": 0.0,
         }
+    operator = str(operator or "any").lower().strip() or "any"
     candidates = []
     for name in PROVIDER_ORDER:
         if not _live(name):
             continue
-        price = _price_from(name, product, country)
+        adapter = _PROVIDERS[name]
+        if operator != "any" and not hasattr(adapter, "get_operator_prices"):
+            # A named carrier was chosen; a server without that dimension
+            # would hand back a different operator's number.
+            continue
+        price = _price_from(name, product, country, operator)
         candidates.append({
             "name": name,
             "cost": price["cost"] if price else 0.0,
             "count": price["count"] if price else 0,
+            "operator": price["operator"] if price else operator,
             "quoted": bool(price),
         })
     # Cheapest quoted server first; a server whose pricing endpoint failed
@@ -997,8 +1195,9 @@ def buy_number(product, country, operator="any"):
         if not provider_country or not provider_service:
             errors.append((name, "BAD_SERVICE"))
             continue
+        buy_operator = candidate.get("operator") or operator
         try:
-            result = adapter.buy_activation(provider_country, operator, provider_service)
+            result = adapter.buy_activation(provider_country, buy_operator, provider_service)
         except Exception as exc:
             errors.append((name, str(exc)))
             continue
