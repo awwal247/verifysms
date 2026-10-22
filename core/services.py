@@ -3,6 +3,7 @@ import hashlib
 import hmac
 import json
 import secrets
+import time
 from datetime import timedelta
 from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 from urllib.error import HTTPError, URLError
@@ -39,6 +40,23 @@ def provider_to_user_ngn(provider_price):
 
 def format_ngn(amount):
     return f"{Setting.value('currency_symbol', '₦')}{money(amount):,.2f}"
+
+
+# Provider catalogs are large (5sim carries 1,300+ products) and the service
+# search hits the live API on every keystroke. A short per-process cache keeps
+# the typeahead responsive without serving stale prices for long.
+_CATALOG_TTL = 60
+_catalog_cache = {}
+
+
+def _cached(key, loader, ttl=_CATALOG_TTL):
+    now = time.monotonic()
+    hit = _catalog_cache.get(key)
+    if hit and now - hit[0] < ttl:
+        return hit[1]
+    value = loader()
+    _catalog_cache[key] = (now, value)
+    return value
 
 
 def debit_balance(user_id, amount, description, order=None):
@@ -252,6 +270,33 @@ class FiveSim:
                 qty = 0
             if price > 0 and qty > 0:
                 out[str(product)] = {"Price": price, "Qty": qty, "Category": "activation"}
+        return out
+
+    @classmethod
+    def get_all_products(cls):
+        """The full product catalog across every country.
+
+        ``/guest/products/any/any`` answers with all 1,300+ slugs 5sim sells,
+        each with its global stock and starting price — this is the list the
+        server-first service step shows, not a curated subset.
+        """
+        data = cls._request("/guest/products/any/any")
+        if not isinstance(data, dict) or "error" in data:
+            return {}
+        out = {}
+        for product, info in data.items():
+            if not isinstance(info, dict):
+                continue
+            price = cls._to_usd(info.get("Price"))
+            try:
+                qty = int(float(info.get("Qty", 0) or 0))
+            except (TypeError, ValueError):
+                qty = 0
+            if price > 0 and qty > 0:
+                out[str(product)] = {
+                    "Price": price, "Qty": qty,
+                    "Category": str(info.get("Category") or "activation"),
+                }
         return out
 
     @classmethod
@@ -620,6 +665,53 @@ class GrizzlySms:
         return {str(country): {code: {"cost": info["price"], "count": info["count"]}
                                for code, info in cls._prices_for(country, product).items()}}
 
+    @classmethod
+    def get_all_prices(cls):
+        """Every country's price for every service, in one request.
+
+        ``getPricesV3`` needs a country, so filtering the country picker by
+        service would otherwise cost one request per country. The bulk
+        ``getPrices`` action answers with the same tree in a single call.
+        """
+        if not cls._key():
+            # Demo container: derive the same tree from the local sample so
+            # the country step is not blank while the key is absent.
+            out = {}
+            for code, by_country in cls.demo_prices.items():
+                for cid, cost in by_country.items():
+                    out.setdefault(str(cid), {})[str(code)] = {
+                        "cost": float(cost), "count": 25,
+                    }
+            return out
+        data = cls._request({"action": "getPrices"})
+        if not isinstance(data, dict) or "error" in data:
+            return {}
+        out = {}
+        for country, block in data.items():
+            if not isinstance(block, dict):
+                continue
+            services = block.get("services") if isinstance(block.get("services"), dict) else block
+            if not isinstance(services, dict):
+                continue
+            rows = {}
+            for code, info in services.items():
+                if not isinstance(info, dict):
+                    continue
+                try:
+                    cost = float(info.get("price", info.get("cost")))
+                except (TypeError, ValueError):
+                    continue
+                if cost <= 0:
+                    continue
+                try:
+                    count = int(info.get("count", info.get("qty", 1)) or 1)
+                except (TypeError, ValueError):
+                    count = 1
+                rows[str(code)] = {"cost": cost, "count": count}
+            if rows:
+                out[str(country)] = rows
+        return out
+
     # -- activations -------------------------------------------------------
 
     @classmethod
@@ -912,50 +1004,92 @@ def catalog_products(country, provider=None):
     return {}
 
 
-def catalog_services(country="", provider=None):
-    """Service picker data. Empty country scans the first few countries.
+POPULAR_SERVICE_NAMES = {
+    "whatsapp", "telegram", "google", "amazon", "facebook", "instagram",
+    "tiktok", "twitter", "discord", "signal", "uber", "netflix",
+    "microsoft", "apple", "yahoo", "paypal",
+}
 
-    ``provider`` limits the list to one server; the service step runs before
-    the server is chosen, so the default stays a union of both.
+
+def _service_catalog(provider):
+    """Every service one server sells — its full live catalog, uncapped.
+
+    GrizzlySMS answers with ``getServicesList``; 5sim has no service-list
+    endpoint, so the full products endpoint serves as one. Rows are
+    ``{code, name, qty, raw, popular}``, popular consumer names first.
+    Cached for a minute: the typeahead looks at this on every keystroke.
     """
+    def load():
+        rows = {}
+        if provider == "5sim":
+            for slug, info in FiveSim.get_all_products().items():
+                canonical = _canonical_service("5sim", slug)
+                row = rows.get(canonical)
+                if row is None:
+                    row = rows[canonical] = {
+                        "code": canonical, "name": service_label(canonical),
+                        "qty": 0, "raw": slug,
+                    }
+                row["qty"] += int(info.get("Qty", 0) or 0)
+        elif provider == "grizzly":
+            data = GrizzlySms.get_services()
+            if not data:
+                data = dict(GrizzlySms.service_labels)
+            for code, name in data.items():
+                canonical = _canonical_service("grizzly", code)
+                rows[canonical] = {
+                    "code": canonical,
+                    "name": str(name or service_label(canonical)),
+                    "qty": 0, "raw": code,
+                }
+        values = list(rows.values())
+        for row in values:
+            row["popular"] = row["name"].strip().lower() in POPULAR_SERVICE_NAMES
+        values.sort(key=lambda row: (not row["popular"], row["name"].lower()))
+        return values
+
+    return _cached("services:" + str(provider), load)
+
+
+def catalog_services(provider=None, q=""):
+    """Live service list for one server, optionally filtered by ``q``.
+
+    The service step now runs straight after the server choice, before any
+    country is known, so this reads the server's own catalog: the full
+    ``getServicesList`` for GrizzlySMS and all 1,300+ products for 5sim.
+    Nothing is truncated to a curated short list.
+    """
+    rows = []
     for name in _catalog_names(provider):
-        if not _live(name):
-            continue
-        adapter = _PROVIDERS[name]
-        products = {}
-        try:
-            if country not in ("", "any"):
-                provider_country = _country_for(name, country)
-                if provider_country:
-                    products = adapter.get_products(provider_country, "any")
-            else:
-                for probe in list(adapter.get_countries())[:8]:
-                    provider_country = _country_for(name, probe)
-                    if provider_country:
-                        products.update(adapter.get_products(provider_country, "any"))
-        except Exception:
-            products = {}
-        if not products:
-            continue
-        data = {}
-        for code, info in products.items():
-            canonical = _canonical_service(name, code)
-            # 5sim exposes 200+ products; the storefront keeps the curated
-            # short-code set so the picker stays usable. Unknown slugs drop
-            # out, except the few services only 5sim carries.
-            if canonical not in GRIZZLY_TO_FIVESIM_SERVICE and canonical not in FIVESIM_ONLY_SERVICES:
-                continue
-            qty = int(info.get("Qty", 0) or 0)
-            if qty <= 0:
-                continue
-            row = data.setdefault(canonical, {
-                "name": service_label(canonical), "code": canonical,
-                "category": "activation", "qty": 0,
-            })
-            row["qty"] += qty
-        if data:
-            return dict(sorted(data.items()))
-    return {}
+        if _live(name):
+            rows.extend(_service_catalog(name))
+    if not rows:
+        # Demo container with no keys: keep the local label maps usable.
+        for name in _catalog_names(provider):
+            labels = FiveSim.service_labels if name == "5sim" else GrizzlySms.service_labels
+            for code, label in labels.items():
+                canonical = _canonical_service(name, code)
+                rows.append({
+                    "code": canonical, "name": str(label),
+                    "qty": 0, "raw": code,
+                    "popular": str(label).strip().lower() in POPULAR_SERVICE_NAMES,
+                })
+    if not rows:
+        return []
+
+    query = str(q or "").strip().lower()
+    if query:
+        starts, contains = [], []
+        for row in rows:
+            name = str(row["name"]).lower()
+            code = str(row["code"]).lower()
+            raw = str(row.get("raw") or "").lower()
+            if name.startswith(query) or code.startswith(query):
+                starts.append(row)
+            elif query in name or query in code or query in raw:
+                contains.append(row)
+        rows = starts + contains
+    return rows
 
 
 def catalog_countries(product="", provider=None):
@@ -980,16 +1114,14 @@ def catalog_countries(product="", provider=None):
             if not service:
                 continue
             try:
-                prices = adapter.get_prices("", service)
+                if name == "grizzly" and hasattr(adapter, "get_all_prices"):
+                    # One bulk call covers every country; walking the country
+                    # list one getPricesV3 at a time was ~200 round trips.
+                    prices = _cached("grizzly:all-prices", adapter.get_all_prices)
+                else:
+                    prices = adapter.get_prices("", service)
             except Exception:
                 prices = {}
-            if not prices:
-                # Grizzly has no bulk price endpoint — walk its country list.
-                for identifier in labels:
-                    try:
-                        prices.update(adapter.get_prices(identifier, service))
-                    except Exception:
-                        continue
             for identifier, block in prices.items():
                 info = block.get(service) if isinstance(block, dict) else None
                 if not isinstance(info, dict):
@@ -1010,6 +1142,16 @@ def catalog_countries(product="", provider=None):
                 row["qty"] += qty
                 if row["price"] is None or cost < row["price"]:
                     row["price"] = cost
+            if not rows and not prices:
+                # The bulk price call failed (bad key, timeout): still show
+                # every country and let the price step report availability,
+                # rather than dead-ending the flow at this step.
+                for identifier, item in labels.items():
+                    canonical = _canonical_country(name, identifier)
+                    rows.setdefault(canonical, {
+                        "name": str(canonical), "label": item.get("eng", str(identifier)),
+                        "iso": item.get("iso", ""), "qty": 0, "price": None,
+                    })
         else:
             for identifier, item in labels.items():
                 canonical = _canonical_country(name, identifier)
@@ -1173,6 +1315,42 @@ def catalog_operators(country, product, provider=None):
         "user_price_fmt": format_ngn(provider_to_user_ngn(cost)),
         "qty": int(info.get("Qty", 0) or 0), "provider": None,
     }]
+
+
+def server_price_board(country, product, provider):
+    """Price board for the chosen server plus the other one for comparison.
+
+    Each entry carries the ``get_cheap_price`` best price, every operator
+    row that server offers, and a fixed ``label`` ("Server 1", "Server 2").
+    The chosen server sorts first; prices from the two are never blended.
+    """
+    chosen = provider if provider in _PROVIDERS else None
+    board = []
+    for name in SERVER_ORDER:
+        rows = catalog_operators(country, product, name)
+        best = get_cheap_price(product, country, "any", provider=name)
+        entry = {
+            "provider": name,
+            "label": "Server " + SERVER_NUMBERS[name],
+            "name": provider_label(name),
+            "selected": name == chosen,
+            "available": bool(rows or best),
+            "best": None,
+            "rows": rows,
+        }
+        if best:
+            user_price = provider_to_user_ngn(best["cost"])
+            entry["best"] = {
+                "provider_price": float(best["cost"]),
+                "user_price": float(user_price),
+                "user_price_fmt": format_ngn(user_price),
+                "qty": int(best["count"]),
+                "operator": best["operator"],
+            }
+        board.append(entry)
+    if chosen:
+        board.sort(key=lambda entry: not entry["selected"])
+    return board
 
 
 def _price_from(provider, product, country, operator="any"):

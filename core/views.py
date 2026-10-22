@@ -20,7 +20,8 @@ from .services import (
     Paystack, buy_number, catalog_countries, catalog_operators, catalog_products,
     catalog_servers, catalog_services, check_order, credit_balance, debit_balance,
     demo_mode, format_ngn, friendly_provider_error, get_cheap_price, money,
-    order_action, provider_configured, provider_to_user_ngn, server_provider,
+    order_action, provider_configured, provider_to_user_ngn, server_price_board,
+    server_provider,
 )
 
 
@@ -364,30 +365,45 @@ def provider_api(request):
     provider = server_provider(request.GET.get("server"))
 
     if action == "services":
-        # Both servers are consulted behind the scenes; the server buttons come
-        # later, after the service and country are already chosen.
-        codes = catalog_services(country)
-        if not codes:
-            return _json({"success": False, "message": "Could not reach a provider. Check API keys or try again."})
-        return _json({"success": True, "data": codes})
+        # Server first: the list comes from the chosen server's live API —
+        # its entire catalog, not a curated subset. ``q`` re-queries that API
+        # on each keystroke so the suggestions are always live.
+        if not provider:
+            return _json({"success": False, "message": "Choose a server first."})
+        query = request.GET.get("q", "").strip()
+        service_rows = catalog_services(provider=provider, q=query)
+        if not service_rows:
+            message = "No service matches that search." if query else "Could not reach this server. Check its API key or try again."
+            return _json({"success": False, "message": message})
+        return _json({"success": True, "data": service_rows})
 
     if action == "countries":
-        countries = catalog_countries(product)
+        countries = catalog_countries(product, provider)
         if not countries:
-            return _json({"success": False, "message": "Could not reach a provider. Try again."})
+            return _json({"success": False, "message": "No countries available for this service on the chosen server."})
         return _json({"success": True, "data": countries})
 
     if action == "servers":
-        # The two server buttons with the starting price each one has for the
-        # chosen service + country. Prices are never blended across servers.
+        # The two server buttons. Before a service is picked they carry no
+        # price; after one is picked each shows its own starting price.
         options = catalog_servers()
         for option in options:
             quote = get_cheap_price(product, country, "any", provider=option["provider"]) if product and country else None
             option["price"] = float(provider_to_user_ngn(quote["cost"])) if quote else 0
             option["price_fmt"] = format_ngn(provider_to_user_ngn(quote["cost"])) if quote else ""
             option["count"] = int(quote["count"]) if quote else 0
-            option["available"] = bool(option["available"] and quote)
+            option["available"] = bool(option["available"] and quote) if product and country else bool(option["available"])
         return _json({"success": True, "data": options})
+
+    if action == "prices":
+        # Final step: the chosen server's get_cheap_price best quote, all of
+        # its operator prices, and the other server's prices for comparison.
+        if not provider or not country or not product:
+            return _json({"success": False, "message": "Choose a server, service and country first."})
+        board = server_price_board(country, product, provider)
+        if not any(entry["available"] for entry in board):
+            return _json({"success": False, "message": "No numbers available for this selection right now."})
+        return _json({"success": True, "data": board})
 
     if action == "operators":
         # One row per real operator (5sim prices virtual34, virtual51 &c.

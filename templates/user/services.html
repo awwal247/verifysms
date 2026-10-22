@@ -104,12 +104,46 @@
 .srv-price{font-size:.95rem;font-weight:700;color:var(--orange)}
 .srv-price.na{color:var(--text-dim);font-weight:600}
 
-/* Service suggestions */
-.svc-suggest{display:flex;gap:8px;margin-top:7px}
-.svc-suggest input{flex:1;background:var(--bg-input);border:1px solid var(--border);
-  border-radius:var(--radius-sm);color:var(--text);font-size:.85rem;
-  padding:7px 10px;outline:none;transition:var(--transition)}
-.svc-suggest input:focus{border-color:var(--orange);box-shadow:0 0 0 3px var(--orange-glow)}
+/* Service search (live API) */
+.svc-search{display:flex;align-items:center;gap:8px;background:var(--bg-input);
+  border:1px solid var(--border);border-radius:var(--radius-sm);padding:0 11px;
+  transition:var(--transition)}
+.svc-search:focus-within{border-color:var(--orange);box-shadow:0 0 0 3px var(--orange-glow)}
+.svc-search i{color:var(--text-dim);font-size:.8rem}
+.svc-search input{flex:1;min-width:0;background:transparent;border:none;outline:none;
+  color:var(--text);font-size:.88rem;padding:10px 0}
+.svc-search input:disabled{color:var(--text-dim)}
+.svc-chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.svc-chip{background:var(--bg-input);border:1px solid var(--border);border-radius:100px;
+  padding:5px 11px;font-size:.78rem;color:var(--text-muted);cursor:pointer;
+  transition:var(--transition)}
+.svc-chip:hover,.svc-chip.active{border-color:var(--orange);color:var(--orange);
+  background:var(--orange-subtle)}
+.svc-picked{display:flex;align-items:center;gap:7px;margin-top:8px;font-size:.85rem;
+  font-weight:600;color:var(--orange)}
+.svc-results{margin-top:8px;max-height:300px;overflow-y:auto;
+  border:1px solid var(--border);border-radius:var(--radius-sm)}
+.svc-row{display:flex;align-items:center;gap:9px;padding:9px 12px;cursor:pointer;
+  font-size:.85rem;border-bottom:1px solid var(--border);transition:background .1s}
+.svc-row:last-child{border-bottom:none}
+.svc-row:hover{background:var(--secondary-bg)}
+.svc-row.active{background:var(--orange-subtle);color:var(--orange)}
+.svc-row .svc-name{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.svc-row .svc-qty{font-size:.7rem;color:var(--text-muted);flex-shrink:0}
+.svc-count{font-size:.72rem;color:var(--text-dim);margin-top:6px;text-align:right}
+
+/* Price board */
+.best-card{background:var(--orange-subtle);border:1px solid rgba(249,115,22,.35);
+  border-radius:var(--radius);padding:14px;text-align:center;margin-bottom:12px}
+.best-lbl{font-size:.72rem;text-transform:uppercase;letter-spacing:.06em;color:var(--text-muted)}
+.best-val{font-size:1.8rem;font-weight:800;color:var(--orange);margin:4px 0 2px}
+.best-note{font-size:.75rem;color:var(--text-muted)}
+.other-card{margin-top:12px;border:1px solid var(--border);border-radius:var(--radius-sm);
+  padding:11px 13px;display:none;align-items:center;justify-content:space-between;gap:10px}
+.other-card .oc-name{font-size:.85rem;font-weight:600}
+.other-card .oc-sub{font-size:.7rem;color:var(--text-muted);margin-top:2px}
+.other-card .oc-price{font-size:1rem;font-weight:700;color:var(--text);text-align:right}
+.other-card .oc-right{display:flex;align-items:center;gap:8px;flex-shrink:0}
 
 /* Operator radio circles */
 .op-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(145px,1fr));gap:8px}
@@ -290,33 +324,35 @@
     <div class="card-title"><i class="fa-solid fa-mobile-screen text-orange"></i> Buy a Number</div>
   </div>
 
-  <!-- STEP 1: Service -->
+  <!-- STEP 1: Server -->
   <div class="buy-step" id="s1">
-    <div class="step-lbl"><span class="snum" id="sn1">1</span> Service</div>
-    <div class="csel" id="svcSel">
-      <div class="csel-box" id="svcBox" onclick="openDrop('svc')">
-        <span class="cval"><span class="ph">— Select a service —</span></span>
-        <i class="fa-solid fa-chevron-down csel-arrow"></i>
+    <div class="step-lbl"><span class="snum" id="sn1">1</span> Server</div>
+    <div class="srv-grid" id="srvGrid">
+      <div style="color:var(--text-dim);font-size:.82rem;padding:8px 0">
+        <span class="spinner" style="width:14px;height:14px;border-width:2px"></span> Loading servers...
       </div>
-      <div class="csel-drop" id="svcDrop">
-        <div class="csel-srch"><input id="svcSrch" placeholder="Search service..." oninput="filterDrop('svc',this.value)" autocomplete="off"></div>
-        <div class="csel-list" id="svcList">
-          <div class="csel-empty"><span class="spinner" style="width:14px;height:14px;border-width:2px"></span> Loading services...</div>
-        </div>
-      </div>
-    </div>
-    <div class="svc-suggest">
-      <input type="text" id="manualInp" list="svcSuggest" autocomplete="off"
-        placeholder="Or type a service — WhatsApp, Amazon, Signal..."
-        onchange="onSvcSuggest()">
-      <datalist id="svcSuggest"></datalist>
-      <button class="btn btn-secondary btn-sm" onclick="useManual()">Use</button>
     </div>
   </div>
 
-  <!-- STEP 2: Country -->
+  <!-- STEP 2: Service — live search over the server's full catalog -->
   <div class="buy-step step-disabled" id="s2">
-    <div class="step-lbl"><span class="snum dim" id="sn2">2</span> Country</div>
+    <div class="step-lbl"><span class="snum dim" id="sn2">2</span> Service</div>
+    <div class="svc-search">
+      <i class="fa-solid fa-magnifying-glass"></i>
+      <input id="svcSearch" placeholder="Select a server first" disabled autocomplete="off">
+      <span class="spinner" id="svcSpin" style="display:none;width:14px;height:14px;border-width:2px"></span>
+    </div>
+    <div class="svc-chips" id="svcChips"></div>
+    <div class="svc-picked" id="svcPicked" style="display:none"></div>
+    <div class="svc-results" id="svcResults">
+      <div class="csel-empty">Select a server first</div>
+    </div>
+    <div class="svc-count" id="svcCount"></div>
+  </div>
+
+  <!-- STEP 3: Country -->
+  <div class="buy-step step-disabled" id="s3">
+    <div class="step-lbl"><span class="snum dim" id="sn3">3</span> Country</div>
     <div class="csel" id="ctrySel">
       <div class="csel-box" id="ctryBox" onclick="openDrop('ctry')">
         <span class="cval"><span class="ph">Select a service first</span></span>
@@ -331,20 +367,18 @@
     </div>
   </div>
 
-  <!-- STEP 3: Server -->
-  <div class="buy-step step-disabled" id="s3">
-    <div class="step-lbl"><span class="snum dim" id="sn3">3</span> Server</div>
-    <div class="srv-grid" id="srvGrid">
+  <!-- STEP 4: Price — best price, every operator, and the other server -->
+  <div class="buy-step step-disabled" id="s4">
+    <div class="step-lbl"><span class="snum dim" id="sn4">4</span> Price</div>
+    <div class="best-card" id="bestCard" style="display:none">
+      <div class="best-lbl">Best price on <span id="bestSrv"></span></div>
+      <div class="best-val" id="bestVal">—</div>
+      <div class="best-note" id="bestNote"></div>
+    </div>
+    <div class="op-grid" id="opGrid">
       <div style="color:var(--text-dim);font-size:.82rem;padding:8px 0">Select a country first</div>
     </div>
-  </div>
-
-  <!-- STEP 4: Operator (radio circles) -->
-  <div class="buy-step step-disabled" id="s4">
-    <div class="step-lbl"><span class="snum dim" id="sn4">4</span> Operator</div>
-    <div class="op-grid" id="opGrid">
-      <div style="color:var(--text-dim);font-size:.82rem;padding:8px 0">Select a server first</div>
-    </div>
+    <div class="other-card" id="otherCard"></div>
   </div>
 
   <!-- Buy summary -->
@@ -412,30 +446,22 @@
 
 <script>
 /* ── Provider-backed front-end logic ─────────────────────────────────────
-   Fetches /api/provider/ for live services/countries/
-   operators and posts purchases to the Django compatibility endpoints. ── */
+   Step 1 server → step 2 service (live full catalog + search) → step 3
+   country → step 4 price board (best price, every operator, other server). ── */
 const CSRF   = document.querySelector('meta[name=csrf]').content;
 const WALLET = parseFloat('{{ current_user.balance|default:"0" }}') || 0;
 
-const S = {service:'', country:'', countryIso:'', countryLabel:'', server:'', serverLabel:'', operator:'', operatorLabel:'', provCost:0, qty:0};
-const SERVICE_QTYS = {};
+const S = {
+  server:'', serverLabel:'', serverName:'',
+  service:'', serviceName:'',
+  country:'', countryIso:'', countryLabel:'',
+  operator:'', operatorLabel:'', userPrice:0, qty:0,
+};
 
-function providerToNGN(provCost) {
-  const rate   = parseFloat('{{ site_rate|default:"1600" }}') || 1600;
-  const markup = parseFloat('{{ markup_percent|default:"20" }}') || 20;
-  return Math.round(provCost * rate * (1 + markup/100) * 100) / 100;
-}
+let appliedCoupon = null; // { code, discount_ngn, final_price }
+let svcTimer = null;
 
-function resetCoupon() {
-  appliedCoupon = null;
-  document.getElementById('couponInput').value = '';
-  const msg = document.getElementById('couponMsg');
-  msg.style.display = 'none';
-  document.getElementById('discountRow').style.display = 'none';
-  document.getElementById('finalPriceRow').style.display = 'none';
-}
-
-/* ── Emoji flag ─────────────────────────────────────────────────────────── */
+/* ── Emoji flag / money ─────────────────────────────────────────────────── */
 function flag(iso) {
   if (!iso||iso.length<2) return '🌍';
   return String.fromCodePoint(0x1F1E6+iso.toLowerCase().charCodeAt(0)-97)
@@ -443,6 +469,15 @@ function flag(iso) {
 }
 function ngn(n) {
   return '₦'+parseFloat(n).toLocaleString('en-NG',{minimumFractionDigits:2,maximumFractionDigits:2});
+}
+function num(n) { return Number(n||0).toLocaleString(); }
+
+function resetCoupon() {
+  appliedCoupon = null;
+  document.getElementById('couponInput').value = '';
+  document.getElementById('couponMsg').style.display = 'none';
+  document.getElementById('discountRow').style.display = 'none';
+  document.getElementById('finalPriceRow').style.display = 'none';
 }
 
 /* ── Dropdown control ───────────────────────────────────────────────────── */
@@ -469,172 +504,457 @@ document.addEventListener('click', e=>{
 });
 function filterDrop(id, q) {
   q = q.toLowerCase();
-  const list = document.getElementById(id+'List');
-  list.querySelectorAll('.copt').forEach(el=>{
+  document.getElementById(id+'List').querySelectorAll('.copt').forEach(el=>{
     el.style.display = (el.dataset.key||'').toLowerCase().includes(q) ? '' : 'none';
   });
 }
 
-/* ── Enable/disable steps ──────────────────────────────────────────────── */
+/* ── Step helpers ───────────────────────────────────────────────────────── */
 function enableStep(n) {
   document.getElementById('s'+n).classList.remove('step-disabled');
   document.getElementById('sn'+n).classList.remove('dim');
 }
+function disableStep(n) {
+  document.getElementById('s'+n).classList.add('step-disabled');
+  document.getElementById('sn'+n).classList.add('dim');
+}
 function setBoxVal(id, html) {
   document.getElementById(id+'Box').querySelector('.cval').innerHTML = html;
 }
+function spinHtml(text) {
+  return '<div style="display:flex;align-items:center;gap:8px;color:var(--text-muted);'+
+    'font-size:.82rem;padding:6px 0"><span class="spinner" style="width:14px;height:14px;'+
+    'border-width:2px"></span> '+text+'</div>';
+}
 
-function pickService(name, qty) {
-  S.service = name;
-  setBoxVal('svc',
-    `<i class="fa-solid fa-mobile-screen" style="color:var(--orange);flex-shrink:0;font-size:.85rem"></i>
-     <span style="text-transform:capitalize;font-weight:600;flex:1">${name}</span>
-     <span class="cbadge" style="margin-left:auto">${qty.toLocaleString()}</span>`
-  );
-  document.querySelectorAll('#svcList .copt').forEach(el=>el.classList.toggle('active',el.dataset.key===name));
-  closeDrop('svc');
-  S.country=S.operator=''; S.countryIso='';
-  S.server=''; S.serverLabel='';
-  document.getElementById('srvGrid').innerHTML='<div style="color:var(--text-dim);font-size:.82rem;padding:8px 0">Select a country first</div>';
-  document.getElementById('opGrid').innerHTML='<div style="color:var(--text-dim);font-size:.82rem;padding:8px 0">Select a server first</div>';
-  document.getElementById('buyBox').classList.remove('show');
-  enableStep(2);
-  ['3','4'].forEach(n=>{
-    document.getElementById('s'+n).classList.add('step-disabled');
-    document.getElementById('sn'+n).classList.add('dim');
+/* ── STEP 1: Server ─────────────────────────────────────────────────────── */
+function loadServers() {
+  const grid = document.getElementById('srvGrid');
+  fetch('/api/provider/?action=servers').then(r=>r.json()).then(d=>{
+    if (!d.success || !d.data || !d.data.length) {
+      grid.innerHTML = '<div style="color:var(--danger);font-size:.85rem;padding:8px 0">Could not load servers.</div>';
+      return;
+    }
+    grid.innerHTML = '';
+    d.data.forEach(sv=>{
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'srv-btn' + (sv.available ? '' : ' unavail');
+      btn.dataset.provider = sv.provider;
+      btn.innerHTML =
+        '<span class="srv-name"></span><span class="srv-sub"></span>' +
+        '<span class="srv-price na">Select to see prices</span>';
+      btn.querySelector('.srv-name').textContent = sv.label;
+      btn.querySelector('.srv-sub').textContent  = sv.name;
+      if (sv.available) {
+        btn.addEventListener('click', ()=>pickServer(sv));
+      }
+      grid.appendChild(btn);
+    });
+  }).catch(()=>{
+    grid.innerHTML = '<div style="color:var(--danger);font-size:.85rem;padding:8px 0">Could not load servers.</div>';
   });
-  setBoxVal('ctry','<span class="ph">— Select a country —</span>');
-  document.getElementById('ctryList').innerHTML='<div class="csel-empty"><span class="spinner" style="width:14px;height:14px;border-width:2px"></span> Loading countries...</div>';
-  fetch('/api/provider/?action=countries&product='+encodeURIComponent(name))
+}
+
+function pickServer(sv) {
+  S.server = sv.provider;
+  S.serverLabel = sv.label + ' — ' + sv.name;
+  S.serverName = sv.name;
+  document.querySelectorAll('.srv-btn').forEach(el=>{
+    el.classList.toggle('selected', el.dataset.provider === sv.provider);
+  });
+  /* Anything below the server belongs to the previous server now. */
+  clearFrom('service');
+  enableStep(2);
+  const input = document.getElementById('svcSearch');
+  input.disabled = false;
+  input.value = '';
+  input.placeholder = 'Search ' + S.serverName + ' services — WhatsApp, Amazon, Google...';
+  loadServices('');
+  setTimeout(()=>input.focus(), 80);
+}
+
+/* ── STEP 2: Service — full live catalog, server-side search ────────────── */
+document.addEventListener('DOMContentLoaded', ()=>{
+  const input = document.getElementById('svcSearch');
+  input.addEventListener('input', ()=>{
+    clearTimeout(svcTimer);
+    const q = input.value.trim();
+    svcTimer = setTimeout(()=>loadServices(q), 250);
+  });
+  loadServers();
+});
+
+function loadServices(q) {
+  if (!S.server) return;
+  const spin  = document.getElementById('svcSpin');
+  const list  = document.getElementById('svcResults');
+  const count = document.getElementById('svcCount');
+  spin.style.display = 'inline-block';
+  fetch('/api/provider/?action=services&server='+encodeURIComponent(S.server)+
+        '&q='+encodeURIComponent(q||''))
     .then(r=>r.json()).then(d=>{
-      const list=document.getElementById('ctryList');
-      if (!d.success || !d.data || !d.data.length) { list.innerHTML='<div class="csel-empty">No countries available.</div>'; return; }
-      list.innerHTML=d.data.map(c=>`<div class="copt" data-key="${c.name}" data-iso="${c.iso||''}" data-label="${c.label}" onclick="pickCountry('${c.name}','${c.iso||''}','${c.label}',${c.qty})"><span class="cflag">${c.iso?flag(c.iso):'🌍'}</span><span class="cname">${c.label}</span><span class="cbadge">${c.qty.toLocaleString()}</span></div>`).join('');
-    }).catch(()=>{ document.getElementById('ctryList').innerHTML='<div class="csel-empty" style="color:var(--danger)">Could not load countries.</div>'; });
+      if (!d.success || !d.data) {
+        list.innerHTML = '<div class="csel-empty">'+
+          (d.message || 'No services available on this server.')+'</div>';
+        count.textContent = '';
+        return;
+      }
+      renderServices(d.data, q);
+    })
+    .catch(()=>{ list.innerHTML='<div class="csel-empty" style="color:var(--danger)">Could not load services.</div>'; })
+    .finally(()=>{ spin.style.display='none'; });
 }
 
-function onSvcSuggest() {
-  const v = document.getElementById('manualInp').value.trim().toLowerCase();
-  if (SERVICE_QTYS[v] !== undefined) pickService(v, SERVICE_QTYS[v]);
-}
-function useManual() {
-  const v = document.getElementById('manualInp').value.trim().toLowerCase();
-  if (!v) return;
-  pickService(v, SERVICE_QTYS[v] || 0);
+function renderServices(rows, q) {
+  const list  = document.getElementById('svcResults');
+  const count = document.getElementById('svcCount');
+  list.innerHTML = '';
+  rows.forEach(row=>{
+    const el = document.createElement('div');
+    el.className = 'svc-row' + (S.service === row.code ? ' active' : '');
+    el.dataset.code = row.code;
+    const name = document.createElement('span');
+    name.className = 'svc-name';
+    name.textContent = row.name;
+    el.appendChild(name);
+    if (row.qty > 0) {
+      const qty = document.createElement('span');
+      qty.className = 'svc-qty';
+      qty.textContent = num(row.qty);
+      el.appendChild(qty);
+    }
+    el.addEventListener('click', ()=>pickService(row));
+    list.appendChild(el);
+  });
+  count.textContent = q
+    ? rows.length + ' match' + (rows.length===1?'':'es') + ' on ' + S.serverName
+    : rows.length + ' services — full live catalog on ' + S.serverName;
+  renderChips(rows, q);
 }
 
-function pickCountry(name, iso, label, qty) {
-  S.country=name; S.countryIso=iso; S.countryLabel=label;
-  const f = iso ? flag(iso) : '🌍';
-  setBoxVal('ctry',
-    `<span style="font-size:1.05rem;flex-shrink:0">${f}</span>
-     <span style="font-weight:600;flex:1">${label}</span>
-     <span class="cbadge" style="margin-left:auto">${qty.toLocaleString()}</span>`
-  );
-  document.querySelectorAll('#ctryList .copt').forEach(el=>el.classList.toggle('active',el.dataset.key===name));
-  closeDrop('ctry');
-  S.operator=''; S.server=''; S.serverLabel='';
-  document.getElementById('buyBox').classList.remove('show');
-  document.getElementById('opGrid').innerHTML='<div style="color:var(--text-dim);font-size:.82rem;padding:8px 0">Select a server first</div>';
-  document.getElementById('s4').classList.add('step-disabled');
-  document.getElementById('sn4').classList.add('dim');
+function renderChips(rows, q) {
+  const box = document.getElementById('svcChips');
+  box.innerHTML = '';
+  if (q) return;
+  rows.filter(r=>r.popular).slice(0,10).forEach(row=>{
+    const chip = document.createElement('button');
+    chip.type = 'button';
+    chip.className = 'svc-chip' + (S.service === row.code ? ' active' : '');
+    chip.textContent = row.name;
+    chip.addEventListener('click', ()=>pickService(row));
+    box.appendChild(chip);
+  });
+}
+
+function pickService(row) {
+  S.service = row.code;
+  S.serviceName = row.name;
+  document.querySelectorAll('.svc-row').forEach(el=>{
+    el.classList.toggle('active', el.dataset.code === row.code);
+  });
+  document.querySelectorAll('.svc-chip').forEach(el=>{
+    el.classList.toggle('active', el.textContent === row.name);
+  });
+  const picked = document.getElementById('svcPicked');
+  picked.style.display = 'flex';
+  picked.innerHTML = '<i class="fa-solid fa-circle-check"></i>';
+  const label = document.createElement('span');
+  label.textContent = 'Selected: ' + row.name;
+  picked.appendChild(label);
+
+  clearFrom('country');
   enableStep(3);
-  document.getElementById('srvGrid').innerHTML =
-    '<div style="display:flex;align-items:center;gap:8px;color:var(--text-muted);font-size:.82rem;padding:6px 0"><span class="spinner" style="width:14px;height:14px;border-width:2px"></span> Loading servers...</div>';
-  fetch('/api/provider/?action=servers&country='+encodeURIComponent(name)+'&product='+encodeURIComponent(S.service))
+  const ctryList = document.getElementById('ctryList');
+  ctryList.innerHTML = spinHtml('Loading countries...');
+  setBoxVal('ctry', '<span class="ph">— Select a country —</span>');
+  fetch('/api/provider/?action=countries&product='+encodeURIComponent(row.code)+
+        '&server='+encodeURIComponent(S.server))
     .then(r=>r.json()).then(d=>{
       if (!d.success || !d.data || !d.data.length) {
-        document.getElementById('srvGrid').innerHTML='<div style="color:var(--warning);font-size:.85rem;padding:8px 0">Servers are unavailable for this selection.</div>';
+        ctryList.innerHTML = '<div class="csel-empty">'+
+          (d.message || 'No countries available for this service on this server.')+'</div>';
         return;
       }
-      document.getElementById('srvGrid').innerHTML=d.data.map(sv=>`<button type="button" class="srv-btn ${sv.available?'':'unavail'}" data-key="${sv.provider}" ${sv.available?`onclick="pickServer('${sv.provider}','${sv.label}','${sv.name}')"`:''}>
-        <span class="srv-name">${sv.label}</span>
-        <span class="srv-sub">${sv.name}</span>
-        <span class="srv-price ${sv.price_fmt?'':'na'}">${sv.price_fmt?'from '+sv.price_fmt:'Unavailable'}</span>
-        </button>`).join('');
-    }).catch(()=>{ document.getElementById('srvGrid').innerHTML='<div style="color:var(--danger);font-size:.85rem;padding:8px 0">Could not load servers.</div>'; });
+      renderCountries(d.data);
+    })
+    .catch(()=>{ ctryList.innerHTML='<div class="csel-empty" style="color:var(--danger)">Could not load countries.</div>'; });
 }
 
-function pickServer(provider, label, name) {
-  S.server=provider; S.serverLabel=label+' — '+name;
-  S.operator=''; S.operatorLabel=''; S.provCost=0; S.qty=0;
-  document.querySelectorAll('.srv-btn').forEach(el=>el.classList.toggle('selected',el.dataset.key===provider));
+function renderCountries(rows) {
+  const list = document.getElementById('ctryList');
+  list.innerHTML = '';
+  rows.forEach(c=>{
+    const el = document.createElement('div');
+    el.className = 'copt';
+    el.dataset.key = c.name;
+    const f = document.createElement('span');
+    f.className = 'cflag';
+    f.textContent = c.iso ? flag(c.iso) : '🌍';
+    const n = document.createElement('span');
+    n.className = 'cname';
+    n.textContent = c.label;
+    el.append(f, n);
+    /* Unknown stock (provider refused the bulk price call) — no badge beats a
+       misleading "0". The price step reports real availability. */
+    if (c.qty > 0) {
+      const b = document.createElement('span');
+      b.className = 'cbadge';
+      b.textContent = num(c.qty);
+      el.append(b);
+    }
+    el.addEventListener('click', ()=>pickCountry(c));
+    list.appendChild(el);
+  });
+}
+
+/* ── STEP 3: Country ────────────────────────────────────────────────────── */
+function pickCountry(c) {
+  S.country = c.name;
+  S.countryIso = c.iso || '';
+  S.countryLabel = c.label;
+  const f = S.countryIso ? flag(S.countryIso) : '🌍';
+  setBoxVal('ctry',
+    '<span style="font-size:1.05rem;flex-shrink:0">'+f+'</span>'+
+    '<span style="font-weight:600;flex:1"></span>'+
+    (c.qty > 0 ? '<span class="cbadge" style="margin-left:auto">'+num(c.qty)+'</span>' : ''));
+  document.getElementById('ctryBox').querySelector('.cval span:nth-child(2)').textContent = c.label;
+  document.querySelectorAll('#ctryList .copt').forEach(el=>{
+    el.classList.toggle('active', el.dataset.key === c.name);
+  });
+  closeDrop('ctry');
+
+  /* Reset price selection only — server and service stay. */
+  S.operator = ''; S.operatorLabel = ''; S.userPrice = 0; S.qty = 0;
   document.getElementById('buyBox').classList.remove('show');
+  resetCoupon();
   enableStep(4);
-  const grid = document.getElementById('opGrid');
-  grid.innerHTML='<div style="display:flex;align-items:center;gap:8px;color:var(--text-muted);font-size:.82rem;padding:6px 0"><span class="spinner" style="width:14px;height:14px;border-width:2px"></span> Loading operators...</div>';
-  fetch('/api/provider/?action=operators&country='+encodeURIComponent(S.country)+'&product='+encodeURIComponent(S.service)+'&server='+encodeURIComponent(provider))
-    .then(r=>r.json()).then(d=>{
-      if (!d.success || !d.data || !d.data.length) {
-        grid.innerHTML='<div style="color:var(--warning);font-size:.85rem;padding:8px 0">No operators are available on this server for this selection.</div>';
-        return;
-      }
-      grid.innerHTML=d.data.map(op=>`<label class="op-radio ${op.qty?'':'unavail'} ${op.is_any?'op-any':''}" ${op.qty?`onclick="pickOp('${op.name}','${op.label}',${op.provider_price},${op.user_price},${op.qty})"`:''}>
-        <div class="op-circle" id="opc-${op.name}"></div><div class="op-info">
-        <div class="op-name">${op.label}${op.is_any?'<span style="font-size:.62rem;font-weight:400;color:var(--text-dim);display:block;margin-top:1px">Auto-picked — best carrier on '+S.serverLabel+'</span>':''}</div>
-        <div class="op-price">${op.user_price_fmt}</div><div class="op-qty ${op.qty?'text-success':'text-danger'}">${op.qty?op.qty.toLocaleString()+' available':'Unavailable'}</div>
-        </div></label>`).join('');
-      const available=d.data.filter(o=>o.qty>0);
-      if (available.length===1) pickOp(available[0].name,available[0].label,available[0].provider_price,available[0].user_price,available[0].qty);
-    }).catch(()=>{ grid.innerHTML='<div style="color:var(--danger);font-size:.85rem;padding:8px 0">Could not load operators.</div>'; });
+  document.getElementById('bestCard').style.display = 'block';
+  document.getElementById('bestSrv').textContent = S.serverLabel;
+  document.getElementById('bestVal').textContent = '…';
+  document.getElementById('bestNote').textContent = 'Loading live prices...';
+  document.getElementById('otherCard').style.display = 'none';
+  document.getElementById('opGrid').innerHTML = spinHtml('Loading prices...');
+  loadPrices();
 }
 
-function pickOp(name, label, provCost, uPrice, qty) {
-  S.operator=name; S.operatorLabel=label; S.provCost=provCost; S.qty=qty;
-  document.querySelectorAll('.op-radio').forEach(el=>{
-    const onclick = el.getAttribute('onclick')||'';
-    el.classList.toggle('selected', onclick.includes(`'${name}'`));
+/* ── STEP 4: Price board ────────────────────────────────────────────────── */
+function loadPrices() {
+  if (!S.server || !S.service || !S.country) return;
+  fetch('/api/provider/?action=prices&server='+encodeURIComponent(S.server)+
+        '&product='+encodeURIComponent(S.service)+
+        '&country='+encodeURIComponent(S.country))
+    .then(r=>r.json()).then(d=>{
+      if (!d.success || !d.data || !d.data.length) {
+        document.getElementById('bestVal').textContent = '—';
+        document.getElementById('bestNote').textContent = d.message || 'No numbers available for this selection.';
+        document.getElementById('opGrid').innerHTML =
+          '<div style="color:var(--warning);font-size:.85rem;padding:8px 0">'+
+          (d.message || 'No prices available.')+'</div>';
+        return;
+      }
+      renderPrices(d.data);
+    })
+    .catch(()=>{
+      document.getElementById('bestVal').textContent = '—';
+      document.getElementById('bestNote').textContent = 'Could not load prices.';
+      document.getElementById('opGrid').innerHTML =
+        '<div style="color:var(--danger);font-size:.85rem;padding:8px 0">Could not load prices.</div>';
+    });
+}
+
+function renderPrices(board) {
+  const chosen = board.find(e=>e.selected) || board[0];
+  const other  = board.find(e=>e !== chosen);
+
+  /* Best price from get_cheap_price for the chosen server. */
+  document.getElementById('bestSrv').textContent = chosen.label + ' — ' + chosen.name;
+  if (chosen.best) {
+    document.getElementById('bestVal').textContent = chosen.best.user_price_fmt;
+    document.getElementById('bestNote').textContent =
+      (chosen.best.qty ? num(chosen.best.qty)+' numbers' : 'available') +
+      ' · cheapest carrier' + (chosen.best.operator ? ' ('+chosen.best.operator+')' : '');
+  } else {
+    document.getElementById('bestVal').textContent = '—';
+    document.getElementById('bestNote').textContent = 'No stock on this server right now.';
+  }
+
+  /* Every operator price on this server. */
+  const grid = document.getElementById('opGrid');
+  grid.innerHTML = '';
+  const opRows = chosen.rows.slice();
+  if (!opRows.length && chosen.best) {
+    opRows.push({
+      name: 'any', label: 'Any operator', is_any: true, qty: chosen.best.qty,
+      user_price: chosen.best.user_price, user_price_fmt: chosen.best.user_price_fmt,
+    });
+  }
+  if (!opRows.length) {
+    grid.innerHTML = '<div style="color:var(--warning);font-size:.85rem;padding:8px 0">'+
+      'No operator prices on this server for this selection.</div>';
+  } else {
+    opRows.forEach(op=>{
+      const row = document.createElement('label');
+      row.className = 'op-radio' + (op.qty?'':' unavail') + (op.is_any?' op-any':'');
+      row.dataset.name = op.name;
+      const circle = document.createElement('div');
+      circle.className = 'op-circle';
+      const info = document.createElement('div');
+      info.className = 'op-info';
+      const name = document.createElement('div');
+      name.className = 'op-name';
+      name.textContent = op.label;
+      if (op.is_any) {
+        const hint = document.createElement('span');
+        hint.style.cssText = 'font-size:.62rem;font-weight:400;color:var(--text-dim);display:block;margin-top:1px';
+        hint.textContent = 'Auto-picked — cheapest carrier on ' + chosen.label;
+        name.appendChild(hint);
+      }
+      const price = document.createElement('div');
+      price.className = 'op-price';
+      price.textContent = op.user_price_fmt;
+      const qty = document.createElement('div');
+      qty.className = 'op-qty ' + (op.qty?'text-success':'text-danger');
+      qty.textContent = op.qty ? num(op.qty)+' available' : 'Unavailable';
+      info.append(name, price, qty);
+      row.append(circle, info);
+      if (op.qty) {
+        row.addEventListener('click', ()=>pickOp(op));
+      }
+      grid.appendChild(row);
+    });
+  }
+
+  /* The other server, clearly separated, never blended into the list. */
+  const oc = document.getElementById('otherCard');
+  oc.innerHTML = '';
+  if (!other) { oc.style.display = 'none'; }
+  else {
+    oc.style.display = 'flex';
+    const info = document.createElement('div');
+    const title = document.createElement('div');
+    title.className = 'oc-name';
+    title.textContent = other.label + ' — ' + other.name;
+    const sub = document.createElement('div');
+    sub.className = 'oc-sub';
+    sub.textContent = other.best
+      ? 'Cheapest there: ' + other.best.user_price_fmt + ' · ' +
+        (other.rows.length > 1 ? other.rows.length + ' carrier prices' : 'one price')
+      : 'No stock there for this selection';
+    info.append(title, sub);
+
+    const right = document.createElement('div');
+    right.className = 'oc-right';
+    const price = document.createElement('div');
+    price.className = 'oc-price';
+    price.textContent = other.best ? other.best.user_price_fmt : '—';
+    right.appendChild(price);
+    if (other.available) {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'btn btn-secondary btn-sm';
+      btn.textContent = 'Switch';
+      btn.addEventListener('click', ()=>switchServer(other));
+      right.appendChild(btn);
+    }
+    oc.append(info, right);
+  }
+
+  /* Pre-select the best buyable carrier so the buy box is one click away. */
+  const auto = opRows.find(r=>r.is_any && r.qty > 0) ||
+               opRows.find(r=>r.qty > 0);
+  if (auto) pickOp(auto);
+  else document.getElementById('buyBox').classList.remove('show');
+}
+
+function switchServer(entry) {
+  S.server = entry.provider;
+  S.serverLabel = entry.label + ' — ' + entry.name;
+  S.serverName = entry.name;
+  document.querySelectorAll('.srv-btn').forEach(el=>{
+    el.classList.toggle('selected', el.dataset.provider === entry.provider);
+  });
+  S.operator = ''; S.operatorLabel = ''; S.userPrice = 0; S.qty = 0;
+  document.getElementById('buyBox').classList.remove('show');
+  resetCoupon();
+  document.getElementById('otherCard').style.display = 'none';
+  document.getElementById('bestSrv').textContent = S.serverLabel;
+  document.getElementById('bestVal').textContent = '…';
+  document.getElementById('bestNote').textContent = 'Loading live prices...';
+  document.getElementById('opGrid').innerHTML = spinHtml('Loading prices...');
+  loadPrices();
+  /* Keep the service list in sync with the newly chosen server. */
+  const input = document.getElementById('svcSearch');
+  if (!input.value.trim()) loadServices('');
+}
+
+function pickOp(op) {
+  S.operator = op.name;
+  S.operatorLabel = op.label;
+  S.userPrice = op.user_price;
+  S.qty = op.qty;
+  document.querySelectorAll('#opGrid .op-radio').forEach(el=>{
+    el.classList.toggle('selected', el.dataset.name === op.name);
   });
   resetCoupon();
-  showBuyBox(uPrice, qty);
+  showBuyBox(op.user_price, op.qty);
 }
 
-function updateBuyBox() {
-  if (!S.provCost) return;
-  const base  = providerToNGN(S.provCost);
-  const disc  = appliedCoupon ? appliedCoupon.discount_ngn : 0;
-  const final = Math.max(0, base - disc);
-  const after = WALLET - final;
-  document.getElementById('bb-price').textContent = ngn(base);
-  document.getElementById('bb-after').textContent = ngn(Math.max(0, after));
-  document.getElementById('bb-after').style.color = after>=0?'var(--orange)':'var(--danger)';
-  if (disc > 0) {
-    document.getElementById('discountRow').style.display = 'flex';
-    document.getElementById('discountAmt').textContent    = '−'+ngn(disc);
-    document.getElementById('finalPriceRow').style.display = 'block';
-    document.getElementById('finalPriceVal').textContent   = ngn(final);
+/* ── Reset downstream state ─────────────────────────────────────────────── */
+function clearFrom(level) {
+  /* level: 'service' clears service + country + price; 'country' clears
+     country + price. The server choice always survives. */
+  if (level === 'service') {
+    S.service = ''; S.serviceName = '';
+    document.getElementById('svcPicked').style.display = 'none';
+    document.getElementById('svcChips').innerHTML = '';
+    document.getElementById('svcResults').innerHTML = spinHtml('Loading services...');
+    document.getElementById('svcCount').textContent = '';
+    disableStep(3);
+    setBoxVal('ctry','<span class="ph">Select a service first</span>');
   }
+  S.country = ''; S.countryIso = ''; S.countryLabel = '';
+  S.operator = ''; S.operatorLabel = ''; S.userPrice = 0; S.qty = 0;
+  disableStep(4);
+  document.getElementById('bestCard').style.display = 'none';
+  document.getElementById('otherCard').style.display = 'none';
+  document.getElementById('opGrid').innerHTML =
+    '<div style="color:var(--text-dim);font-size:.82rem;padding:8px 0">Select a country first</div>';
+  document.getElementById('buyBox').classList.remove('show');
+  document.getElementById('ctryList').innerHTML =
+    '<div class="csel-empty">Select a service first</div>';
+  resetCoupon();
 }
 
+/* ── Buy box ────────────────────────────────────────────────────────────── */
 function showBuyBox(uPrice, qty) {
   const after = WALLET - uPrice;
-  const f     = S.countryIso ? flag(S.countryIso) : '🌍';
-  document.getElementById('bb-svc').innerHTML  = `<i class="fa-solid fa-mobile-screen" style="color:var(--orange)"></i> ${S.service}`;
-  document.getElementById('bb-ctry').innerHTML = `${f} ${S.countryLabel}`;
-  document.getElementById('bb-srv').innerHTML  = `<i class="fa-solid fa-server" style="color:var(--blue)"></i> ${S.serverLabel}`;
-  document.getElementById('bb-op').innerHTML   = `<i class="fa-solid fa-signal" style="color:var(--success)"></i> ${S.operatorLabel}`;
-  document.getElementById('bb-qty').textContent = qty.toLocaleString()+' available';
+  const f = S.countryIso ? flag(S.countryIso) : '🌍';
+  document.getElementById('bb-svc').textContent   = S.serviceName || S.service;
+  document.getElementById('bb-ctry').textContent  = f + ' ' + S.countryLabel;
+  document.getElementById('bb-srv').textContent   = S.serverLabel;
+  document.getElementById('bb-op').textContent    = S.operatorLabel;
+  document.getElementById('bb-qty').textContent   = num(qty) + ' available';
   document.getElementById('bb-price').textContent = ngn(uPrice);
-  document.getElementById('bb-after').textContent = ngn(Math.max(0,after));
-  document.getElementById('bb-after').style.color  = after>=0?'var(--orange)':'var(--danger)';
-  document.getElementById('buyErr').style.display  = 'none';
+  document.getElementById('bb-after').textContent = ngn(Math.max(0, after));
+  document.getElementById('bb-after').style.color = after>=0 ? 'var(--orange)' : 'var(--danger)';
+  document.getElementById('buyErr').style.display = 'none';
   const box = document.getElementById('buyBox');
   box.classList.add('show');
-  setTimeout(()=>box.scrollIntoView({behavior:'smooth',block:'nearest'}),80);
+  setTimeout(()=>box.scrollIntoView({behavior:'smooth',block:'nearest'}), 80);
 }
-
-let appliedCoupon = null; // { code, discount_ngn, final_price }
 
 function applyCoupon() {
   const code = document.getElementById('couponInput').value.trim();
   if (!code) { showCouponMsg('Please enter a coupon code.', false); return; }
-  if (!S.provCost) { showCouponMsg('Select a service and country first.', false); return; }
-  fetch('/api/coupon/?action=validate&code='+encodeURIComponent(code)+'&price='+encodeURIComponent(S.provCost ? providerToNGN(S.provCost) : 0))
+  if (!S.userPrice) { showCouponMsg('Select a service, country and operator first.', false); return; }
+  fetch('/api/coupon/?action=validate&code='+encodeURIComponent(code)+
+        '&price='+encodeURIComponent(S.userPrice))
     .then(r=>r.json()).then(d=>{
       if (!d.success) { showCouponMsg(d.message || 'Coupon could not be applied.', false); return; }
-      appliedCoupon=d;
-      document.getElementById('bb-price').textContent=ngn(d.final_price);
-      document.getElementById('bb-after').textContent=ngn(Math.max(0, (window._walletBalance||0)-d.final_price));
+      appliedCoupon = d;
+      document.getElementById('bb-price').textContent = ngn(d.final_price);
+      document.getElementById('bb-after').textContent = ngn(Math.max(0, WALLET - d.final_price));
       showCouponMsg(d.message || 'Coupon applied.', true);
     }).catch(()=>showCouponMsg('Could not validate the coupon.', false));
 }
@@ -648,30 +968,34 @@ function showCouponMsg(msg, ok) {
   el.style.color = ok ? 'var(--success)' : 'var(--danger)';
 }
 
-function loadProviderServices() {
-  fetch('/api/provider/?action=services').then(r=>r.json()).then(d=>{
-    const list=document.getElementById('svcList');
-    if (!d.success || !d.data || !Object.keys(d.data).length) { list.innerHTML='<div class="csel-empty">No services available.</div>'; return; }
-    const services = Object.values(d.data);
-    services.forEach(s=>{ SERVICE_QTYS[s.name] = s.qty; });
-    list.innerHTML=services.map(s=>`<div class="copt" data-key="${s.name}" onclick="pickService('${s.name}',${s.qty})"><i class="fa-solid fa-mobile-screen" style="color:var(--orange);font-size:.78rem;flex-shrink:0"></i><span class="cname">${s.name}</span><span class="cbadge">${s.qty.toLocaleString()}</span></div>`).join('');
-    document.getElementById('svcSuggest').innerHTML=services.map(s=>`<option value="${s.name}"></option>`).join('');
-  }).catch(()=>{ document.getElementById('svcList').innerHTML='<div class="csel-empty" style="color:var(--danger)">Could not load services.</div>'; });
-}
-
 function doBuy() {
   const btn = document.getElementById('buyBtn');
   const err = document.getElementById('buyErr');
-  if (!S.service || !S.country || !S.server || !S.operator) { err.textContent='Please complete all selections.'; err.style.display='block'; return; }
+  if (!S.service || !S.country || !S.server || !S.operator) {
+    err.textContent = 'Please complete all selections.';
+    err.style.display = 'block';
+    return;
+  }
   setLoading(btn, true);
-  const body=new URLSearchParams({action:'buy', product:S.service, country:S.country, server:S.server, operator:S.operator, coupon_code:(appliedCoupon&&appliedCoupon.code)||''});
+  const body = new URLSearchParams({
+    action:'buy', product:S.service, country:S.country, server:S.server,
+    operator:S.operator, coupon_code:(appliedCoupon && appliedCoupon.code) || '',
+  });
   fetch('/api/orders/',{method:'POST',body}).then(r=>r.json()).then(d=>{
-    if (!d.success) { err.textContent=d.message||'Purchase failed.'; err.style.display='block'; setLoading(btn,false); return; }
-    showToast(d.message||'Number purchased.','success');
-    location.href='/user/cart.html';
-  }).catch(()=>{ err.textContent='Purchase request failed.'; err.style.display='block'; setLoading(btn,false); });
+    if (!d.success) {
+      err.textContent = d.message || 'Purchase failed.';
+      err.style.display = 'block';
+      setLoading(btn, false);
+      return;
+    }
+    showToast(d.message || 'Number purchased.', 'success');
+    location.href = '/user/cart.html';
+  }).catch(()=>{
+    err.textContent = 'Purchase request failed.';
+    err.style.display = 'block';
+    setLoading(btn, false);
+  });
 }
-document.addEventListener('DOMContentLoaded', loadProviderServices);
 </script>
 
     </main>
