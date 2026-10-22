@@ -18,9 +18,9 @@ from django.views.decorators.http import require_http_methods
 from .models import Broadcast, Coupon, CouponUse, Notification, Order, Setting, SmsMessage, Topup, Transaction, User
 from .services import (
     Paystack, buy_number, catalog_countries, catalog_operators, catalog_products,
-    catalog_services, check_order, credit_balance, debit_balance, demo_mode,
-    format_ngn, friendly_provider_error, get_cheap_price, money, order_action,
-    provider_configured, provider_to_user_ngn,
+    catalog_servers, catalog_services, check_order, credit_balance, debit_balance,
+    demo_mode, format_ngn, friendly_provider_error, get_cheap_price, money,
+    order_action, provider_configured, provider_to_user_ngn, server_provider,
 )
 
 
@@ -361,10 +361,11 @@ def provider_api(request):
     action = request.GET.get("action", "")
     country = request.GET.get("country", "").strip()
     product = request.GET.get("product", "").strip().lower()
+    provider = server_provider(request.GET.get("server"))
 
     if action == "services":
-        # Both servers are consulted behind the scenes; the picker never asks
-        # the buyer which one to use.
+        # Both servers are consulted behind the scenes; the server buttons come
+        # later, after the service and country are already chosen.
         codes = catalog_services(country)
         if not codes:
             return _json({"success": False, "message": "Could not reach a provider. Check API keys or try again."})
@@ -376,10 +377,23 @@ def provider_api(request):
             return _json({"success": False, "message": "Could not reach a provider. Try again."})
         return _json({"success": True, "data": countries})
 
+    if action == "servers":
+        # The two server buttons with the starting price each one has for the
+        # chosen service + country. Prices are never blended across servers.
+        options = catalog_servers()
+        for option in options:
+            quote = get_cheap_price(product, country, "any", provider=option["provider"]) if product and country else None
+            option["price"] = float(provider_to_user_ngn(quote["cost"])) if quote else 0
+            option["price_fmt"] = format_ngn(provider_to_user_ngn(quote["cost"])) if quote else ""
+            option["count"] = int(quote["count"]) if quote else 0
+            option["available"] = bool(option["available"] and quote)
+        return _json({"success": True, "data": options})
+
     if action == "operators":
-        # Neither provider sells a carrier dimension here: each returns the
-        # single "any" offer carrying the cheapest live price and stock.
-        output = catalog_operators(country, product)
+        # One row per real operator (5sim prices virtual34, virtual51 &c.
+        # separately) plus an "any" row where the backend picks the cheapest.
+        # With a server chosen the rows come from that server alone.
+        output = catalog_operators(country, product, provider)
         if not output:
             return _json({"success": False, "message": "No numbers available for this selection right now."})
         return _json({"success": True, "data": output})
@@ -446,14 +460,18 @@ def orders_api(request):
         country = request.POST.get("country", "").lower().strip()
         operator = request.POST.get("operator", "any").lower().strip()
         product = request.POST.get("product", "").lower().strip()
+        server = server_provider(request.POST.get("server"))
         if not country or not product:
             return _json({"success": False, "message": "Please complete all selections."}, 400)
-        product_info = catalog_products(country).get(product)
-        quote = get_cheap_price(product, country, operator)
-        # Either server may be the one that actually has it; only refuse when
-        # neither publishes this service for the country.
+        # Quote the server the buyer clicked; the price charged is the price
+        # that server's listing showed.
+        product_info = catalog_products(country, server).get(product)
+        quote = get_cheap_price(product, country, operator, provider=server)
         if not product_info and not quote:
-            return _json({"success": False, "message": "This service is no longer available in the selected country. Please choose another."})
+            message = "No numbers available on this server for the selected options. Pick the other server or another country."
+            if not server:
+                message = "This service is no longer available in the selected country. Please choose another."
+            return _json({"success": False, "message": message})
         quoted_cost = Decimal(str(quote["cost"] if quote else product_info.get("Price", 0) or 0))
         user_price = provider_to_user_ngn(quoted_cost)
         coupon_result, coupon_error = _coupon_check(request.user, request.POST.get("coupon_code", ""), user_price) if request.POST.get("coupon_code") else (None, None)
@@ -462,8 +480,9 @@ def orders_api(request):
         final_price = coupon_result["final_price"] if coupon_result else user_price
         if request.user.balance < final_price:
             return _json({"success": False, "message": f"Insufficient wallet balance. You need {format_ngn(final_price)}."})
-        # Server 1 first; any provider-level failure falls through to server 2.
-        provider_order = buy_number(product, country, operator)
+        # The clicked server is tried first; the other is only a purchase-time
+        # fallback when the first one errors.
+        provider_order = buy_number(product, country, operator, provider=server)
         if "error" in provider_order:
             return _json({"success": False, "message": friendly_provider_error(provider_order["error"])})
         provider_cost = Decimal(str(provider_order.get("provider_cost") or quoted_cost))

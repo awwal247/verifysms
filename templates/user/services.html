@@ -89,6 +89,28 @@
   padding:7px 10px;outline:none;transition:var(--transition)}
 .manual-row input:focus{border-color:var(--orange);box-shadow:0 0 0 3px var(--orange-glow)}
 
+/* Server buttons */
+.srv-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px}
+.srv-btn{display:flex;flex-direction:column;gap:3px;align-items:flex-start;
+  background:var(--bg-input);border:1px solid var(--border);
+  border-radius:var(--radius-sm);padding:11px 13px;cursor:pointer;
+  transition:var(--transition);text-align:left;color:var(--text);width:100%}
+.srv-btn:hover{border-color:var(--orange)}
+.srv-btn.selected{border-color:var(--orange);background:var(--orange-subtle);
+  box-shadow:0 0 0 3px var(--orange-glow)}
+.srv-btn.unavail{opacity:.4;cursor:not-allowed;pointer-events:none}
+.srv-name{font-size:.86rem;font-weight:700}
+.srv-sub{font-size:.69rem;color:var(--text-muted)}
+.srv-price{font-size:.95rem;font-weight:700;color:var(--orange)}
+.srv-price.na{color:var(--text-dim);font-weight:600}
+
+/* Service suggestions */
+.svc-suggest{display:flex;gap:8px;margin-top:7px}
+.svc-suggest input{flex:1;background:var(--bg-input);border:1px solid var(--border);
+  border-radius:var(--radius-sm);color:var(--text);font-size:.85rem;
+  padding:7px 10px;outline:none;transition:var(--transition)}
+.svc-suggest input:focus{border-color:var(--orange);box-shadow:0 0 0 3px var(--orange-glow)}
+
 /* Operator radio circles */
 .op-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(145px,1fr));gap:8px}
 .op-radio{display:flex;align-items:center;gap:10px;
@@ -283,9 +305,11 @@
         </div>
       </div>
     </div>
-    <span class="manual-toggle" onclick="toggleManual()">✏️ Type service name manually</span>
-    <div class="manual-row" id="manualRow">
-      <input type="text" id="manualInp" placeholder="e.g. telegram, google, amazon...">
+    <div class="svc-suggest">
+      <input type="text" id="manualInp" list="svcSuggest" autocomplete="off"
+        placeholder="Or type a service — WhatsApp, Amazon, Signal..."
+        onchange="onSvcSuggest()">
+      <datalist id="svcSuggest"></datalist>
       <button class="btn btn-secondary btn-sm" onclick="useManual()">Use</button>
     </div>
   </div>
@@ -307,11 +331,19 @@
     </div>
   </div>
 
-  <!-- STEP 3: Operator (radio circles) -->
+  <!-- STEP 3: Server -->
   <div class="buy-step step-disabled" id="s3">
-    <div class="step-lbl"><span class="snum dim" id="sn3">3</span> Operator</div>
-    <div class="op-grid" id="opGrid">
+    <div class="step-lbl"><span class="snum dim" id="sn3">3</span> Server</div>
+    <div class="srv-grid" id="srvGrid">
       <div style="color:var(--text-dim);font-size:.82rem;padding:8px 0">Select a country first</div>
+    </div>
+  </div>
+
+  <!-- STEP 4: Operator (radio circles) -->
+  <div class="buy-step step-disabled" id="s4">
+    <div class="step-lbl"><span class="snum dim" id="sn4">4</span> Operator</div>
+    <div class="op-grid" id="opGrid">
+      <div style="color:var(--text-dim);font-size:.82rem;padding:8px 0">Select a server first</div>
     </div>
   </div>
 
@@ -325,6 +357,10 @@
       <div class="brow">
         <span class="blabel"><i class="fa-solid fa-earth-africa" style="color:var(--blue)"></i> Country</span>
         <span class="bval" id="bb-ctry"></span>
+      </div>
+      <div class="brow">
+        <span class="blabel"><i class="fa-solid fa-server" style="color:var(--blue)"></i> Server</span>
+        <span class="bval" id="bb-srv"></span>
       </div>
       <div class="brow">
         <span class="blabel"><i class="fa-solid fa-signal" style="color:var(--success)"></i> Operator</span>
@@ -381,7 +417,8 @@
 const CSRF   = document.querySelector('meta[name=csrf]').content;
 const WALLET = parseFloat('{{ current_user.balance|default:"0" }}') || 0;
 
-const S = {service:'', country:'', countryIso:'', countryLabel:'', operator:'', operatorLabel:'', provCost:0, qty:0};
+const S = {service:'', country:'', countryIso:'', countryLabel:'', server:'', serverLabel:'', operator:'', operatorLabel:'', provCost:0, qty:0};
+const SERVICE_QTYS = {};
 
 function providerToNGN(provCost) {
   const rate   = parseFloat('{{ site_rate|default:"1600" }}') || 1600;
@@ -457,11 +494,15 @@ function pickService(name, qty) {
   document.querySelectorAll('#svcList .copt').forEach(el=>el.classList.toggle('active',el.dataset.key===name));
   closeDrop('svc');
   S.country=S.operator=''; S.countryIso='';
-  document.getElementById('opGrid').innerHTML='<div style="color:var(--text-dim);font-size:.82rem;padding:8px 0">Select a country first</div>';
+  S.server=''; S.serverLabel='';
+  document.getElementById('srvGrid').innerHTML='<div style="color:var(--text-dim);font-size:.82rem;padding:8px 0">Select a country first</div>';
+  document.getElementById('opGrid').innerHTML='<div style="color:var(--text-dim);font-size:.82rem;padding:8px 0">Select a server first</div>';
   document.getElementById('buyBox').classList.remove('show');
   enableStep(2);
-  document.getElementById('s3').classList.add('step-disabled');
-  document.getElementById('sn3').classList.add('dim');
+  ['3','4'].forEach(n=>{
+    document.getElementById('s'+n).classList.add('step-disabled');
+    document.getElementById('sn'+n).classList.add('dim');
+  });
   setBoxVal('ctry','<span class="ph">— Select a country —</span>');
   document.getElementById('ctryList').innerHTML='<div class="csel-empty"><span class="spinner" style="width:14px;height:14px;border-width:2px"></span> Loading countries...</div>';
   fetch('/api/provider/?action=countries&product='+encodeURIComponent(name))
@@ -472,16 +513,14 @@ function pickService(name, qty) {
     }).catch(()=>{ document.getElementById('ctryList').innerHTML='<div class="csel-empty" style="color:var(--danger)">Could not load countries.</div>'; });
 }
 
-function toggleManual() {
-  const r = document.getElementById('manualRow');
-  r.style.display = r.style.display==='none'||r.style.display==='' ? 'flex' : 'none';
-  if (r.style.display==='flex') document.getElementById('manualInp').focus();
+function onSvcSuggest() {
+  const v = document.getElementById('manualInp').value.trim().toLowerCase();
+  if (SERVICE_QTYS[v] !== undefined) pickService(v, SERVICE_QTYS[v]);
 }
 function useManual() {
   const v = document.getElementById('manualInp').value.trim().toLowerCase();
   if (!v) return;
-  document.getElementById('manualRow').style.display='none';
-  pickService(v, 0);
+  pickService(v, SERVICE_QTYS[v] || 0);
 }
 
 function pickCountry(name, iso, label, qty) {
@@ -494,25 +533,50 @@ function pickCountry(name, iso, label, qty) {
   );
   document.querySelectorAll('#ctryList .copt').forEach(el=>el.classList.toggle('active',el.dataset.key===name));
   closeDrop('ctry');
-  S.operator='';
-  enableStep(3);
+  S.operator=''; S.server=''; S.serverLabel='';
   document.getElementById('buyBox').classList.remove('show');
-  document.getElementById('opGrid').innerHTML =
-    '<div style="display:flex;align-items:center;gap:8px;color:var(--text-muted);font-size:.82rem;padding:6px 0"><span class="spinner" style="width:14px;height:14px;border-width:2px"></span> Loading operators...</div>';
-  fetch('/api/provider/?action=operators&country='+encodeURIComponent(name)+'&product='+encodeURIComponent(S.service))
+  document.getElementById('opGrid').innerHTML='<div style="color:var(--text-dim);font-size:.82rem;padding:8px 0">Select a server first</div>';
+  document.getElementById('s4').classList.add('step-disabled');
+  document.getElementById('sn4').classList.add('dim');
+  enableStep(3);
+  document.getElementById('srvGrid').innerHTML =
+    '<div style="display:flex;align-items:center;gap:8px;color:var(--text-muted);font-size:.82rem;padding:6px 0"><span class="spinner" style="width:14px;height:14px;border-width:2px"></span> Loading servers...</div>';
+  fetch('/api/provider/?action=servers&country='+encodeURIComponent(name)+'&product='+encodeURIComponent(S.service))
     .then(r=>r.json()).then(d=>{
       if (!d.success || !d.data || !d.data.length) {
-        document.getElementById('opGrid').innerHTML='<div style="color:var(--warning);font-size:.85rem;padding:8px 0">No operators are available for this selection.</div>';
+        document.getElementById('srvGrid').innerHTML='<div style="color:var(--warning);font-size:.85rem;padding:8px 0">Servers are unavailable for this selection.</div>';
         return;
       }
-      document.getElementById('opGrid').innerHTML=d.data.map(op=>`<label class="op-radio ${op.qty?'':'unavail'} ${op.is_any?'op-any':''}" ${op.qty?`onclick="pickOp('${op.name}','${op.label}',${op.provider_price},${op.user_price},${op.qty})"`:''}>
+      document.getElementById('srvGrid').innerHTML=d.data.map(sv=>`<button type="button" class="srv-btn ${sv.available?'':'unavail'}" data-key="${sv.provider}" ${sv.available?`onclick="pickServer('${sv.provider}','${sv.label}','${sv.name}')"`:''}>
+        <span class="srv-name">${sv.label}</span>
+        <span class="srv-sub">${sv.name}</span>
+        <span class="srv-price ${sv.price_fmt?'':'na'}">${sv.price_fmt?'from '+sv.price_fmt:'Unavailable'}</span>
+        </button>`).join('');
+    }).catch(()=>{ document.getElementById('srvGrid').innerHTML='<div style="color:var(--danger);font-size:.85rem;padding:8px 0">Could not load servers.</div>'; });
+}
+
+function pickServer(provider, label, name) {
+  S.server=provider; S.serverLabel=label+' — '+name;
+  S.operator=''; S.operatorLabel=''; S.provCost=0; S.qty=0;
+  document.querySelectorAll('.srv-btn').forEach(el=>el.classList.toggle('selected',el.dataset.key===provider));
+  document.getElementById('buyBox').classList.remove('show');
+  enableStep(4);
+  const grid = document.getElementById('opGrid');
+  grid.innerHTML='<div style="display:flex;align-items:center;gap:8px;color:var(--text-muted);font-size:.82rem;padding:6px 0"><span class="spinner" style="width:14px;height:14px;border-width:2px"></span> Loading operators...</div>';
+  fetch('/api/provider/?action=operators&country='+encodeURIComponent(S.country)+'&product='+encodeURIComponent(S.service)+'&server='+encodeURIComponent(provider))
+    .then(r=>r.json()).then(d=>{
+      if (!d.success || !d.data || !d.data.length) {
+        grid.innerHTML='<div style="color:var(--warning);font-size:.85rem;padding:8px 0">No operators are available on this server for this selection.</div>';
+        return;
+      }
+      grid.innerHTML=d.data.map(op=>`<label class="op-radio ${op.qty?'':'unavail'} ${op.is_any?'op-any':''}" ${op.qty?`onclick="pickOp('${op.name}','${op.label}',${op.provider_price},${op.user_price},${op.qty})"`:''}>
         <div class="op-circle" id="opc-${op.name}"></div><div class="op-info">
-        <div class="op-name">${op.label}${op.is_any?'<span style="font-size:.62rem;font-weight:400;color:var(--text-dim);display:block;margin-top:1px">Auto-picked — best available carrier</span>':''}</div>
+        <div class="op-name">${op.label}${op.is_any?'<span style="font-size:.62rem;font-weight:400;color:var(--text-dim);display:block;margin-top:1px">Auto-picked — best carrier on '+S.serverLabel+'</span>':''}</div>
         <div class="op-price">${op.user_price_fmt}</div><div class="op-qty ${op.qty?'text-success':'text-danger'}">${op.qty?op.qty.toLocaleString()+' available':'Unavailable'}</div>
         </div></label>`).join('');
       const available=d.data.filter(o=>o.qty>0);
       if (available.length===1) pickOp(available[0].name,available[0].label,available[0].provider_price,available[0].user_price,available[0].qty);
-    }).catch(()=>{ document.getElementById('opGrid').innerHTML='<div style="color:var(--danger);font-size:.85rem;padding:8px 0">Could not load operators.</div>'; });
+    }).catch(()=>{ grid.innerHTML='<div style="color:var(--danger);font-size:.85rem;padding:8px 0">Could not load operators.</div>'; });
 }
 
 function pickOp(name, label, provCost, uPrice, qty) {
@@ -547,6 +611,7 @@ function showBuyBox(uPrice, qty) {
   const f     = S.countryIso ? flag(S.countryIso) : '🌍';
   document.getElementById('bb-svc').innerHTML  = `<i class="fa-solid fa-mobile-screen" style="color:var(--orange)"></i> ${S.service}`;
   document.getElementById('bb-ctry').innerHTML = `${f} ${S.countryLabel}`;
+  document.getElementById('bb-srv').innerHTML  = `<i class="fa-solid fa-server" style="color:var(--blue)"></i> ${S.serverLabel}`;
   document.getElementById('bb-op').innerHTML   = `<i class="fa-solid fa-signal" style="color:var(--success)"></i> ${S.operatorLabel}`;
   document.getElementById('bb-qty').textContent = qty.toLocaleString()+' available';
   document.getElementById('bb-price').textContent = ngn(uPrice);
@@ -587,16 +652,19 @@ function loadProviderServices() {
   fetch('/api/provider/?action=services').then(r=>r.json()).then(d=>{
     const list=document.getElementById('svcList');
     if (!d.success || !d.data || !Object.keys(d.data).length) { list.innerHTML='<div class="csel-empty">No services available.</div>'; return; }
-    list.innerHTML=Object.values(d.data).map(s=>`<div class="copt" data-key="${s.name}" onclick="pickService('${s.name}',${s.qty})"><i class="fa-solid fa-mobile-screen" style="color:var(--orange);font-size:.78rem;flex-shrink:0"></i><span class="cname">${s.name}</span><span class="cbadge">${s.qty.toLocaleString()}</span></div>`).join('');
+    const services = Object.values(d.data);
+    services.forEach(s=>{ SERVICE_QTYS[s.name] = s.qty; });
+    list.innerHTML=services.map(s=>`<div class="copt" data-key="${s.name}" onclick="pickService('${s.name}',${s.qty})"><i class="fa-solid fa-mobile-screen" style="color:var(--orange);font-size:.78rem;flex-shrink:0"></i><span class="cname">${s.name}</span><span class="cbadge">${s.qty.toLocaleString()}</span></div>`).join('');
+    document.getElementById('svcSuggest').innerHTML=services.map(s=>`<option value="${s.name}"></option>`).join('');
   }).catch(()=>{ document.getElementById('svcList').innerHTML='<div class="csel-empty" style="color:var(--danger)">Could not load services.</div>'; });
 }
 
 function doBuy() {
   const btn = document.getElementById('buyBtn');
   const err = document.getElementById('buyErr');
-  if (!S.service || !S.country || !S.operator) { err.textContent='Please complete all selections.'; err.style.display='block'; return; }
+  if (!S.service || !S.country || !S.server || !S.operator) { err.textContent='Please complete all selections.'; err.style.display='block'; return; }
   setLoading(btn, true);
-  const body=new URLSearchParams({action:'buy', product:S.service, country:S.country, operator:S.operator, coupon_code:(appliedCoupon&&appliedCoupon.code)||''});
+  const body=new URLSearchParams({action:'buy', product:S.service, country:S.country, server:S.server, operator:S.operator, coupon_code:(appliedCoupon&&appliedCoupon.code)||''});
   fetch('/api/orders/',{method:'POST',body}).then(r=>r.json()).then(d=>{
     if (!d.success) { err.textContent=d.message||'Purchase failed.'; err.style.display='block'; setLoading(btn,false); return; }
     showToast(d.message||'Number purchased.','success');

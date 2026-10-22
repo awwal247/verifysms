@@ -137,7 +137,7 @@ class FiveSim:
         "netflix": "Netflix", "uber": "Uber", "viber": "Viber",
         "discord": "Discord", "snapchat": "Snapchat", "tiktok": "TikTok",
         "avito": "Avito", "foodpanda": "Foodpanda", "vk": "VKontakte",
-        "ok": "Odnoklassniki",
+        "ok": "Odnoklassniki", "signal": "Signal",
     }
 
     @classmethod
@@ -722,6 +722,11 @@ PROVIDER_ORDER = ("5sim", "grizzly")
 PROVIDER_LABELS = {"5sim": "5SIM", "grizzly": "GrizzlySMS", "demo": "Demo"}
 _PROVIDERS = {"5sim": FiveSim, "grizzly": GrizzlySms}
 
+# The storefront offers the two suppliers as Server 1 and Server 2. The
+# numbering is the owner's: server 1 is GrizzlySMS, server 2 is 5SIM.
+SERVER_ORDER = ("grizzly", "5sim")
+SERVER_NUMBERS = {"grizzly": "1", "5sim": "2"}
+
 # GrizzlySMS country id -> 5sim country slug. Source: the numbered country
 # list published in Grizzly's own docs (grizzlysms.com/docs/activation,
 # pulled 2026-10-19). Do NOT guess these ids: they are not the sms-activate
@@ -781,6 +786,10 @@ GRIZZLY_TO_FIVESIM_SERVICE = {
 }
 FIVESIM_TO_GRIZZLY_SERVICE = {slug: code for code, slug in GRIZZLY_TO_FIVESIM_SERVICE.items()}
 
+# Services only one server carries. The canonical id is the 5sim slug because
+# Grizzly has no code for them here; they simply do not appear on Server 1.
+FIVESIM_ONLY_SERVICES = {"signal"}
+
 
 def provider_configured():
     """``{provider: bool}`` — whether a key is saved for each server."""
@@ -807,6 +816,31 @@ def _live(provider):
 
 def provider_label(name):
     return PROVIDER_LABELS.get(str(name), str(name))
+
+
+def server_provider(value):
+    """Map anything the UI sends as a server choice to a provider key.
+
+    Accepts ``"1"`` / ``"2"`` (the button numbers), a provider name, or
+    nothing / ``"any"`` — the latter means "no explicit server".
+    """
+    value = str(value or "").strip().lower()
+    if value in ("", "any", "all", "auto"):
+        return None
+    if value in _PROVIDERS:
+        return value
+    return {"1": "grizzly", "2": "5sim"}.get(value)
+
+
+def catalog_servers():
+    """The two server buttons, in the owner's numbering."""
+    return [{
+        "key": SERVER_NUMBERS[name],
+        "provider": name,
+        "label": "Server " + SERVER_NUMBERS[name],
+        "name": provider_label(name),
+        "available": _live(name),
+    } for name in SERVER_ORDER]
 
 
 def service_label(code):
@@ -848,13 +882,21 @@ def _canonical_service(provider, identifier):
     return identifier
 
 
-def catalog_products(country):
+def _catalog_names(provider):
+    """Servers a catalog call may consult, in order."""
+    if provider in _PROVIDERS:
+        return [provider]
+    return list(PROVIDER_ORDER)
+
+
+def catalog_products(country, provider=None):
     """``{canonical_service: {"Price", "Qty", "Category"}}`` for one country.
 
-    First provider with a live catalog wins; an empty answer — timeout, bad
+    With ``provider`` the answer comes from that server only. Without it the
+    first provider with a live catalog wins; an empty answer — timeout, bad
     key, unknown country — hands the request to the next server.
     """
-    for name in PROVIDER_ORDER:
+    for name in _catalog_names(provider):
         if not _live(name):
             continue
         adapter = _PROVIDERS[name]
@@ -870,9 +912,13 @@ def catalog_products(country):
     return {}
 
 
-def catalog_services(country=""):
-    """Service picker data. Empty country scans the first few countries."""
-    for name in PROVIDER_ORDER:
+def catalog_services(country="", provider=None):
+    """Service picker data. Empty country scans the first few countries.
+
+    ``provider`` limits the list to one server; the service step runs before
+    the server is chosen, so the default stays a union of both.
+    """
+    for name in _catalog_names(provider):
         if not _live(name):
             continue
         adapter = _PROVIDERS[name]
@@ -895,8 +941,9 @@ def catalog_services(country=""):
         for code, info in products.items():
             canonical = _canonical_service(name, code)
             # 5sim exposes 200+ products; the storefront keeps the curated
-            # short-code set so the picker stays usable. Unknown slugs drop out.
-            if canonical not in GRIZZLY_TO_FIVESIM_SERVICE:
+            # short-code set so the picker stays usable. Unknown slugs drop
+            # out, except the few services only 5sim carries.
+            if canonical not in GRIZZLY_TO_FIVESIM_SERVICE and canonical not in FIVESIM_ONLY_SERVICES:
                 continue
             qty = int(info.get("Qty", 0) or 0)
             if qty <= 0:
@@ -911,10 +958,13 @@ def catalog_services(country=""):
     return {}
 
 
-def catalog_countries(product=""):
-    """Country picker data, optionally limited to countries pricing a service."""
+def catalog_countries(product="", provider=None):
+    """Country picker data, optionally limited to countries pricing a service.
+
+    ``provider`` limits the list to one server; the default is a union.
+    """
     product = str(product or "").strip().lower()
-    for name in PROVIDER_ORDER:
+    for name in _catalog_names(provider):
         if not _live(name):
             continue
         adapter = _PROVIDERS[name]
@@ -989,15 +1039,85 @@ def _operator_label(name):
     return name.replace("_", " ").title()
 
 
-def catalog_operators(country, product):
-    """Every real operator offer for one country/product.
+def _operator_rows(provider, country, product):
+    """Offer rows for one server only.
 
-    Each 5sim operator is its own product with its own price and stock, so
-    ``virtual34`` and ``virtual51`` get separate rows — never one blended
-    "best operator" quote. The "any" row stays on top and means "backend
-    picks the cheapest buyable number across all operators and servers".
+    5sim prices each carrier separately, so every stocked operator becomes
+    its own row and the "any" row on top is the cheapest of those rows — a
+    comparison across operators, never a blend. A server without an operator
+    dimension contributes a single "any" row.
+    """
+    rows = []
+    if not _live(provider):
+        return rows
+    adapter = _PROVIDERS[provider]
+    provider_country = _country_for(provider, country)
+    provider_service = _service_for(provider, product)
+    if not provider_country or not provider_service:
+        return rows
+    if hasattr(adapter, "get_operator_prices"):
+        try:
+            operators = adapter.get_operator_prices(provider_country, provider_service)
+        except Exception:
+            operators = {}
+        for name, info in operators.items():
+            cost = float(info.get("cost") or 0)
+            qty = int(info.get("count") or 0)
+            if cost <= 0 or qty <= 0:
+                continue
+            rows.append({
+                "name": name, "label": _operator_label(name), "is_any": False,
+                "provider_price": cost,
+                "user_price": float(provider_to_user_ngn(cost)),
+                "user_price_fmt": format_ngn(provider_to_user_ngn(cost)),
+                "qty": qty, "provider": provider,
+            })
+        if rows:
+            rows.sort(key=lambda row: row["provider_price"])
+            cheapest = rows[0]
+            return [{
+                "name": "any", "label": _operator_label("any"), "is_any": True,
+                "provider_price": cheapest["provider_price"],
+                "user_price": cheapest["user_price"],
+                "user_price_fmt": cheapest["user_price_fmt"],
+                "qty": cheapest["qty"], "provider": provider,
+            }] + rows
+        return rows
+    price = _price_from(provider, product, country, "any")
+    if price:
+        return [{
+            "name": "any", "label": _operator_label("any"), "is_any": True,
+            "provider_price": float(price["cost"]),
+            "user_price": float(provider_to_user_ngn(price["cost"])),
+            "user_price_fmt": format_ngn(provider_to_user_ngn(price["cost"])),
+            "qty": int(price["count"]), "provider": provider,
+        }]
+    return rows
+
+
+def catalog_operators(country, product, provider=None):
+    """Offers for one country/product, from the chosen server only.
+
+    The listing never mixes Server 1 and Server 2: with ``provider`` set the
+    rows come from that server alone. Without it the historical cross-server
+    view is kept for older callers.
     """
     product = str(product or "").strip().lower()
+    if provider in _PROVIDERS:
+        rows = _operator_rows(provider, country, product)
+        if rows:
+            return rows
+        info = catalog_products(country, provider).get(product)
+        if not info:
+            return []
+        cost = float(info.get("Price", 0) or 0)
+        return [{
+            "name": "any", "label": _operator_label("any"), "is_any": True,
+            "provider_price": cost,
+            "user_price": float(provider_to_user_ngn(cost)),
+            "user_price_fmt": format_ngn(provider_to_user_ngn(cost)),
+            "qty": int(info.get("Qty", 0) or 0), "provider": provider,
+        }]
     fivesim = _PROVIDERS["5sim"]
     provider_country = _country_for("5sim", country)
     provider_service = _service_for("5sim", product)
@@ -1122,17 +1242,19 @@ def _price_from(provider, product, country, operator="any"):
     return {"cost": cost, "count": count, "operator": "any"}
 
 
-def get_cheap_price(product, country, operator="any"):
-    """Cheapest live quote across both servers.
+def get_cheap_price(product, country, operator="any", provider=None):
+    """Cheapest live quote, optionally from one server only.
 
     With ``operator="any"`` this compares the cheapest stocked operator on
     each server. With a named operator only servers that actually offer that
-    operator participate. Returns ``{"cost", "provider", "count", "operator"}``
-    or None; a server that errors, times out or has no stock simply does not
-    participate.
+    operator participate. ``provider`` pins the quote to the server the buyer
+    picked, so the price charged matches the listing they saw. Returns
+    ``{"cost", "provider", "count", "operator"}`` or None; a server that
+    errors, times out or has no stock simply does not participate.
     """
     best = None
-    for name in PROVIDER_ORDER:
+    names = [provider] if provider in _PROVIDERS else list(PROVIDER_ORDER)
+    for name in names:
         price = _price_from(name, product, country, operator)
         if not price:
             continue
@@ -1149,11 +1271,15 @@ def provider_price(product, country, operator="any"):
     return get_cheap_price(product, country, operator)
 
 
-def buy_number(product, country, operator="any"):
-    """Buy from the cheapest server, falling back to the other on any error.
+def buy_number(product, country, operator="any", provider=None):
+    """Buy from the chosen server, falling back to the other on any error.
+
+    With ``provider`` the chosen server is tried first and keeps every other
+    server as a fallback only if it errors or has no numbers. Without it the
+    cheapest quoted server wins, as before.
 
     Returns the provider order dict extended with ``provider`` and
-    ``provider_cost`` (USD), or ``{"error": <last token>}`` when both fail.
+    ``provider_cost`` (USD), or ``{"error": <last token>}`` when all fail.
     """
     if demo_mode():
         return {
@@ -1162,8 +1288,12 @@ def buy_number(product, country, operator="any"):
             "provider_cost": 0.0,
         }
     operator = str(operator or "any").lower().strip() or "any"
+    preferred = provider if provider in _PROVIDERS else None
+    names = list(PROVIDER_ORDER)
+    if preferred:
+        names = [preferred] + [name for name in names if name != preferred]
     candidates = []
-    for name in PROVIDER_ORDER:
+    for name in names:
         if not _live(name):
             continue
         adapter = _PROVIDERS[name]
@@ -1179,12 +1309,15 @@ def buy_number(product, country, operator="any"):
             "operator": price["operator"] if price else operator,
             "quoted": bool(price),
         })
-    # Cheapest quoted server first; a server whose pricing endpoint failed
-    # still stays in line as a fallback, because its purchase endpoint may be
-    # perfectly alive. Ranking is stable, so 5SIM wins ties.
+    # The picked server goes first. The rest rank cheapest quoted first; a
+    # server whose pricing endpoint failed still stays in line as a fallback,
+    # because its purchase endpoint may be perfectly alive.
+    first = [row for row in candidates if row["name"] == preferred] if preferred else []
+    rest = [row for row in candidates if row["name"] != preferred]
     candidates = (
-        sorted((row for row in candidates if row["quoted"]), key=lambda row: row["cost"])
-        + [row for row in candidates if not row["quoted"]]
+        first
+        + sorted((row for row in rest if row["quoted"]), key=lambda row: row["cost"])
+        + [row for row in rest if not row["quoted"]]
     )
     errors = []
     for candidate in candidates:
