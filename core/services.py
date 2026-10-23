@@ -482,6 +482,9 @@ class GrizzlySms:
     """
 
     base_url = "https://api.grizzlysms.com/stubs/handler_api.php"
+    # The bare host serves some actions (getServicesList) the api host does
+    # not; a failed call is retried there before giving up.
+    fallback_url = "https://grizzlysms.com/stubs/handler_api.php"
 
     # GrizzlySMS identifies services by short code, not product name. Keys are
     # the codes the API expects; values are what the storefront shows. Codes
@@ -522,8 +525,20 @@ class GrizzlySms:
         key = cls._key()
         if not key:
             return {"error": "BAD_KEY"}
+        result = cls._call(cls.base_url, key, params)
+        if result.get("error") in {"HTTP_403", "HTTP_404", "HTTP_500",
+                                   "SERVICE_UNAVAILABLE_REGION", "EMPTY_RESPONSE",
+                                   "INVALID_JSON"}:
+            alternate = cls._call(cls.fallback_url, key, params)
+            if "error" not in alternate:
+                return alternate
+        return result
+
+    @classmethod
+    def _call(cls, url, key, params):
+        """One request against one host, parsed."""
         query = urlencode({"api_key": key, **{k: v for k, v in params.items() if v not in (None, "")}})
-        request = Request(cls.base_url + "?" + query, headers={
+        request = Request(url + "?" + query, headers={
             "Accept": "text/plain, application/json",
             "User-Agent": "VerifySMS-Django/1.0",
         })
@@ -573,17 +588,37 @@ class GrizzlySms:
             return {cid: {"id": int(cid), "eng": name, "iso": iso}
                     for cid, (name, iso) in cls.demo_countries.items()}
         data = cls._request({"action": "getCountries"})
-        if not isinstance(data, dict) or "error" in data:
+        if isinstance(data, dict) and "error" in data:
             return {}
-        items = data.get("countries") if isinstance(data.get("countries"), list) else data
+        # Two shapes ship from this API: a top-level JSON array (or one under
+        # "countries"), and a map keyed by country id. Both are normalised.
+        if isinstance(data, list):
+            block = data
+        elif isinstance(data, dict):
+            block = data.get("countries") if isinstance(data.get("countries"), (list, dict)) else data
+        else:
+            return {}
+        pairs = []
+        if isinstance(block, list):
+            for item in block:
+                if isinstance(item, dict) and item.get("id") is not None:
+                    pairs.append((str(item["id"]), item))
+        elif isinstance(block, dict):
+            for cid, item in block.items():
+                if isinstance(item, dict):
+                    item = dict(item)
+                    item.setdefault("id", cid)
+                    pairs.append((str(cid), item))
+                elif item is not None:
+                    pairs.append((str(cid), {"id": cid, "eng": str(item)}))
+
         out = {}
-        for item in items if isinstance(items, list) else []:
-            if isinstance(item, dict) and item.get("id") is not None:
-                out[str(item["id"])] = {
-                    "id": item["id"],
-                    "eng": item.get("eng") or item.get("rus") or str(item["id"]),
-                    "iso": str(item.get("iso") or "").lower(),
-                }
+        for cid, item in pairs:
+            out[cid] = {
+                "id": item.get("id", cid),
+                "eng": item.get("eng") or item.get("rus") or str(cid),
+                "iso": str(item.get("iso") or "").lower(),
+            }
         return out
 
     @classmethod
@@ -598,13 +633,31 @@ class GrizzlySms:
             data = cls._request({"action": "getServicesList"})
         except Exception:
             return {}
-        if not isinstance(data, dict):
+        if isinstance(data, dict) and "error" in data:
+            return {}
+        # getServicesList answers as a top-level JSON array of {code, name}
+        # (or one under "services"), and sometimes as a map code -> name.
+        if isinstance(data, list):
+            block = data
+        elif isinstance(data, dict):
+            block = data.get("services") if isinstance(data.get("services"), (list, dict)) else data
+        else:
             return {}
         out = {}
-        for item in data.get("services") or []:
-            code = str(item.get("code", "")).strip()
-            if code:
-                out[code] = str(item.get("name") or code)
+        if isinstance(block, list):
+            for item in block:
+                if not isinstance(item, dict):
+                    continue
+                code = str(item.get("code", "")).strip()
+                if code:
+                    out[code] = str(item.get("name") or code)
+        elif isinstance(block, dict):
+            for code, item in block.items():
+                code = str(code).strip()
+                if not code:
+                    continue
+                name = item.get("name") if isinstance(item, dict) else item
+                out[code] = str(name or code)
         return out
 
     @classmethod
@@ -683,7 +736,11 @@ class GrizzlySms:
                         "cost": float(cost), "count": 25,
                     }
             return out
-        data = cls._request({"action": "getPrices"})
+        # ``country=*`` is the documented "every country" form; v3 is the
+        # richer fallback when the v1 call is refused.
+        data = cls._request({"action": "getPrices", "country": "*"})
+        if isinstance(data, dict) and "error" in data:
+            data = cls._request({"action": "getPricesV3", "country": "*"})
         if not isinstance(data, dict) or "error" in data:
             return {}
         out = {}
@@ -811,7 +868,10 @@ class GrizzlySms:
 # ---------------------------------------------------------------------------
 
 PROVIDER_ORDER = ("5sim", "grizzly")
-PROVIDER_LABELS = {"5sim": "5SIM", "grizzly": "GrizzlySMS", "demo": "Demo"}
+# Neutral storefront names. The suppliers' brands are deliberately never
+# exposed to customers — a buyer who learns the upstream name can leave the
+# storefront and buy the number directly at the source.
+PROVIDER_LABELS = {"5sim": "Server 2", "grizzly": "Server 1", "demo": "Demo"}
 _PROVIDERS = {"5sim": FiveSim, "grizzly": GrizzlySms}
 
 # The storefront offers the two suppliers as Server 1 and Server 2. The
@@ -1331,6 +1391,7 @@ def server_price_board(country, product, provider):
         best = get_cheap_price(product, country, "any", provider=name)
         entry = {
             "provider": name,
+            "key": SERVER_NUMBERS[name],
             "label": "Server " + SERVER_NUMBERS[name],
             "name": provider_label(name),
             "selected": name == chosen,

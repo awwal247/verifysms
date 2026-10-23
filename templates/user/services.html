@@ -503,10 +503,26 @@ document.addEventListener('click', e=>{
   if (!e.target.closest('.csel') && activeDrop) closeDrop(activeDrop);
 });
 function filterDrop(id, q) {
-  q = q.toLowerCase();
-  document.getElementById(id+'List').querySelectorAll('.copt').forEach(el=>{
-    el.style.display = (el.dataset.key||'').toLowerCase().includes(q) ? '' : 'none';
+  q = (q || '').toLowerCase().trim();
+  const list = document.getElementById(id+'List');
+  let shown = 0;
+  list.querySelectorAll('.copt').forEach(el=>{
+    const hit = !q || (el.dataset.key||'').toLowerCase().includes(q);
+    el.style.display = hit ? '' : 'none';
+    if (hit) shown++;
   });
+  /* A blank pane reads as a broken list — say why it is empty. */
+  let empty = list.querySelector('.csel-nomatch');
+  if (!shown) {
+    if (!empty) {
+      empty = document.createElement('div');
+      empty.className = 'csel-empty csel-nomatch';
+      empty.textContent = 'No country matches that search.';
+      list.appendChild(empty);
+    }
+  } else if (empty) {
+    empty.remove();
+  }
 }
 
 /* ── Step helpers ───────────────────────────────────────────────────────── */
@@ -540,12 +556,14 @@ function loadServers() {
       const btn = document.createElement('button');
       btn.type = 'button';
       btn.className = 'srv-btn' + (sv.available ? '' : ' unavail');
-      btn.dataset.provider = sv.provider;
+      btn.dataset.server = sv.key;
       btn.innerHTML =
         '<span class="srv-name"></span><span class="srv-sub"></span>' +
         '<span class="srv-price na">Select to see prices</span>';
       btn.querySelector('.srv-name').textContent = sv.label;
-      btn.querySelector('.srv-sub').textContent  = sv.name;
+      /* Availability, not the upstream supplier: the storefront never names
+         the provider behind a server. */
+      btn.querySelector('.srv-sub').textContent  = sv.available ? 'Live stock' : 'Unavailable';
       if (sv.available) {
         btn.addEventListener('click', ()=>pickServer(sv));
       }
@@ -557,11 +575,11 @@ function loadServers() {
 }
 
 function pickServer(sv) {
-  S.server = sv.provider;
-  S.serverLabel = sv.label + ' — ' + sv.name;
-  S.serverName = sv.name;
+  S.server = sv.key;
+  S.serverLabel = sv.label;
+  S.serverName = sv.label;
   document.querySelectorAll('.srv-btn').forEach(el=>{
-    el.classList.toggle('selected', el.dataset.provider === sv.provider);
+    el.classList.toggle('selected', el.dataset.server === sv.key);
   });
   /* Anything below the server belongs to the previous server now. */
   clearFrom('service');
@@ -569,7 +587,7 @@ function pickServer(sv) {
   const input = document.getElementById('svcSearch');
   input.disabled = false;
   input.value = '';
-  input.placeholder = 'Search ' + S.serverName + ' services — WhatsApp, Amazon, Google...';
+  input.placeholder = 'Search services — WhatsApp, Amazon, Google...';
   loadServices('');
   setTimeout(()=>input.focus(), 80);
 }
@@ -628,8 +646,8 @@ function renderServices(rows, q) {
     list.appendChild(el);
   });
   count.textContent = q
-    ? rows.length + ' match' + (rows.length===1?'':'es') + ' on ' + S.serverName
-    : rows.length + ' services — full live catalog on ' + S.serverName;
+    ? rows.length + ' match' + (rows.length===1?'':'es')
+    : rows.length + ' services — full live catalog';
   renderChips(rows, q);
 }
 
@@ -687,7 +705,9 @@ function renderCountries(rows) {
   rows.forEach(c=>{
     const el = document.createElement('div');
     el.className = 'copt';
-    el.dataset.key = c.name;
+    /* Search matches both the provider id and the display name — filtering on
+       the id alone made typing "Nigeria" hide every row. */
+    el.dataset.key = (c.label + ' ' + c.name).toLowerCase();
     const f = document.createElement('span');
     f.className = 'cflag';
     f.textContent = c.iso ? flag(c.iso) : '🌍';
@@ -768,7 +788,7 @@ function renderPrices(board) {
   const other  = board.find(e=>e !== chosen);
 
   /* Best price from get_cheap_price for the chosen server. */
-  document.getElementById('bestSrv').textContent = chosen.label + ' — ' + chosen.name;
+  document.getElementById('bestSrv').textContent = chosen.label;
   if (chosen.best) {
     document.getElementById('bestVal').textContent = chosen.best.user_price_fmt;
     document.getElementById('bestNote').textContent =
@@ -834,7 +854,7 @@ function renderPrices(board) {
     const info = document.createElement('div');
     const title = document.createElement('div');
     title.className = 'oc-name';
-    title.textContent = other.label + ' — ' + other.name;
+    title.textContent = other.label;
     const sub = document.createElement('div');
     sub.className = 'oc-sub';
     sub.textContent = other.best
@@ -868,11 +888,11 @@ function renderPrices(board) {
 }
 
 function switchServer(entry) {
-  S.server = entry.provider;
-  S.serverLabel = entry.label + ' — ' + entry.name;
-  S.serverName = entry.name;
+  S.server = entry.key;
+  S.serverLabel = entry.label;
+  S.serverName = entry.label;
   document.querySelectorAll('.srv-btn').forEach(el=>{
-    el.classList.toggle('selected', el.dataset.provider === entry.provider);
+    el.classList.toggle('selected', el.dataset.server === entry.key);
   });
   S.operator = ''; S.operatorLabel = ''; S.userPrice = 0; S.qty = 0;
   document.getElementById('buyBox').classList.remove('show');

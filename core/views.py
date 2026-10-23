@@ -393,7 +393,11 @@ def provider_api(request):
             option["price_fmt"] = format_ngn(provider_to_user_ngn(quote["cost"])) if quote else ""
             option["count"] = int(quote["count"]) if quote else 0
             option["available"] = bool(option["available"] and quote) if product and country else bool(option["available"])
-        return _json({"success": True, "data": options})
+        # The upstream supplier must never reach the browser: a customer who
+        # sees its brand can leave and buy the same number at the source.
+        # Only the neutral server key ("1"/"2") crosses the wire.
+        public = [{k: v for k, v in option.items() if k != "provider"} for option in options]
+        return _json({"success": True, "data": public})
 
     if action == "prices":
         # Final step: the chosen server's get_cheap_price best quote, all of
@@ -403,7 +407,15 @@ def provider_api(request):
         board = server_price_board(country, product, provider)
         if not any(entry["available"] for entry in board):
             return _json({"success": False, "message": "No numbers available for this selection right now."})
-        return _json({"success": True, "data": board})
+        public = []
+        for entry in board:
+            item = {k: v for k, v in entry.items() if k != "provider"}
+            if item.get("best"):
+                item["best"] = {k: v for k, v in item["best"].items() if k != "provider"}
+            item["rows"] = [{k: v for k, v in row.items() if k != "provider"}
+                            for row in item.get("rows") or []]
+            public.append(item)
+        return _json({"success": True, "data": public})
 
     if action == "operators":
         # One row per real operator (5sim prices virtual34, virtual51 &c.
@@ -412,7 +424,8 @@ def provider_api(request):
         output = catalog_operators(country, product, provider)
         if not output:
             return _json({"success": False, "message": "No numbers available for this selection right now."})
-        return _json({"success": True, "data": output})
+        public = [{k: v for k, v in row.items() if k != "provider"} for row in output]
+        return _json({"success": True, "data": public})
     return _json({"success": False, "message": "Unknown action."}, 400)
 
 
@@ -597,7 +610,7 @@ def admin_action(request):
             Setting.set_value("fivesim_api_key", fivesim_key)
         if grizzly_key:
             Setting.set_value("provider_api_key", grizzly_key)
-        Setting.set_value("active_provider", "auto", "Routing is automatic: 5SIM first, GrizzlySMS fallback.")
+        Setting.set_value("active_provider", "auto", "Routing is automatic: Server 1 first, Server 2 fallback.")
         messages.success(request, "Provider settings saved.")
         return redirect("/admin/providers.html")
     if action == "save_payment":

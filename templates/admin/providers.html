@@ -149,21 +149,21 @@
 </div>
 <div class="page-hero">
   <h2><i class="fa-solid fa-server" style="color:var(--orange)"></i> Providers</h2>
-  <p>Two number providers sit behind one checkout. Routing is automatic — customers never choose a server.</p>
+  <p>Two number suppliers sit behind one checkout. Customers pick a server; routing falls back automatically.</p>
 </div>
 
 <div class="stats-grid mb-3">
   <div class="stat-card">
-    <div class="stat-icon {% if fivesim_configured %}green{% else %}orange{% endif %}"><i class="fa-solid fa-1"></i></div>
-    <div class="stat-label">Server 1 — 5SIM</div>
-    <div class="stat-value">{% if fivesim_configured %}Connected{% else %}Not Configured{% endif %}</div>
-    <div class="stat-sub">Primary. The cheapest live price across both servers wins; 5SIM gets first attempt on a tie.</div>
+    <div class="stat-icon {% if grizzly_configured %}green{% else %}orange{% endif %}"><i class="fa-solid fa-1"></i></div>
+    <div class="stat-label">Server 1</div>
+    <div class="stat-value">{% if grizzly_configured %}Connected{% else %}Not Configured{% endif %}</div>
+    <div class="stat-sub">Primary pool. The cheapest live price across both servers wins; Server 1 gets first attempt on a tie.</div>
   </div>
   <div class="stat-card">
-    <div class="stat-icon {% if grizzly_configured %}green{% else %}orange{% endif %}"><i class="fa-solid fa-2"></i></div>
-    <div class="stat-label">Server 2 — GrizzlySMS</div>
-    <div class="stat-value">{% if grizzly_configured %}Connected{% else %}Not Configured{% endif %}</div>
-    <div class="stat-sub">Automatic fallback whenever 5SIM errors, times out or has no stock.</div>
+    <div class="stat-icon {% if fivesim_configured %}green{% else %}orange{% endif %}"><i class="fa-solid fa-2"></i></div>
+    <div class="stat-label">Server 2</div>
+    <div class="stat-value">{% if fivesim_configured %}Connected{% else %}Not Configured{% endif %}</div>
+    <div class="stat-sub">Automatic fallback whenever Server 1 errors, times out or has no stock.</div>
   </div>
 </div>
 
@@ -180,15 +180,15 @@
       {% csrf_token %}
       <input type="hidden" name="action" value="save_provider">
       <div class="form-group">
-        <label class="form-label">5SIM API Key (server 1)</label>
-        <input class="form-control" type="password" name="fivesim_api_key" placeholder="{% if fivesim_configured %}A key is stored — type a new one to replace it{% else %}Enter your 5sim API key{% endif %}" autocomplete="off">
-        <div class="text-xs text-muted" style="margin-top:4px">
-          Catalogue and prices are public on 5sim; buying and order status need this key.
-        </div>
+        <label class="form-label">Server 1 API Key</label>
+        <input class="form-control" type="password" name="provider_api_key" placeholder="{% if grizzly_configured %}A key is stored — type a new one to replace it{% else %}Enter the Server 1 API key{% endif %}" autocomplete="off">
       </div>
       <div class="form-group">
-        <label class="form-label">GrizzlySMS API Key (server 2)</label>
-        <input class="form-control" type="password" name="provider_api_key" placeholder="{% if grizzly_configured %}A key is stored — type a new one to replace it{% else %}Enter your GrizzlySMS API key{% endif %}" autocomplete="off">
+        <label class="form-label">Server 2 API Key</label>
+        <input class="form-control" type="password" name="fivesim_api_key" placeholder="{% if fivesim_configured %}A key is stored — type a new one to replace it{% else %}Enter the Server 2 API key{% endif %}" autocomplete="off">
+        <div class="text-xs text-muted" style="margin-top:4px">
+          Catalogue and prices are public; buying and order status need this key.
+        </div>
       </div>
       <div class="text-xs text-muted" style="margin-bottom:14px">
         Leave a key field blank to keep the stored key.
