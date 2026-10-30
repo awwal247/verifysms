@@ -5,7 +5,7 @@ This package is the VerifySMS frontend built as a Django application:
 - Django sessions for registration, login, logout, active/banned users, and admin authorization
 - SQLite by default, with Django ORM models for users, orders, wallet transactions, top-ups, settings, coupons, and coupon usage
 - Atomic wallet debit/credit operations with a ledger entry for every purchase, refund, top-up, and adjustment
-- Two-provider routing: 5SIM (server 1) with automatic GrizzlySMS (server 2) fallback — the catalogue, cheapest-price quote and every purchase fail over transparently, and customers never pick a server
+- Two-provider routing: SMS-BUS (server 1) with automatic 5SIM (server 2) fallback — the catalogue, cheapest-price quote and every purchase fail over transparently, and customers never pick a server
 - Paystack initialization, verification, webhook signature validation, idempotent top-up crediting, and fee calculation
 - Admin actions for users, balance adjustments, coupons, provider settings, payment settings, and site settings
 
@@ -31,8 +31,8 @@ or pass `--email`, `--password`, `--test-email`, `--test-password` to
 The service browser reads 5SIM's public catalogue when `FIVESIM_API_KEY` is
 empty, so it can be explored immediately. Buying needs a key on at least one
 server; when neither key is set, purchases run in demo mode. Add keys in the
-environment or in Admin → Providers. Routing is automatic: 5SIM is tried first,
-GrizzlySMS takes over on any provider error or empty stock. Paystack requires
+environment or in Admin → Providers. Routing is automatic: the selected server
+is tried first, the other takes over on any provider error or empty stock. Paystack requires
 both `PAYSTACK_PUBLIC_KEY` and `PAYSTACK_SECRET_KEY`.
 
 ## Configuration
@@ -41,8 +41,8 @@ Copy `.env.example` to your environment and set:
 
 - `DJANGO_SECRET_KEY`
 - `ALLOWED_HOSTS`
-- `FIVESIM_API_KEY` (server 1 — primary)
-- `GRIZZLY_API_KEY` (server 2 — automatic fallback)
+- `SMSBUS_API_KEY` (server 1 — primary)
+- `FIVESIM_API_KEY` (server 2 — automatic fallback)
 - `PAYSTACK_PUBLIC_KEY`
 - `PAYSTACK_SECRET_KEY`
 - `SITE_URL`
@@ -111,8 +111,8 @@ Required env vars for a production deploy:
 | `DATABASE_URL` | Your Supabase Postgres connection string. Leave unset only for local SQLite dev. |
 | `DB_SSL_REQUIRE` | Leave at `1` (default) for Supabase. |
 | `DB_CONN_MAX_AGE` | Optional; connection reuse in seconds (default `60`). |
-| `FIVESIM_API_KEY` | 5SIM key (server 1, primary) for buying real phone numbers. Catalogue and prices work without it. Can also be set later via `/admin/providers.html`. |
-| `GRIZZLY_API_KEY` | GrizzlySMS key (server 2, automatic fallback). Used whenever 5SIM errors, times out or has no stock. Can also be set later via `/admin/providers.html`. |
+| `SMSBUS_API_KEY` | SMS-BUS token (server 1, primary) for buying real phone numbers and reading its catalogue. Can also be set later via `/admin/providers.html`. |
+| `FIVESIM_API_KEY` | 5SIM key (server 2, automatic fallback). Catalogue and prices work without it; buying needs it. Used whenever the selected server errors, times out or has no stock. Can also be set later via `/admin/providers.html`. |
 
 Optional (fallback only — prefer setting these in `/admin/payment.html` once deployed):
 

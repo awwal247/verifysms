@@ -154,9 +154,9 @@
 
 <div class="stats-grid mb-3">
   <div class="stat-card">
-    <div class="stat-icon {% if grizzly_configured %}green{% else %}orange{% endif %}"><i class="fa-solid fa-1"></i></div>
+    <div class="stat-icon {% if server1_configured %}green{% else %}orange{% endif %}"><i class="fa-solid fa-1"></i></div>
     <div class="stat-label">Server 1</div>
-    <div class="stat-value">{% if grizzly_configured %}Connected{% else %}Not Configured{% endif %}</div>
+    <div class="stat-value">{% if server1_configured %}Connected{% else %}Not Configured{% endif %}</div>
     <div class="stat-sub">Primary pool. The cheapest live price across both servers wins; Server 1 gets first attempt on a tie.</div>
   </div>
   <div class="stat-card">
@@ -181,7 +181,7 @@
       <input type="hidden" name="action" value="save_provider">
       <div class="form-group">
         <label class="form-label">Server 1 API Key</label>
-        <input class="form-control" type="password" name="provider_api_key" placeholder="{% if grizzly_configured %}A key is stored — type a new one to replace it{% else %}Enter the Server 1 API key{% endif %}" autocomplete="off">
+        <input class="form-control" type="password" name="provider_api_key" placeholder="{% if server1_configured %}A key is stored — type a new one to replace it{% else %}Enter the Server 1 API key{% endif %}" autocomplete="off">
       </div>
       <div class="form-group">
         <label class="form-label">Server 2 API Key</label>

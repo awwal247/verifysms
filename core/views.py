@@ -232,7 +232,7 @@ def admin_page(request, page):
         context["provider_configured"] = any(configured.values())
         context["demo_mode"] = demo_mode()
         context["fivesim_configured"] = configured.get("5sim", False)
-        context["grizzly_configured"] = configured.get("grizzly", False)
+        context["server1_configured"] = configured.get("smsbus", False)
     elif page == "payment":
         context["payment_configured"] = bool(Paystack.secret_key())
         context["public_key"] = Paystack.public_key()
@@ -517,7 +517,7 @@ def orders_api(request):
         provider_cost = Decimal(str(provider_order.get("provider_cost") or quoted_cost))
         with transaction.atomic():
             order = Order.objects.create(
-                user=request.user, provider=str(provider_order.get("provider", "grizzly")),
+                user=request.user, provider=str(provider_order.get("provider", "smsbus")),
                 provider_order_id=int(str(provider_order.get("id") or uuid.uuid4().int % 900000)),
                 phone=str(provider_order.get("phone", "+2348000000000")), country=country, operator=operator,
                 product=product, provider_cost=provider_cost, user_price=final_price,
@@ -605,11 +605,11 @@ def admin_action(request):
         # Empty submits keep the saved key: the forms never render the value
         # back, so an untouched field must not erase it.
         fivesim_key = request.POST.get("fivesim_api_key", "").strip()
-        grizzly_key = request.POST.get("provider_api_key", "").strip()
+        server1_key = request.POST.get("provider_api_key", "").strip()
         if fivesim_key:
             Setting.set_value("fivesim_api_key", fivesim_key)
-        if grizzly_key:
-            Setting.set_value("provider_api_key", grizzly_key)
+        if server1_key:
+            Setting.set_value("provider_api_key", server1_key)
         Setting.set_value("active_provider", "auto", "Routing is automatic: Server 1 first, Server 2 fallback.")
         messages.success(request, "Provider settings saved.")
         return redirect("/admin/providers.html")

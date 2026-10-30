@@ -142,7 +142,7 @@ class FiveSim:
     5sim exposes a JSON REST API with Bearer-token auth. Its catalog endpoints
     are guest-accessible, so countries and prices render even before a key is
     saved; buying and order management need the key. Prices are quoted in US
-    dollars, the same unit GrizzlySMS uses, so the storefront has one site
+    dollars, the same unit SMS-BUS uses, so the storefront has one site
     rate for both servers.
     """
 
@@ -469,26 +469,37 @@ class FiveSim:
         return {"sms": cls.check_order(provider_order_id).get("sms", [])}
 
 
-class GrizzlySms:
-    """GrizzlySMS adapter — the app's fallback SMS number provider (server 2).
+class SmsBus:
+    """SMS-BUS adapter — the app's primary number supplier (Server 1).
 
-    GrizzlySMS speaks the sms-activate wire protocol: a single
-    ``handler_api.php`` endpoint, a bare ``api_key`` query parameter (not a
-    bearer header), and responses that are colon-delimited plain text rather
-    than JSON. Every call returns a parsed dict; ``{"error": ...}`` marks a
-    provider-level failure the caller surfaces to the user.
+    The control API answers JSON over plain GET: the token travels in the
+    query string and every reply is ``{"code": 200, "data": ...}`` on success
+    or ``{"code": <int>, "message": ...}`` on failure. Both shapes are
+    normalised here so callers only ever see a plain dict or
+    ``{"error": <message>}``.
 
-    Prices and balances are quoted in USD.
+    Countries and projects are addressed by sms-bus's own numeric ids, so the
+    adapter keeps a per-server id index and resolves canonical ISO/service
+    identifiers at the boundary. Prices and balances are quoted in USD.
     """
 
-    base_url = "https://api.grizzlysms.com/stubs/handler_api.php"
-    # The bare host serves some actions (getServicesList) the api host does
-    # not; a failed call is retried there before giving up.
-    fallback_url = "https://grizzlysms.com/stubs/handler_api.php"
+    base_url = "https://sms-bus.com/api/control"
 
-    # GrizzlySMS identifies services by short code, not product name. Keys are
-    # the codes the API expects; values are what the storefront shows. Codes
-    # not listed here are used verbatim.
+    # Numeric failure codes -> the storefront's error tokens.
+    ERROR_TOKENS = {
+        401: "BAD_KEY",
+        50001: "NO_NUMBERS",   # no service available for this slice
+        50002: "NO_NUMBERS",   # no number in stock
+        50104: "PROVIDER_DOWN",  # waiting-requests limit reached
+        50201: "NO_BALANCE",
+        50208: "BAD_KEY",      # account not activated
+        50214: "PROVIDER_DOWN",  # account blocked for 24h
+        50007: "BAD_STATUS", 50107: "BAD_STATUS", 50108: "BAD_STATUS",
+        50109: "BAD_STATUS",
+    }
+
+    # Short service code -> display name. The codes double as the canonical
+    # service ids shared with 5sim.
     service_labels = {
         "wa": "WhatsApp", "tg": "Telegram", "go": "Google", "fb": "Facebook",
         "ig": "Instagram", "tw": "Twitter", "oi": "Tinder", "am": "Amazon",
@@ -497,277 +508,187 @@ class GrizzlySms:
         "fd": "Foodpanda", "vk": "VKontakte", "ok": "Odnoklassniki",
     }
 
+    # Demo catalogue, keyed by ISO country code, used while no token is saved.
     demo_countries = {
-        "22": ("Nigeria", "ng"), "18": ("India", "in"), "187": ("United States", "us"),
-        "16": ("United Kingdom", "gb"), "6": ("Indonesia", "id"), "12": ("Philippines", "ph"),
-        "49": ("Germany", "de"), "36": ("Canada", "ca"), "0": ("Russia", "ru"),
-        "2": ("Kazakhstan", "kz"), "10": ("Vietnam", "vn"), "1": ("Ukraine", "ua"),
+        "ng": "Nigeria", "in": "India", "us": "United States of America",
+        "gb": "United Kingdom", "id": "Indonesia", "ph": "Philippines",
+        "de": "Germany", "ca": "Canada", "ru": "Russia", "kz": "Kazakhstan",
+        "vn": "Vietnam", "ua": "Ukraine",
     }
 
     demo_prices = {
-        "wa": {"22": 0.35, "18": 0.42, "187": 0.55, "16": 0.48},
-        "tg": {"22": 0.29, "18": 0.33, "187": 0.45, "16": 0.51},
-        "go": {"22": 0.44, "18": 0.52, "187": 0.72},
-        "fb": {"22": 0.30, "18": 0.38, "187": 0.61},
-        "ig": {"22": 0.41, "18": 0.47, "187": 0.68},
-        "tt": {"22": 0.33, "18": 0.40, "187": 0.58},
+        "wa": {"ng": 0.35, "in": 0.42, "us": 0.55, "gb": 0.48},
+        "tg": {"ng": 0.29, "in": 0.33, "us": 0.45, "gb": 0.51},
+        "go": {"ng": 0.44, "in": 0.52, "us": 0.72},
+        "fb": {"ng": 0.30, "in": 0.38, "us": 0.61},
+        "ig": {"ng": 0.41, "in": 0.47, "us": 0.68},
+        "tt": {"ng": 0.33, "in": 0.40, "us": 0.58},
     }
 
     @classmethod
     def _key(cls):
-        return Setting.value("provider_api_key", "") or settings.GRIZZLY_API_KEY
+        return Setting.value("provider_api_key", "") or settings.SMSBUS_API_KEY
 
     @classmethod
-    def _request(cls, params):
-        """Call the activation endpoint. Returns a parsed dict, or
-        ``{"error": <token>}`` — the plain-text wire format is normalised here
-        so no caller has to know it."""
+    def _request(cls, path, params=None):
         key = cls._key()
         if not key:
             return {"error": "BAD_KEY"}
-        result = cls._call(cls.base_url, key, params)
-        if result.get("error") in {"HTTP_403", "HTTP_404", "HTTP_500",
-                                   "SERVICE_UNAVAILABLE_REGION", "EMPTY_RESPONSE",
-                                   "INVALID_JSON"}:
-            alternate = cls._call(cls.fallback_url, key, params)
-            if "error" not in alternate:
-                return alternate
-        return result
-
-    @classmethod
-    def _call(cls, url, key, params):
-        """One request against one host, parsed."""
-        query = urlencode({"api_key": key, **{k: v for k, v in params.items() if v not in (None, "")}})
-        request = Request(url + "?" + query, headers={
-            "Accept": "text/plain, application/json",
+        query = urlencode({"token": key, **{
+            k: v for k, v in (params or {}).items() if v not in (None, "")}})
+        request = Request(cls.base_url + path + "?" + query, headers={
+            "Accept": "application/json",
             "User-Agent": "VerifySMS-Django/1.0",
         })
         try:
             with urlopen(request, timeout=20) as response:
                 body = response.read().decode("utf-8", "replace").strip()
         except HTTPError as exc:
-            return {"error": f"HTTP_{exc.code}"}
+            return {"error": f"HTTP_{exc.code}", "code": exc.code}
         except (URLError, TimeoutError, OSError):
-            return {"error": "SERVICE_UNAVAILABLE_REGION"}
-        return cls._parse(body)
-
-    @staticmethod
-    def _parse(body):
-        """Normalise a GrizzlySMS reply into a dict.
-
-        Success shapes: ``ACCESS_BALANCE:12.34``, ``ACCESS_NUMBER:id:phone``,
-        ``STATUS_OK:1234``, ``ACCESS_READY``. JSON replies (getPrices,
-        getCountries, getServicesList) decode as-is. A bare error token
-        becomes ``{"error": token}``.
-        """
+            return {"error": "PROVIDER_DOWN"}
         if not body:
             return {"error": "EMPTY_RESPONSE"}
-        if body[0] in "{[":
-            try:
-                return json.loads(body)
-            except ValueError:
-                return {"error": "INVALID_JSON"}
-        head, _, tail = body.partition(":")
-        head, tail = head.strip(), tail.strip()
-        if head == "ACCESS_NUMBER":
-            activation_id, _, phone = tail.partition(":")
-            return {"id": activation_id.strip(), "phone": phone.strip()}
-        if head in {"ACCESS_BALANCE", "ACCESS_ACTIVATION", "ACCESS_READY",
-                    "ACCESS_RETRY_GET", "STATUS_WAIT_CODE", "STATUS_WAIT_RESEND",
-                    "STATUS_CANCEL", "STATUS_OK", "STATUS_WAIT_RETRY"}:
-            return {"status": head, "value": tail} if tail else {"status": head}
-        return {"error": body.split("\n")[0][:120]}
+        try:
+            payload = json.loads(body)
+        except ValueError:
+            return {"error": "INVALID_JSON"}
+        if not isinstance(payload, dict):
+            return {"error": "INVALID_JSON"}
+        try:
+            code = int(payload.get("code") or 0)
+        except (TypeError, ValueError):
+            code = 0
+        if code == 200:
+            return {"ok": True, "data": payload.get("data"),
+                    "message": str(payload.get("message") or "")}
+        # Stable tokens let the storefront show an actionable message; 50103
+        # keeps SMS-BUS's own wording because the order layer recognises the
+        # "already closed" case.
+        message = str(payload.get("message") or "").strip()
+        token = cls.ERROR_TOKENS.get(code)
+        if token:
+            return {"error": token, "code": code, "detail": message}
+        return {"error": message or f"CODE_{code}", "code": code}
+
+    @classmethod
+    def _project_ids(cls):
+        """``{project_code: project_id}``, cached for a minute."""
+        def load():
+            result = cls._request("/list/projects")
+            out = {}
+            if "error" in result:
+                return out
+            block = result.get("data") or {}
+            items = block.values() if isinstance(block, dict) else block
+            for item in items:
+                if not isinstance(item, dict) or item.get("id") is None:
+                    continue
+                code = str(item.get("code") or "").lower()
+                if code:
+                    out[code] = str(item.get("id"))
+            return out
+        return _cached("smsbus:project-ids", load)
+
+    @classmethod
+    def _project_codes(cls):
+        return {ident: code for code, ident in cls._project_ids().items()}
 
     # -- catalog -----------------------------------------------------------
 
     @classmethod
     def get_countries(cls):
-        """``{country_id: {"id", "eng", "iso"}}``. The id is what every other
-        call takes, so it doubles as the storefront's internal slug."""
+        """``{country_id: {"id", "eng", "iso"}}``."""
         if not cls._key():
-            return {cid: {"id": int(cid), "eng": name, "iso": iso}
-                    for cid, (name, iso) in cls.demo_countries.items()}
-        data = cls._request({"action": "getCountries"})
-        if isinstance(data, dict) and "error" in data:
+            return {iso: {"id": iso, "eng": name, "iso": iso}
+                    for iso, name in cls.demo_countries.items()}
+        result = cls._request("/list/countries")
+        if "error" in result:
             return {}
-        # Two shapes ship from this API: a top-level JSON array (or one under
-        # "countries"), and a map keyed by country id. Both are normalised.
-        if isinstance(data, list):
-            block = data
-        elif isinstance(data, dict):
-            block = data.get("countries") if isinstance(data.get("countries"), (list, dict)) else data
-        else:
-            return {}
-        pairs = []
-        if isinstance(block, list):
-            for item in block:
-                if isinstance(item, dict) and item.get("id") is not None:
-                    pairs.append((str(item["id"]), item))
-        elif isinstance(block, dict):
-            for cid, item in block.items():
-                if isinstance(item, dict):
-                    item = dict(item)
-                    item.setdefault("id", cid)
-                    pairs.append((str(cid), item))
-                elif item is not None:
-                    pairs.append((str(cid), {"id": cid, "eng": str(item)}))
-
+        block = result.get("data") or {}
         out = {}
-        for cid, item in pairs:
-            out[cid] = {
-                "id": item.get("id", cid),
-                "eng": item.get("eng") or item.get("rus") or str(cid),
-                "iso": str(item.get("iso") or "").lower(),
+        items = block.values() if isinstance(block, dict) else block
+        for item in items:
+            if not isinstance(item, dict) or item.get("id") is None:
+                continue
+            iso = str(item.get("code") or "").lower()
+            out[str(item["id"])] = {
+                "id": item["id"],
+                "eng": str(item.get("title") or iso or item["id"]),
+                "iso": iso,
             }
         return out
 
     @classmethod
     def get_services(cls):
-        """Service-code -> human name, from getServicesList.
-
-        Returns {} when the endpoint is unreachable or the key is absent, so
-        callers fall back to the local service_labels map rather than blowing
-        up on an offline/demo container.
-        """
-        try:
-            data = cls._request({"action": "getServicesList"})
-        except Exception:
+        """Project code -> human name, from ``/list/projects``."""
+        if not cls._key():
+            return dict(cls.service_labels)
+        result = cls._request("/list/projects")
+        if "error" in result:
             return {}
-        if isinstance(data, dict) and "error" in data:
-            return {}
-        # getServicesList answers as a top-level JSON array of {code, name}
-        # (or one under "services"), and sometimes as a map code -> name.
-        if isinstance(data, list):
-            block = data
-        elif isinstance(data, dict):
-            block = data.get("services") if isinstance(data.get("services"), (list, dict)) else data
-        else:
-            return {}
+        block = result.get("data") or {}
         out = {}
-        if isinstance(block, list):
-            for item in block:
-                if not isinstance(item, dict):
-                    continue
-                code = str(item.get("code", "")).strip()
-                if code:
-                    out[code] = str(item.get("name") or code)
-        elif isinstance(block, dict):
-            for code, item in block.items():
-                code = str(code).strip()
-                if not code:
-                    continue
-                name = item.get("name") if isinstance(item, dict) else item
-                out[code] = str(name or code)
+        items = block.values() if isinstance(block, dict) else block
+        for item in items:
+            if not isinstance(item, dict):
+                continue
+            code = str(item.get("code") or "").lower()
+            if code:
+                out[code] = str(item.get("title") or code)
         return out
 
     @classmethod
     def get_products(cls, country="any", operator="any"):
-        """``{service_code: {"Price", "Qty", "Category"}}`` for one country.
-
-        GrizzlySMS has no products endpoint; the catalog comes from
-        /getPricesV3, which is keyed by service code. That endpoint does not
-        expose stock, so a service carrying a price counts as available.
-        """
+        """``{service_code: {"Price", "Qty", "Category"}}`` for one country."""
         if not cls._key():
-            result = {}
+            cid = str(country or "ng")
+            out = {}
             for code, by_country in cls.demo_prices.items():
-                cost = by_country.get(str(country)) or by_country.get("22")
+                cost = by_country.get(cid) or by_country.get("ng")
                 if cost:
-                    result[code] = {"Price": cost, "Qty": 25, "Category": "activation"}
-            return result
+                    out[code] = {"Price": cost, "Qty": 25, "Category": "activation"}
+            return out
         if str(country) in ("", "any"):
             return {}
-        return {code: {"Price": info["price"], "Qty": info.get("count", 1), "Category": "activation"}
-                for code, info in cls._prices_for(str(country), "").items()}
-
-    @classmethod
-    def _prices_for(cls, country, product=""):
-        """``{service_code: {"price": float, "count": int}}`` for one country."""
-        params = {"action": "getPricesV3", "country": str(country)}
-        if product:
-            params["service"] = product
-        data = cls._request(params)
-        if not isinstance(data, dict) or "error" in data:
-            return {}
-        block = data.get(str(country))
-        if not isinstance(block, dict):
-            return {}
-        services = block.get("services") if isinstance(block.get("services"), dict) else block
-        out = {}
-        for code, info in services.items():
-            if not isinstance(info, dict):
-                continue
-            try:
-                price = float(info.get("price", info.get("cost")))
-            except (TypeError, ValueError):
-                continue
-            out[str(code)] = {"price": price, "count": int(info.get("count", info.get("qty", 1)) or 1)}
-        return out
+        block = cls.get_prices(str(country)).get(str(country), {})
+        return {code: {"Price": info["cost"], "Qty": info["count"], "Category": "activation"}
+                for code, info in block.items()
+                if info.get("cost", 0) > 0 and info.get("count", 0) > 0}
 
     @classmethod
     def get_prices(cls, country="", product=""):
-        """``{country_id: {service_code: {"cost", "count"}}}`` — the shape the
-        catalog views descend into. Only the requested country is returned."""
+        """``{country_id: {service_code: {"cost", "count"}}}`` for one country."""
+        cid = str(country or "").strip()
         if not cls._key():
-            cid = str(country or "22")
+            cid = cid or "ng"
             codes = [product] if product else list(cls.demo_prices)
             return {cid: {code: {"cost": cls.demo_prices.get(code, {}).get(cid, 0.4), "count": 25}
                           for code in codes}}
-        if str(country) in ("", "any"):
+        if cid in ("", "any"):
             return {}
-        return {str(country): {code: {"cost": info["price"], "count": info["count"]}
-                               for code, info in cls._prices_for(country, product).items()}}
-
-    @classmethod
-    def get_all_prices(cls):
-        """Every country's price for every service, in one request.
-
-        ``getPricesV3`` needs a country, so filtering the country picker by
-        service would otherwise cost one request per country. The bulk
-        ``getPrices`` action answers with the same tree in a single call.
-        """
-        if not cls._key():
-            # Demo container: derive the same tree from the local sample so
-            # the country step is not blank while the key is absent.
-            out = {}
-            for code, by_country in cls.demo_prices.items():
-                for cid, cost in by_country.items():
-                    out.setdefault(str(cid), {})[str(code)] = {
-                        "cost": float(cost), "count": 25,
-                    }
-            return out
-        # ``country=*`` is the documented "every country" form; v3 is the
-        # richer fallback when the v1 call is refused.
-        data = cls._request({"action": "getPrices", "country": "*"})
-        if isinstance(data, dict) and "error" in data:
-            data = cls._request({"action": "getPricesV3", "country": "*"})
-        if not isinstance(data, dict) or "error" in data:
+        result = cls._request("/list/prices", {"country_id": cid})
+        if "error" in result:
             return {}
-        out = {}
-        for country, block in data.items():
-            if not isinstance(block, dict):
+        block = result.get("data") or {}
+        codes = cls._project_codes()
+        rows = {}
+        items = block.values() if isinstance(block, dict) else block
+        for item in items:
+            if not isinstance(item, dict):
                 continue
-            services = block.get("services") if isinstance(block.get("services"), dict) else block
-            if not isinstance(services, dict):
+            code = codes.get(str(item.get("project_id")))
+            if not code or (product and code != str(product)):
                 continue
-            rows = {}
-            for code, info in services.items():
-                if not isinstance(info, dict):
-                    continue
-                try:
-                    cost = float(info.get("price", info.get("cost")))
-                except (TypeError, ValueError):
-                    continue
-                if cost <= 0:
-                    continue
-                try:
-                    count = int(info.get("count", info.get("qty", 1)) or 1)
-                except (TypeError, ValueError):
-                    count = 1
-                rows[str(code)] = {"cost": cost, "count": count}
-            if rows:
-                out[str(country)] = rows
-        return out
+            try:
+                cost = float(item.get("cost") or 0)
+                count = int(item.get("total_count") or 0)
+            except (TypeError, ValueError):
+                continue
+            if cost <= 0:
+                continue
+            rows[code] = {"cost": cost, "count": count}
+        return {cid: rows}
 
     # -- activations -------------------------------------------------------
 
@@ -775,11 +696,12 @@ class GrizzlySms:
     def get_balance(cls):
         if not cls._key():
             return {"balance": 0.0, "demo": True}
-        data = cls._request({"action": "getBalance"})
-        if "error" in data:
-            return data
+        result = cls._request("/get/balance")
+        if "error" in result:
+            return result
+        data = result.get("data") or {}
         try:
-            return {"balance": float(data.get("value") or 0)}
+            return {"balance": float(data.get("balance") or 0)}
         except (TypeError, ValueError):
             return {"error": "INVALID_JSON"}
 
@@ -790,63 +712,53 @@ class GrizzlySms:
             return {"id": str(secrets.randbelow(9000000) + 1000000),
                     "phone": "2348000000000", "service": product,
                     "country": country, "status": "PENDING"}
-        if str(country) in ("", "any"):
+        country = str(country or "").strip()
+        project_id = cls._project_ids().get(str(product or "").lower())
+        if not country or not project_id:
+            return {"error": "BAD_SERVICE"}
+        result = cls._request("/get/number", {"country_id": country, "project_id": project_id})
+        if "error" in result:
+            return result
+        data = result.get("data") or {}
+        if not data.get("request_id") or not data.get("number"):
             return {"error": "NO_NUMBERS"}
-        data = cls._request({
-            "action": "getNumber", "service": product, "country": str(country),
-            "maxPrice": max_price if max_price else None,
-        })
-        if "error" in data:
-            return data
-        if not data.get("id"):
-            return {"error": "NO_NUMBERS"}
-        return data
+        return {"id": str(data["request_id"]), "phone": str(data["number"]), "status": "PENDING"}
 
     @classmethod
     def check_order(cls, provider_order_id):
-        """Activation status, normalised onto Order.STATUS_CHOICES."""
+        """Poll ``/get/sms``; 50101 means "not yet", 50102 means released."""
         if not cls._key():
             return {"status": "PENDING", "sms": []}
-        data = cls._request({"action": "getStatusV2", "id": str(provider_order_id)})
-        if "error" in data:
-            return data
-        sms_block = data.get("sms") if isinstance(data, dict) else None
-        if isinstance(sms_block, dict):
-            return {"status": "RECEIVED", "sms": [{
-                "sender": "",
-                "text": sms_block.get("text") or sms_block.get("code") or "",
-                "code": sms_block.get("code") or "",
-                "date": sms_block.get("dateTime") or "",
-            }]}
-        raw = data.get("status", "") if isinstance(data, dict) else str(data)
-        return {"status": cls._normalise_status(raw, data), "sms": []}
-
-    @staticmethod
-    def _normalise_status(raw, data=None):
-        token = str(raw or "").upper()
-        if data and isinstance(data, dict) and data.get("sms"):
-            return "RECEIVED"
-        if token.startswith("STATUS_OK") or token.startswith("ACCESS_ACTIVATION"):
-            return "RECEIVED"
-        if token in {"STATUS_CANCEL", "STATUS_CANCELLED"}:
-            return "CANCELED"
-        if token in {"STATUS_WAIT_RESEND", "STATUS_WAIT_RETRY", "STATUS_WAIT_CODE",
-                     "ACCESS_READY", "ACCESS_RETRY_GET"}:
-            return "PENDING"
-        if token in {"STATUS_TIMEOUT", "EXPIRED"}:
-            return "TIMEOUT"
-        return "PENDING"
+        result = cls._request("/get/sms", {"request_id": str(provider_order_id)})
+        if "error" in result:
+            if result.get("code") == 50101:
+                return {"status": "PENDING", "sms": []}
+            if result.get("code") == 50102:
+                return {"status": "TIMEOUT", "sms": []}
+            return result
+        text = result.get("data")
+        if isinstance(text, dict):
+            text = text.get("code") or text.get("text") or ""
+        text = str(text or "").strip()
+        if not text:
+            return {"status": "PENDING", "sms": []}
+        return {"status": "RECEIVED", "sms": [{
+            "sender": "", "text": text, "code": text, "date": "",
+        }]}
 
     @classmethod
     def order_action(cls, action, provider_order_id):
-        """cancel -> -1, finish -> 6, ban -> 8 (reported)."""
-        code = {"cancel": "-1", "finish": "6", "ban": "8"}.get(action)
-        if code is None:
+        """``cancel`` releases the request; the API has no finish/ban."""
+        if action not in {"cancel", "finish", "ban"}:
             return {"error": "BAD_ACTION"}
+        if action == "finish":
+            return {"status": "FINISHED"}
         if not cls._key():
-            return {"status": {"cancel": "STATUS_CANCEL", "finish": "ACCESS_ACTIVATION",
-                               "ban": "STATUS_CANCEL"}[action]}
-        return cls._request({"action": "setStatus", "status": code, "id": str(provider_order_id)})
+            return {"status": "CANCELED"}
+        result = cls._request("/cancel", {"request_id": str(provider_order_id)})
+        if "error" in result:
+            return result
+        return {"status": "CANCELED"}
 
     @classmethod
     def sms_inbox(cls, provider_order_id):
@@ -856,90 +768,44 @@ class GrizzlySms:
 # ---------------------------------------------------------------------------
 # Provider routing
 #
-# Two providers sit behind one storefront. 5sim is server 1, GrizzlySMS is
-# server 2; the buyer never picks one. The catalog comes from the first
-# provider that answers, the quote is the cheapest live price across both,
-# and every purchase falls through to the other server on any provider error.
+# Two number suppliers sit behind one storefront: SMS-BUS is server 1, 5sim is
+# server 2. The buyer never picks one. The catalog comes from the first server
+# that answers, the quote is the cheapest live price across both, and every
+# purchase falls through to the other server on a provider error.
 #
-# The storefront's internal identifiers stay Grizzly-shaped (numeric country
-# ids, short service codes) because that is what the UI and saved orders
-# already use. The maps below translate them for 5sim; identifiers 5sim has
-# and Grizzly does not (extra countries, products) pass through as-is.
+# Canonical identifiers are ISO-3166 country codes and short service codes.
+# Neither matches a supplier's own numbering: SMS-BUS addresses countries and
+# projects by numeric ids, 5sim by slugs. Both are resolved at runtime from
+# each server's catalog, so no hand-maintained id map can drift and send a
+# customer a number in the wrong country.
 # ---------------------------------------------------------------------------
 
-PROVIDER_ORDER = ("5sim", "grizzly")
+PROVIDER_ORDER = ("5sim", "smsbus")
 # Neutral storefront names. The suppliers' brands are deliberately never
 # exposed to customers — a buyer who learns the upstream name can leave the
 # storefront and buy the number directly at the source.
-PROVIDER_LABELS = {"5sim": "Server 2", "grizzly": "Server 1", "demo": "Demo"}
-_PROVIDERS = {"5sim": FiveSim, "grizzly": GrizzlySms}
+PROVIDER_LABELS = {"5sim": "Server 2", "smsbus": "Server 1", "demo": "Demo"}
+_PROVIDERS = {"5sim": FiveSim, "smsbus": SmsBus}
 
 # The storefront offers the two suppliers as Server 1 and Server 2. The
-# numbering is the owner's: server 1 is GrizzlySMS, server 2 is 5SIM.
-SERVER_ORDER = ("grizzly", "5sim")
-SERVER_NUMBERS = {"grizzly": "1", "5sim": "2"}
+# numbering is the owner's: server 1 is SMS-BUS, server 2 is 5SIM.
+SERVER_ORDER = ("smsbus", "5sim")
+SERVER_NUMBERS = {"smsbus": "1", "5sim": "2"}
 
-# GrizzlySMS country id -> 5sim country slug. Source: the numbered country
-# list published in Grizzly's own docs (grizzlysms.com/docs/activation,
-# pulled 2026-10-19). Do NOT guess these ids: they are not the sms-activate
-# ids people tend to remember (Nigeria is 19, not 22; India is 22, not 18;
-# the Philippines is 4, not 12; Germany is 43, not 49). A wrong id buys a
-# working number in the wrong country, which fails after the customer paid.
-# 5sim lists 153 countries; 152 have a Grizzly counterpart (no Solomon
-# Islands). 5sim does not carry Russia/Ukraine/Belarus, so they are absent.
-GRIZZLY_TO_FIVESIM_COUNTRY = {
-    "2": "kazakhstan", "4": "philippines", "6": "indonesia", "7": "malaysia",
-    "8": "kenya", "9": "tanzania", "10": "vietnam", "11": "kyrgyzstan",
-    "13": "israel", "14": "hongkong", "15": "poland", "16": "england",
-    "17": "madagascar", "19": "nigeria", "20": "macau", "21": "egypt",
-    "22": "india", "23": "ireland", "24": "cambodia", "25": "laos",
-    "26": "haiti", "27": "ivorycoast", "28": "gambia", "29": "serbia",
-    "31": "southafrica", "32": "romania", "33": "colombia", "34": "estonia",
-    "35": "azerbaijan", "36": "canada", "37": "morocco", "38": "ghana",
-    "39": "argentina", "40": "uzbekistan", "41": "cameroon", "42": "chad",
-    "43": "germany", "44": "lithuania", "45": "croatia", "46": "sweden",
-    "48": "netherlands", "49": "latvia", "50": "austria", "52": "thailand",
-    "53": "saudiarabia", "54": "mexico", "55": "taiwan", "56": "spain",
-    "58": "algeria", "59": "slovenia", "60": "bangladesh", "61": "senegal",
-    "63": "czech", "64": "srilanka", "65": "peru", "66": "pakistan",
-    "68": "guinea", "70": "venezuela", "71": "ethiopia", "72": "mongolia",
-    "73": "brazil", "74": "afghanistan", "75": "uganda", "76": "angola",
-    "77": "cyprus", "78": "france", "79": "papuanewguinea", "80": "mozambique",
-    "81": "nepal", "82": "belgium", "83": "bulgaria", "84": "hungary",
-    "85": "moldova", "86": "italy", "87": "paraguay", "88": "honduras",
-    "89": "tunisia", "90": "nicaragua", "91": "easttimor", "92": "bolivia",
-    "93": "costarica", "94": "guatemala", "97": "puertorico", "99": "togo",
-    "100": "kuwait", "101": "salvador", "103": "jamaica", "104": "tit",
-    "105": "ecuador", "106": "swaziland", "107": "oman", "108": "bih",
-    "109": "dominicana", "112": "panama", "114": "mauritania", "115": "sierraleone",
-    "116": "jordan", "117": "portugal", "118": "barbados", "119": "burundi",
-    "120": "benin", "122": "bahamas", "123": "botswana", "124": "belize",
-    "128": "georgia", "129": "greece", "130": "guineabissau", "131": "guyana",
-    "133": "comoros", "134": "saintkittsandnevis", "135": "liberia", "136": "lesotho",
-    "137": "malawi", "138": "namibia", "140": "rwanda", "141": "slovakia",
-    "142": "suriname", "143": "tajikistan", "145": "bahrain", "146": "reunion",
-    "147": "zambia", "148": "armenia", "150": "congo", "151": "chile",
-    "152": "burkinafaso", "154": "gabon", "155": "albania", "156": "uruguay",
-    "157": "mauritius", "158": "bhutane", "159": "maldives", "160": "guadeloupe",
-    "161": "turkmenistan", "162": "frenchguiana", "163": "finland", "164": "saintlucia",
-    "165": "luxembourg", "166": "saintvincentandgrenadines", "167": "equatorialguinea", "168": "djibouti",
-    "169": "antiguaandbarbuda", "171": "montenegro", "172": "denmark", "174": "norway",
-    "175": "australia", "179": "aruba", "183": "northmacedonia", "184": "seychelles",
-    "185": "newcaledonia", "186": "capeverde", "187": "usa", "231": "samoa",
-}
-FIVESIM_TO_GRIZZLY_COUNTRY = {slug: cid for cid, slug in GRIZZLY_TO_FIVESIM_COUNTRY.items()}
-
-GRIZZLY_TO_FIVESIM_SERVICE = {
+# Canonical short service code -> 5sim product slug. SMS-BUS already uses the
+# short codes, so only the 5sim side needs a map. Services 5sim carries and
+# SMS-BUS does not simply never appear on Server 1.
+SERVICE_TO_FIVESIM = {
     "wa": "whatsapp", "tg": "telegram", "go": "google", "fb": "facebook",
     "ig": "instagram", "tw": "twitter", "oi": "tinder", "am": "amazon",
     "mm": "microsoft", "nf": "netflix", "bb": "uber", "vi": "viber",
     "ds": "discord", "sn": "snapchat", "tt": "tiktok", "av": "avito",
     "fd": "foodpanda", "vk": "vk", "ok": "ok",
 }
-FIVESIM_TO_GRIZZLY_SERVICE = {slug: code for code, slug in GRIZZLY_TO_FIVESIM_SERVICE.items()}
+FIVESIM_TO_SERVICE = {slug: code for code, slug in SERVICE_TO_FIVESIM.items()}
 
 # Services only one server carries. The canonical id is the 5sim slug because
-# Grizzly has no code for them here; they simply do not appear on Server 1.
+# SMS-BUS has no code for them here; they simply do not appear on Server 1.
 FIVESIM_ONLY_SERVICES = {"signal"}
 
 
@@ -958,8 +824,8 @@ def _live(provider):
 
     A keyless server only acts as a simulator in demo mode (no key at all).
     Once any real key exists, keyless servers are skipped entirely — otherwise
-    Grizzly's demo prices and simulated numbers would compete with, and could
-    even beat, a live provider.
+    demo prices and simulated numbers would compete with, and could even beat,
+    a live provider.
     """
     if demo_mode():
         return True
@@ -981,7 +847,7 @@ def server_provider(value):
         return None
     if value in _PROVIDERS:
         return value
-    return {"1": "grizzly", "2": "5sim"}.get(value)
+    return {"1": "smsbus", "2": "5sim"}.get(value)
 
 
 def catalog_servers():
@@ -995,42 +861,83 @@ def catalog_servers():
     } for name in SERVER_ORDER]
 
 
+def _country_index(provider):
+    """``{iso: native_country_id}`` read once from the provider's catalog."""
+    adapter = _PROVIDERS.get(provider)
+    if adapter is None:
+        return {}
+
+    def load():
+        try:
+            countries = adapter.get_countries()
+        except Exception:
+            return {}
+        out = {}
+        for ident, item in (countries or {}).items():
+            if not isinstance(item, dict):
+                continue
+            iso = str(item.get("iso") or "").lower()
+            if len(iso) == 2:
+                out[iso] = str(ident)
+        return out
+
+    return _cached("country-index:" + provider, load)
+
+
+def _country_reverse(provider):
+    """``{native_country_id: iso}`` — the inverse of ``_country_index``."""
+    def load():
+        return {ident: iso for iso, ident in _country_index(provider).items()}
+    return _cached("country-reverse:" + provider, load)
+
+
 def service_label(code):
     code = str(code or "").lower()
-    if code in GrizzlySms.service_labels:
-        return GrizzlySms.service_labels[code]
-    return FiveSim.service_labels.get(GRIZZLY_TO_FIVESIM_SERVICE.get(code, code), code.upper())
+    if code in SmsBus.service_labels:
+        return SmsBus.service_labels[code]
+    return FiveSim.service_labels.get(SERVICE_TO_FIVESIM.get(code, code), code.upper())
 
 
 def _country_for(provider, canonical):
+    """Canonical ISO code -> the id that provider's API expects."""
     canonical = str(canonical or "").strip().lower()
-    if provider == "5sim":
-        return GRIZZLY_TO_FIVESIM_COUNTRY.get(canonical, canonical or None)
-    if canonical.isdigit():
+    if not canonical:
+        return None
+    native = _country_index(provider).get(canonical)
+    if native:
+        return native
+    # Unknown to the catalog: pass the identifier through only when it is
+    # already shaped like that provider's own id (numeric for SMS-BUS, a slug
+    # for 5sim). Guessing never happens here.
+    if provider == "smsbus" and canonical.isdigit():
         return canonical
-    return FIVESIM_TO_GRIZZLY_COUNTRY.get(canonical)
+    if provider == "5sim" and not canonical.isdigit():
+        return canonical
+    return None
 
 
 def _service_for(provider, canonical):
     canonical = str(canonical or "").strip().lower()
+    if not canonical:
+        return None
     if provider == "5sim":
-        return GRIZZLY_TO_FIVESIM_SERVICE.get(canonical, canonical or None)
-    if canonical in GRIZZLY_TO_FIVESIM_SERVICE:
-        return canonical
-    return FIVESIM_TO_GRIZZLY_SERVICE.get(canonical)
+        return SERVICE_TO_FIVESIM.get(canonical, canonical)
+    return canonical
 
 
 def _canonical_country(provider, identifier):
-    identifier = str(identifier)
-    if provider == "5sim":
-        return FIVESIM_TO_GRIZZLY_COUNTRY.get(identifier, identifier)
-    return identifier
+    """A provider's own country id -> canonical ISO code."""
+    identifier = str(identifier or "").strip().lower()
+    if not identifier:
+        return ""
+    iso = _country_reverse(provider).get(identifier)
+    return iso or identifier
 
 
 def _canonical_service(provider, identifier):
-    identifier = str(identifier or "").lower()
+    identifier = str(identifier or "").strip().lower()
     if provider == "5sim":
-        return FIVESIM_TO_GRIZZLY_SERVICE.get(identifier, identifier)
+        return FIVESIM_TO_SERVICE.get(identifier, identifier)
     return identifier
 
 
@@ -1074,7 +981,7 @@ POPULAR_SERVICE_NAMES = {
 def _service_catalog(provider):
     """Every service one server sells — its full live catalog, uncapped.
 
-    GrizzlySMS answers with ``getServicesList``; 5sim has no service-list
+    SMS-BUS answers with ``/list/projects``; 5sim has no service-list
     endpoint, so the full products endpoint serves as one. Rows are
     ``{code, name, qty, raw, popular}``, popular consumer names first.
     Cached for a minute: the typeahead looks at this on every keystroke.
@@ -1091,12 +998,12 @@ def _service_catalog(provider):
                         "qty": 0, "raw": slug,
                     }
                 row["qty"] += int(info.get("Qty", 0) or 0)
-        elif provider == "grizzly":
-            data = GrizzlySms.get_services()
+        elif provider == "smsbus":
+            data = SmsBus.get_services()
             if not data:
-                data = dict(GrizzlySms.service_labels)
+                data = dict(SmsBus.service_labels)
             for code, name in data.items():
-                canonical = _canonical_service("grizzly", code)
+                canonical = _canonical_service("smsbus", code)
                 rows[canonical] = {
                     "code": canonical,
                     "name": str(name or service_label(canonical)),
@@ -1115,8 +1022,8 @@ def catalog_services(provider=None, q=""):
     """Live service list for one server, optionally filtered by ``q``.
 
     The service step now runs straight after the server choice, before any
-    country is known, so this reads the server's own catalog: the full
-    ``getServicesList`` for GrizzlySMS and all 1,300+ products for 5sim.
+    country is known, so this reads the server's own catalog: ``/list/projects``
+    for SMS-BUS and all 1,300+ products for 5sim.
     Nothing is truncated to a curated short list.
     """
     rows = []
@@ -1126,7 +1033,7 @@ def catalog_services(provider=None, q=""):
     if not rows:
         # Demo container with no keys: keep the local label maps usable.
         for name in _catalog_names(provider):
-            labels = FiveSim.service_labels if name == "5sim" else GrizzlySms.service_labels
+            labels = FiveSim.service_labels if name == "5sim" else SmsBus.service_labels
             for code, label in labels.items():
                 canonical = _canonical_service(name, code)
                 rows.append({
@@ -1174,12 +1081,7 @@ def catalog_countries(product="", provider=None):
             if not service:
                 continue
             try:
-                if name == "grizzly" and hasattr(adapter, "get_all_prices"):
-                    # One bulk call covers every country; walking the country
-                    # list one getPricesV3 at a time was ~200 round trips.
-                    prices = _cached("grizzly:all-prices", adapter.get_all_prices)
-                else:
-                    prices = adapter.get_prices("", service)
+                prices = adapter.get_prices("", service)
             except Exception:
                 prices = {}
             for identifier, block in prices.items():
@@ -1349,9 +1251,9 @@ def catalog_operators(country, product, provider=None):
     any_cost = cheapest["provider_price"] if cheapest else None
     any_provider = "5sim" if cheapest else None
     any_qty = cheapest["qty"] if cheapest else 0
-    other = _price_from("grizzly", product, country, "any")
+    other = _price_from("smsbus", product, country, "any")
     if other and (any_cost is None or other["cost"] < any_cost):
-        any_cost, any_provider = float(other["cost"]), "grizzly"
+        any_cost, any_provider = float(other["cost"]), "smsbus"
         any_qty = int(other["count"])
     if any_cost is not None:
         rows.append({
@@ -1598,12 +1500,14 @@ def cancel_provider_order(provider, provider_order_id, action="cancel"):
 
 def check_order(order):
     """Poll the server that owns this order; never falls through to another."""
-    provider = str(getattr(order, "provider", "") or "grizzly")
+    provider = str(getattr(order, "provider", "") or "smsbus")
     if provider == "demo" or demo_mode():
         return {"status": order.status if order.status in ("PENDING", "RECEIVED") else "PENDING", "sms": []}
     adapter = _PROVIDERS.get(provider)
     if not adapter:
-        return {"error": "BAD_PROVIDER"}
+        # A legacy order from a supplier this build no longer integrates:
+        # keep its stored status, nothing upstream can be polled any more.
+        return {"status": order.status, "sms": []}
     try:
         return adapter.check_order(order.provider_order_id)
     except Exception:
@@ -1612,13 +1516,16 @@ def check_order(order):
 
 def order_action(order, action):
     """Cancel/finish/ban on the server that owns this order."""
-    provider = str(getattr(order, "provider", "") or "grizzly")
+    provider = str(getattr(order, "provider", "") or "smsbus")
     if provider == "demo" or demo_mode():
         return {"status": {"cancel": "STATUS_CANCEL", "finish": "ACCESS_ACTIVATION",
                            "ban": "STATUS_CANCEL"}.get(action, "STATUS_CANCEL")}
     adapter = _PROVIDERS.get(provider)
     if not adapter:
-        return {"error": "BAD_PROVIDER"}
+        # Legacy order: close it locally so the customer can still cancel or
+        # finish it after the supplier was retired.
+        return {"status": {"cancel": "CANCELED", "finish": "FINISHED",
+                           "ban": "BANNED"}.get(action, "CANCELED")}
     try:
         return adapter.order_action(action, order.provider_order_id)
     except Exception:

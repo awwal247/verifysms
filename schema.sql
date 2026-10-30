@@ -152,8 +152,8 @@ WHERE NOT EXISTS (
 COMMIT;
 
 -- ── 0005: Order.provider ──────────────────────────────────────────────────
--- Which server fulfilled an order ("5sim" or "grizzly"). Existing rows were
--- all GrizzlySMS, hence the default.
+-- Which server fulfilled an order (provider key). Rows created before this
+-- column existed belonged to the then-primary supplier, hence its default.
 BEGIN;
 
 ALTER TABLE "core_order"
@@ -164,6 +164,23 @@ SELECT 'core', '0005_order_provider', now()
 WHERE NOT EXISTS (
     SELECT 1 FROM django_migrations
     WHERE app = 'core' AND name = '0005_order_provider'
+);
+
+COMMIT;
+
+-- ── 0006: Order.provider default follows the primary supplier ─────────────
+-- New orders are filled by the app; the DB default only matters for inserts
+-- that bypass the ORM. It now names the current Server 1 provider.
+BEGIN;
+
+ALTER TABLE "core_order"
+    ALTER COLUMN "provider" SET DEFAULT 'smsbus';
+
+INSERT INTO django_migrations (app, name, applied)
+SELECT 'core', '0006_alter_order_provider', now()
+WHERE NOT EXISTS (
+    SELECT 1 FROM django_migrations
+    WHERE app = 'core' AND name = '0006_alter_order_provider'
 );
 
 COMMIT;
