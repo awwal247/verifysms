@@ -99,7 +99,14 @@ function showToast(message, type = 'info', duration = 3500) {
   const colors = { success: 'var(--success)', error: 'var(--danger)', info: 'var(--info)', warning: 'var(--warning)' };
   const toast = document.createElement('div');
   toast.className = 'toast ' + type;
-  toast.innerHTML = `<i class="fa-solid ${icons[type] || icons.info}" style="color:${colors[type]};flex-shrink:0"></i><span>${message}</span>`;
+  // Build with DOM APIs: `message` can contain server/provider text and must never be parsed as HTML.
+  const toastIcon = document.createElement('i');
+  toastIcon.className = 'fa-solid ' + (icons[type] || icons.info);
+  toastIcon.style.cssText = 'color:' + (colors[type] || colors.info) + ';flex-shrink:0';
+  const toastText = document.createElement('span');
+  toastText.textContent = String(message == null ? '' : message);
+  toast.appendChild(toastIcon);
+  toast.appendChild(toastText);
   container.appendChild(toast);
   setTimeout(() => {
     toast.classList.add('hide');
@@ -108,6 +115,13 @@ function showToast(message, type = 'info', duration = 3500) {
 }
 
 // ── Copy to Clipboard ──────────────────────────────────────────────────────
+// Delegated handler for [data-copy] elements (replaces inline onclick="copyText('...')",
+// which broke out of the JS string when the value contained an apostrophe).
+document.addEventListener('click', function (ev) {
+  const el = ev.target && ev.target.closest ? ev.target.closest('[data-copy]') : null;
+  if (el) copyText(el.getAttribute('data-copy') || '', el);
+});
+
 function copyText(text, btn) {
   navigator.clipboard.writeText(text).then(() => {
     if (btn) {
@@ -199,12 +213,26 @@ function updateOrderCard(orderId, data) {
   if (data.sms_code) {
     const smsEl = document.getElementById('sms-area-' + orderId);
     if (smsEl) {
-      smsEl.innerHTML = `
-        <div class="sms-code-box">
-          <div class="sms-code-label"><i class="fa-solid fa-envelope-open-text"></i> Verification Code</div>
-          <div class="sms-code-value">${data.sms_code}</div>
-          ${data.sms_text ? '<div class="sms-text">' + data.sms_text + '</div>' : ''}
-        </div>`;
+      // SMS content is attacker-controlled (anyone can text the rented number):
+      // render it with textContent, never as HTML.
+      smsEl.textContent = '';
+      const box = document.createElement('div');
+      box.className = 'sms-code-box';
+      const label = document.createElement('div');
+      label.className = 'sms-code-label';
+      label.innerHTML = '<i class="fa-solid fa-envelope-open-text"></i> Verification Code';
+      const value = document.createElement('div');
+      value.className = 'sms-code-value';
+      value.textContent = String(data.sms_code);
+      box.appendChild(label);
+      box.appendChild(value);
+      if (data.sms_text) {
+        const text = document.createElement('div');
+        text.className = 'sms-text';
+        text.textContent = String(data.sms_text);
+        box.appendChild(text);
+      }
+      smsEl.appendChild(box);
       smsEl.style.display = 'block';
     }
   }

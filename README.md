@@ -20,13 +20,19 @@ python manage.py seed_demo
 python manage.py runserver
 ```
 
-The seeded development admin is `admin@example.com` with password
-`ChangeMe123!`. A test user is also seeded: `testuser@example.com` with
-password `TestUser123!` — log in as this user to test the Paystack top-up
-flow with a Paystack test card (it starts with a ₦0 wallet balance, same as
-a real signup). Change both before using the application anywhere public,
-or pass `--email`, `--password`, `--test-email`, `--test-password` to
-`seed_demo` to set your own.
+`seed_demo` has no built-in passwords. Create the first admin with:
+
+```bash
+python manage.py seed_demo --email you@yourdomain.com          # generates a random password, printed once
+python manage.py seed_demo --email you@yourdomain.com --password '<strong password>'
+# or: SEED_ADMIN_EMAIL / SEED_ADMIN_PASSWORD environment variables
+python manage.py seed_demo --email you@yourdomain.com --with-test-user   # local only: Paystack test-card customer
+```
+
+Re-running it is safe: existing passwords and edited settings are left alone
+(`--reset-password` replaces an admin's password; `--promote` upgrades an
+existing customer account). For local development set `DJANGO_DEBUG=1` and
+`DJANGO_SECRET_KEY` is optional; in production `DJANGO_SECRET_KEY` is required.
 
 The service browser reads 5SIM's public catalogue when `FIVESIM_API_KEY` is
 empty, so it can be explored immediately. Buying needs a key on at least one

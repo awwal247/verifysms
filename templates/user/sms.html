@@ -306,11 +306,17 @@
       var body = m.text ? '<div class="sms-body">' + esc(m.text) + '</div>' : '';
       var code = m.code ? '<div class="otp-box"><div class="otp-label"><i class="fa-solid fa-key"></i> Verification Code</div>' +
         '<div class="otp-code">' + esc(m.code) + '</div>' +
-        '<button class="btn btn-sm btn-secondary mt-1" onclick="copyText(\'' + esc(m.code) + '\', this)"><i class="fa-regular fa-copy"></i> Copy Code</button></div>' : '';
+        '<button type="button" class="btn btn-sm btn-secondary mt-1 js-copy-code" data-code="' + esc(m.code) + '"><i class="fa-regular fa-copy"></i> Copy Code</button></div>' : '';
       var sender = m.sender || 'Notification';
       return '<div class="sms-inbox-card"><div class="sms-sender-row"><div class="sms-sender"><i class="fa-solid fa-user" style="color:var(--orange)"></i> ' + esc(sender) + '</div>' + date + '</div>' + body + code + '</div>';
     }).join('');
   }
+
+  // data-code is read back as a plain string (no JS-in-attribute parsing).
+  ROOT.addEventListener('click', function (ev) {
+    var btn = ev.target.closest ? ev.target.closest('.js-copy-code') : null;
+    if (btn) copyText(btn.getAttribute('data-code') || '', btn);
+  });
 
   function poll() {
     fetch('/api/orders/?action=check&order_id=' + ORDER_ID, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })

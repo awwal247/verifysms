@@ -1,8 +1,12 @@
 from django.urls import path, re_path
 
-from . import views
+from . import views, well_known
 
 urlpatterns = [
+    # Served directly (HTTP 200, text/plain) - see core/well_known.py.
+    re_path(r"^\.well-known/security\.txt$", well_known.security_txt, name="security-txt"),
+    re_path(r"^security\.txt$", well_known.security_txt, name="security-txt-legacy"),
+    re_path(r"^robots\.txt$", well_known.robots_txt, name="robots-txt"),
     path("", views.home, name="home"),
     path("login.html", views.login_page, name="login"),
     path("register.html", views.register_page, name="register"),

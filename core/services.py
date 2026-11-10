@@ -1608,6 +1608,15 @@ class Paystack:
 
     @classmethod
     def process_topup(cls, user_id, reference, amount_paid, gateway_response=None):
+        # The webhook and the browser /verify call can arrive together. Locking the
+        # user row first serialises them so a top-up is credited exactly once
+        # (Transaction.reference is not unique at DB level).
+        with transaction.atomic():
+            User.objects.select_for_update().filter(pk=user_id).first()
+            return cls._process_topup_locked(user_id, reference, amount_paid, gateway_response)
+
+    @classmethod
+    def _process_topup_locked(cls, user_id, reference, amount_paid, gateway_response=None):
         existing = Topup.objects.filter(reference=reference).first()
         if existing and existing.status == "success":
             return True

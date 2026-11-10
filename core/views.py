@@ -1,17 +1,26 @@
+import hashlib
+import hmac
 import json
+import logging
 import re
 import uuid
+from urllib.parse import urlencode
 from datetime import datetime, timedelta
 from decimal import Decimal
 
 from django.contrib import messages
 from django.contrib.auth import authenticate, login, logout, update_session_auth_hash
+from django.conf import settings
 from django.contrib.auth.decorators import login_required
+from django.contrib.auth.password_validation import validate_password
+from django.core.cache import cache
+from django.core.exceptions import ValidationError
 from django.db import transaction
-from django.db.models import Count, Q, Sum
+from django.db.models import Count, F, Q, Sum
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
+from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 
@@ -47,6 +56,62 @@ def _page_context(request, page):
     return context
 
 
+logger = logging.getLogger("core.security")
+
+# ── Brute-force throttling ────────────────────────────────────────────────
+# Counters live in Django's cache. With the default per-process LocMemCache a
+# serverless host keeps one counter per warm instance, so this is a speed bump,
+# not a hard limit — point CACHES at a shared store (Redis/Upstash/Memcached)
+# for a global limit. See docs/SECURITY_HARDENING.md.
+LOGIN_MAX_FAILURES = 8
+LOGIN_WINDOW_SECONDS = 15 * 60
+REGISTER_MAX_PER_IP = 10
+REGISTER_WINDOW_SECONDS = 60 * 60
+
+
+def _client_ip(request):
+    """Best-effort client IP. Vercel overwrites X-Forwarded-For with the real
+    client address; the left-most entry is therefore the client."""
+    forwarded = request.META.get("HTTP_X_FORWARDED_FOR", "")
+    if forwarded:
+        return forwarded.split(",")[0].strip()[:64]
+    return request.META.get("REMOTE_ADDR", "")[:64]
+
+
+def _throttle_key(scope, *parts):
+    digest = hashlib.sha256("|".join(p.lower() for p in parts).encode()).hexdigest()[:32]
+    return f"throttle:{scope}:{digest}"
+
+
+def _throttled(key, limit):
+    return cache.get(key, 0) >= limit
+
+
+def _bump(key, window):
+    # add() is a no-op when the key exists, so the window starts at the first failure.
+    cache.add(key, 0, window)
+    try:
+        cache.incr(key)
+    except ValueError:
+        cache.set(key, 1, window)
+
+
+def _safe_next(request, fallback):
+    """Return the ?redirect= target only if it stays on this site (open-redirect guard)."""
+    target = request.GET.get("redirect", "")
+    if target and url_has_allowed_host_and_scheme(
+        target, allowed_hosts={request.get_host()}, require_https=request.is_secure()
+    ):
+        return target
+    return fallback
+
+
+def _safe_external_url(value):
+    """Admin-editable links may only be absolute http(s) URLs (blocks javascript:/data:)."""
+    value = (value or "").strip()
+    return value if re.match(r"^https?://[^\s\"'<>]+$", value, re.I) else ""
+
+
 def home(request):
     return render(request, "index.html")
 
@@ -56,12 +121,22 @@ def login_page(request):
     if request.user.is_authenticated:
         return redirect("/admin/dashboard.html" if request.user.role == "admin" else "/user/dashboard.html")
     if request.method == "POST":
-        email = request.POST.get("email", "").strip().lower()
+        email = request.POST.get("email", "").strip().lower()[:254]
         password = request.POST.get("password", "")
+        ip_key = _throttle_key("login-ip", _client_ip(request))
+        acct_key = _throttle_key("login-acct", email)
+        if _throttled(ip_key, LOGIN_MAX_FAILURES * 3) or _throttled(acct_key, LOGIN_MAX_FAILURES):
+            logger.warning("login throttled ip=%s", _client_ip(request))
+            messages.error(request, "Too many failed attempts. Please wait a few minutes and try again.")
+            return render(request, "login.html", status=429)
         user = authenticate(request, username=email, password=password)
         if user and user.status == "active":
+            cache.delete(acct_key)
             login(request, user)
-            return redirect(request.GET.get("redirect") or ("/admin/dashboard.html" if user.role == "admin" else "/user/dashboard.html"))
+            default = "/admin/dashboard.html" if user.role == "admin" else "/user/dashboard.html"
+            return redirect(_safe_next(request, default))
+        _bump(ip_key, LOGIN_WINDOW_SECONDS)
+        _bump(acct_key, LOGIN_WINDOW_SECONDS)
         messages.error(request, "Invalid email or password.")
     return render(request, "login.html")
 
@@ -75,10 +150,21 @@ def register_page(request):
         email = request.POST.get("email", "").strip().lower()
         password = request.POST.get("password", "")
         confirm = request.POST.get("confirm", "")
-        if not name or not email or not password:
+        reg_key = _throttle_key("register-ip", _client_ip(request))
+        password_problems = []
+        if password:
+            try:
+                validate_password(password)
+            except ValidationError as exc:
+                password_problems = list(exc.messages)
+        if _throttled(reg_key, REGISTER_MAX_PER_IP):
+            messages.error(request, "Too many sign-ups from this network. Please try again later.")
+        elif not name or not email or not password:
             messages.error(request, "All fields are required.")
-        elif len(password) < 6:
-            messages.error(request, "Password must be at least 6 characters.")
+        elif len(name) > 150 or len(email) > 254:
+            messages.error(request, "Name or email is too long.")
+        elif password_problems:
+            messages.error(request, " ".join(password_problems))
         elif password != confirm:
             messages.error(request, "Passwords do not match.")
         elif User.objects.filter(email=email).exists():
@@ -86,6 +172,7 @@ def register_page(request):
         else:
             user = User.objects.create_user(email=email, password=password, first_name=name, role="user")
             user.save()
+            _bump(reg_key, REGISTER_WINDOW_SECONDS)
             login(request, user)
             return redirect("/user/dashboard.html")
     return render(request, "register.html")
@@ -184,12 +271,25 @@ def user_page(request, page):
             messages.success(request, "Profile updated successfully.")
         new_password = request.POST.get("new_password", "")
         if new_password:
-            if len(new_password) < 6:
-                messages.error(request, "Password must be at least 6 characters.")
+            pw_key = _throttle_key("pwchange", str(request.user.pk))
+            problems = []
+            try:
+                validate_password(new_password, request.user)
+            except ValidationError as exc:
+                problems = list(exc.messages)
+            if _throttled(pw_key, 5):
+                messages.error(request, "Too many attempts. Please try again later.")
+            elif not request.user.check_password(request.POST.get("current_password", "")):
+                _bump(pw_key, LOGIN_WINDOW_SECONDS)
+                messages.error(request, "Your current password is incorrect.")
+            elif new_password != request.POST.get("confirm_password", new_password):
+                messages.error(request, "New passwords do not match.")
+            elif problems:
+                messages.error(request, " ".join(problems))
             else:
                 request.user.set_password(new_password)
                 request.user.save(update_fields=["password", "updated_at"])
-                login(request, request.user)
+                update_session_auth_hash(request, request.user)
                 messages.success(request, "Password changed successfully.")
         return redirect("/user/settings.html")
     return render(request, f"user/{page}.html", context)
@@ -288,6 +388,13 @@ def promo_slides():
             continue
         image = parts[0]
         href = parts[1] if len(parts) > 1 and parts[1] else "services.html"
+        # Only plain asset paths / https images and http(s) or site-relative links are
+        # allowed; anything else (javascript:, data:, quotes that could escape the
+        # inline url('...')) is dropped.
+        if not re.match(r"^(https?://|\.\./|/)?[A-Za-z0-9_./%?=&+-]+$", image) or ".." in image.replace("../", ""):
+            continue
+        if not (re.match(r"^https?://[^\s\"'<>]+$", href, re.I) or re.match(r"^[A-Za-z0-9_./?=&%-]+$", href)):
+            href = "services.html"
         title = parts[2] if len(parts) > 2 and parts[2] else ""
         slides.append({
             "image": image,
@@ -303,11 +410,11 @@ def promo_slides():
 def support_info(request):
     """Public contact info for the site-wide customer-care and channel buttons."""
     return _json({
-        "whatsapp": Setting.value("support_whatsapp", DEFAULT_SUPPORT_WHATSAPP).strip(),
+        "whatsapp": re.sub(r"[^0-9]", "", Setting.value("support_whatsapp", DEFAULT_SUPPORT_WHATSAPP)),
         "label": Setting.value("support_label", "Customer Care").strip(),
-        "channel": Setting.value("support_channel", DEFAULT_SUPPORT_CHANNEL).strip(),
+        "channel": _safe_external_url(Setting.value("support_channel", DEFAULT_SUPPORT_CHANNEL)),
         "channel_label": Setting.value("support_channel_label", "Join our channel").strip(),
-        "logs": Setting.value("logs_bot_url", DEFAULT_LOGS_BOT_URL).strip(),
+        "logs": _safe_external_url(Setting.value("logs_bot_url", DEFAULT_LOGS_BOT_URL)),
         "logs_label": Setting.value("logs_bot_label", "Buy Social Media Logs").strip(),
     })
 
@@ -431,7 +538,12 @@ def provider_api(request):
 
 def _coupon_check(user, code, price, consume=False, order=None):
     code = code.upper().strip()
-    coupon = Coupon.objects.filter(code=code, is_active=True).first()
+    coupon_qs = Coupon.objects.filter(code=code, is_active=True)
+    if consume:
+        # Caller runs inside transaction.atomic(); the row lock serialises the
+        # max_uses / one-use-per-user checks against concurrent checkouts.
+        coupon_qs = coupon_qs.select_for_update()
+    coupon = coupon_qs.first()
     if not coupon:
         return None, "Invalid or expired coupon code."
     now = timezone.now()
@@ -456,7 +568,7 @@ def _coupon_check(user, code, price, consume=False, order=None):
     discount = money(discount)
     if consume:
         CouponUse.objects.create(coupon=coupon, user=user, order=order)
-        Coupon.objects.filter(pk=coupon.pk).update(uses_count=coupon.uses_count + 1)
+        Coupon.objects.filter(pk=coupon.pk).update(uses_count=F("uses_count") + 1)
     return {"coupon": coupon, "discount": discount, "final_price": max(Decimal("0"), money(price) - discount)}, None
 
 
@@ -538,10 +650,17 @@ def orders_api(request):
     result = order_action(order, action)
     if "error" in result and "already" not in result["error"].lower():
         return _json({"success": False, "message": friendly_provider_error(result["error"])})
-    order.status = {"cancel": "CANCELED", "finish": "FINISHED", "ban": "BANNED"}[action]
-    order.save(update_fields=["status", "updated_at"])
-    if action in {"cancel", "ban"} and not Transaction.objects.filter(reference=f"REF_{action.upper()}_{order.id}").exists():
-        credit_balance(order.user_id, order.user_price, "refund", f"Refund: {action} order #{order.id}", f"REF_{action.upper()}_{order.id}")
+    with transaction.atomic():
+        # Re-read under a row lock: two concurrent cancel/ban requests must not both
+        # pass the status check and refund the same order twice.
+        order = get_object_or_404(Order.objects.select_for_update(), pk=order.pk, user=request.user)
+        if order.status not in allowed[action]:
+            return _json({"success": False, "message": "This order can no longer be updated."})
+        order.status = {"cancel": "CANCELED", "finish": "FINISHED", "ban": "BANNED"}[action]
+        order.save(update_fields=["status", "updated_at"])
+        ref = f"REF_{action.upper()}_{order.id}"
+        if action in {"cancel", "ban"} and not Transaction.objects.filter(reference=ref).exists():
+            credit_balance(order.user_id, order.user_price, "refund", f"Refund: {action} order #{order.id}", ref)
     message = f"{format_ngn(order.user_price)} has been refunded to your wallet." if action in {"cancel", "ban"} else "Order marked as completed."
     return _json({"success": True, "message": message})
 
@@ -691,8 +810,13 @@ def admin_action(request):
     if action == "admin_password":
         new_password = request.POST.get("new_password", "")
         confirm_password = request.POST.get("confirm_password", "")
-        if len(new_password) < 6:
-            messages.error(request, "Password must be at least 6 characters.")
+        try:
+            validate_password(new_password, request.user)
+            password_problem = ""
+        except ValidationError as exc:
+            password_problem = " ".join(exc.messages)
+        if password_problem:
+            messages.error(request, password_problem)
         elif new_password != confirm_password:
             messages.error(request, "Passwords do not match.")
         else:
@@ -732,8 +856,9 @@ def paystack_verify(request):
     topup = get_object_or_404(Topup, reference=reference, user=request.user)
     response = Paystack.verify(reference)
     data = response.get("data", {})
-    if not response.get("status") or data.get("status") != "success":
-        Topup.objects.filter(pk=topup.pk).update(status="failed", gateway_response=json.dumps(response))
+    if (not response.get("status") or data.get("status") != "success"
+            or data.get("reference") != reference or data.get("currency", "NGN") != "NGN"):
+        Topup.objects.filter(pk=topup.pk).exclude(status="success").update(status="failed", gateway_response=json.dumps(response))
         return _json({"success": False, "message": "Payment could not be verified."})
     amount_paid = Decimal(data.get("amount", 0)) / 100
     Paystack.process_topup(request.user.id, reference, amount_paid, response)
@@ -747,7 +872,12 @@ def paystack_webhook(request):
     signature = request.headers.get("X-Paystack-Signature", "")
     if not Paystack.validate_webhook(request.body, signature):
         return HttpResponse("Invalid signature", status=401)
-    payload = json.loads(request.body.decode("utf-8"))
+    try:
+        payload = json.loads(request.body.decode("utf-8"))
+    except (ValueError, UnicodeDecodeError):
+        return HttpResponse("Bad request", status=400)
+    if not isinstance(payload, dict):
+        return HttpResponse("Bad request", status=400)
     if payload.get("event") == "charge.success":
         data = payload.get("data", {})
         reference = data.get("reference")
@@ -760,7 +890,7 @@ def paystack_webhook(request):
 def paystack_callback(request):
     reference = request.GET.get("reference", "")
     if request.user.is_authenticated and reference:
-        return redirect(f"/user/topup.html?reference={reference}")
+        return redirect("/user/topup.html?" + urlencode({"reference": reference[:150]}))
     return redirect("/login.html")
 
 
@@ -769,30 +899,34 @@ def health(request):
 
 
 def deploy_setup(request):
-    """One-time remote setup endpoint: runs migrations + seed_demo.
+    """One-time remote setup endpoint: runs database migrations.
 
-    Protected by a secret token so it can be triggered from a browser
-    without shell/SSH access (e.g. from a phone). Requires the
-    DEPLOY_SETUP_TOKEN env var to be set — if it isn't set, this endpoint
-    refuses to run at all, so it's inert until you deliberately turn it on.
-    Delete this view (and the URL route pointing to it) once you're done
-    with initial setup; it's not something to leave live long-term.
+    Inert unless DEPLOY_SETUP_TOKEN is set. Hardened behaviour:
+      * unknown/missing token -> 404 (the endpoint's existence is not advertised)
+      * constant-time token comparison
+      * ``seed_demo`` (which creates accounts with documented default passwords)
+        only runs when DEBUG is on, never in production
+      * internal exception text is logged, not returned to the caller
+    Remove this view and its URL route once initial setup is finished.
     """
     import io
-    from django.conf import settings as dj_settings
     from django.core.management import call_command
 
-    expected_token = getattr(dj_settings, "DEPLOY_SETUP_TOKEN", "")
-    if not expected_token:
-        return _json({"success": False, "message": "DEPLOY_SETUP_TOKEN is not set on the server."}, 403)
-    if request.GET.get("token", "") != expected_token:
-        return _json({"success": False, "message": "Invalid or missing token."}, 403)
+    expected_token = getattr(settings, "DEPLOY_SETUP_TOKEN", "")
+    supplied = request.GET.get("token", "")
+    if not expected_token or not hmac.compare_digest(supplied.encode(), expected_token.encode()):
+        logger.warning("deploy-setup rejected ip=%s", _client_ip(request))
+        return HttpResponse("Not found", status=404)
 
     output = io.StringIO()
     try:
         call_command("migrate", interactive=False, stdout=output)
-        if request.GET.get("seed", "1") != "0":
-            call_command("seed_demo", stdout=output)
-    except Exception as exc:
-        return _json({"success": False, "message": str(exc), "log": output.getvalue()}, 500)
-    return _json({"success": True, "log": output.getvalue()})
+        if settings.DEBUG and request.GET.get("seed", "1") != "0":
+            import os
+            # No default credentials exist any more: the admin is only created when
+            # SEED_ADMIN_EMAIL is set (password from SEED_ADMIN_PASSWORD or generated).
+            call_command("seed_demo", stdout=output, skip_admin=not os.getenv("SEED_ADMIN_EMAIL"))
+    except Exception:
+        logger.exception("deploy-setup failed")
+        return _json({"success": False, "message": "Setup failed; see server logs."}, 500)
+    return _json({"success": True, "message": "Setup complete.", "log": output.getvalue()})
