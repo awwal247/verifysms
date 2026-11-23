@@ -69,6 +69,5 @@ Full guide: `docs/TESTING.md`. Latest results are in `TEST_REPORT.txt` (regenera
 * `python scripts/run_tests.py --live https://YOURDOMAIN` (or `python scripts/security_check.py …`) - live checks (read-only).
 
 ## 8. Open items
-* Tutorial media referenced by `templates/user/tutorials.html` is not in the repo (tracked by `KNOWN_MISSING_MEDIA` in `tests_standalone/test_frontend_static.py`).
 * `'unsafe-inline'` in CSP (section 3).
 * TLS ciphers, OCSP stapling and DNS email records can only be verified against the deployed site (section 4-5).

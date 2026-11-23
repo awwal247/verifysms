@@ -66,13 +66,9 @@ class TemplateHygiene(unittest.TestCase):
                 self.assertIn("noopener", tag, f"{tpl.name}: {tag[:80]}")
 
 
-# Tutorial media is referenced by templates/user/tutorials.html but is NOT in the repository
-# (the .mp4 files were removed from git; the .jpg posters are deleted in the working tree).
-# Known open item: add the files, or remove the <video> blocks, then empty this set.
-KNOWN_MISSING_MEDIA = {
-    "video/buy-a-number.mp4", "video/buy-a-number.jpg",
-    "video/fund-your-wallet.mp4", "video/fund-your-wallet.jpg",
-}
+# Assets referenced by templates but intentionally absent from the repo. Empty now that the tutorial
+# videos are committed; add an entry here only for a known gap (a test fails when an entry goes stale).
+KNOWN_MISSING_MEDIA = set()
 
 
 def _missing_assets():

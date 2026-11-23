@@ -177,5 +177,4 @@ documented in `.env.example` or this file.
 
 ## Known open items
 
-- `templates/user/tutorials.html` references `assets/video/*.mp4` / `*.jpg` that are not in the repository.
 - CSP still allows `'unsafe-inline'` until inline handlers move to external JS (see `docs/SECURITY_HARDENING.md`).

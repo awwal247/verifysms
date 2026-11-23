@@ -163,9 +163,7 @@ def render_report(meta, suites):
         out.append("")
 
     out += ["KNOWN OPEN ITEMS (found while building the suites)", thin,
-            "1. templates/user/tutorials.html references assets/video/*.mp4 and *.jpg that are not in the repository.",
-            "   The tutorial videos will 404. Add the files or remove the <video> blocks, then empty",
-            "   KNOWN_MISSING_MEDIA in tests_standalone/test_frontend_static.py (a test fails when the list goes stale).",
+            "1. (resolved) Tutorial videos and posters are now in assets/video/; KNOWN_MISSING_MEDIA is empty.",
             "2. CSP still allows 'unsafe-inline' (templates use inline on*= handlers and style= attributes).",
             "   See docs/SECURITY_HARDENING.md section 3 for the removal path.",
             "3. Live TLS / DNS (SPF, DKIM, DMARC, OCSP) cannot be proven offline: use --live after deploying.",
