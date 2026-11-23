@@ -81,14 +81,56 @@ SSL is required by default when `DATABASE_URL` is set (`DB_SSL_REQUIRE=1`),
 which matches Supabase's requirement. Leave it at `1` unless you have a
 specific reason to disable it.
 
+## Tests
+
+Two suites, split by what they need installed (full guide: [`docs/TESTING.md`](docs/TESTING.md)):
+
+```bash
+python scripts/run_tests.py --standalone   # NO dependencies: bare Python 3.10+, standard library only
+python scripts/run_tests.py --full         # WITH dependencies (after pip install -r requirements.txt)
+python scripts/run_tests.py                # standalone, plus full when dependencies are present
+python scripts/run_tests.py --live https://yourdomain.com   # optional read-only header/TLS/DNS probe
+```
+
+Every run writes a plain-text report to `TEST_REPORT.txt`. Equivalent direct commands:
+
+```bash
+python -I -m unittest discover -s tests_standalone -t . -v
+DJANGO_DEBUG=1 python manage.py test core -v 2
+```
+
+| Suite | Location | Needs |
+|---|---|---|
+| Standalone | `tests_standalone/` | Python only: static checks of source, templates, JS, settings, migrations, routes, env docs |
+| Full | `core/tests/` | Django, dj-database-url, psycopg: HTTP, wallet, routing, Paystack, settings per environment, migrations |
+| Live | `scripts/security_check.py` | Network access to your deployed site |
+
+No test calls a real provider or Paystack.
+
+## Project layout
+
+```
+core/                  app: models, views, services (providers, wallet, Paystack), middleware, tests/
+verify_sms/            Django settings, urls, wsgi
+templates/ assets/     pages and static files (served under /assets/)
+tests_standalone/      dependency-free tests
+scripts/run_tests.py   test runner + TEST_REPORT.txt writer
+scripts/security_check.py   live security probe (stdlib only)
+docs/                  SECURITY_HARDENING.md, TESTING.md
+```
+
 ## Main routes
 
 `/`, `/login.html`, `/register.html`, `/user/dashboard.html`,
 `/user/services.html`, `/user/cart.html`, `/user/topup.html`,
 `/user/history.html`, `/user/settings.html`, `/user/sms.html`,
 `/admin/dashboard.html`, `/admin/users.html`, `/admin/transactions.html`,
-`/admin/providers.html`, `/admin/payment.html`, `/admin/coupons.html`, and
-`/admin/settings.html`.
+`/admin/providers.html`, `/admin/payment.html`, `/admin/coupons.html`,
+`/admin/broadcast.html`, and `/admin/settings.html`. Unknown pages return the 404 template.
+
+Utility endpoints: `/healthz/`, `/robots.txt`, `/.well-known/security.txt`, `/security.txt`,
+and the JSON/webhook APIs under `/api/` (`orders`, `provider`, `coupon`, `support`, `paystack/*`).
+`/deploy-setup/` is inert unless `DEPLOY_SETUP_TOKEN` is set (see `.env.example`).
 
 ## Environment variables needed to deploy
 
@@ -126,3 +168,14 @@ Optional (fallback only — prefer setting these in `/admin/payment.html` once d
 |---|---|
 | `PAYSTACK_PUBLIC_KEY` | Only used if no key has been saved in admin yet. |
 | `PAYSTACK_SECRET_KEY` | Only used if no key has been saved in admin yet. |
+
+Optional tuning (all documented in `.env.example`): `SECURITY_CONTACT` (set a monitored `mailto:` for
+`security.txt`), `SECURE_HSTS_SECONDS`, `SECURE_HSTS_INCLUDE_SUBDOMAINS`, `SECURE_HSTS_PRELOAD`,
+`CSP_REPORT_ONLY`, `CSP_REPORT_URI`, `CSRF_TRUSTED_ORIGINS`, `SESSION_COOKIE_AGE`, `SECURE_SSL_REDIRECT`,
+`TRUST_PROXY_SSL_HEADER`, `REDIS_URL`. A test fails if the code reads an environment variable that is not
+documented in `.env.example` or this file.
+
+## Known open items
+
+- `templates/user/tutorials.html` references `assets/video/*.mp4` / `*.jpg` that are not in the repository.
+- CSP still allows `'unsafe-inline'` until inline handlers move to external JS (see `docs/SECURITY_HARDENING.md`).

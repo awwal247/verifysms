@@ -218,7 +218,7 @@
     <table class="table">
       <thead>
         <tr>
-          <th>#</th><th>Service</th><th>Phone</th><th>Country</th>
+          <th>#</th><th>Service</th><th>Phone</th><th>Code</th><th>Country</th>
           <th>Operator</th><th>Price</th><th>Status</th><th>Date</th>
         </tr>
       </thead>
@@ -228,6 +228,7 @@
           <td class="text-dim text-xs">{{ o.id }}</td>
           <td><strong>{{ o.product|title }}</strong></td>
           <td><span class="number-chip">{{ o.phone }}</span></td>
+            <td>{% if o.sms_code %}<span class="number-chip" data-copy="{{ o.sms_code }}" title="Click to copy" style="cursor:pointer">{{ o.sms_code }}</span>{% else %}<span class="text-muted text-sm">&mdash;</span>{% endif %}</td>
           <td>{{ o.country }}</td>
           <td class="text-muted text-sm">{{ o.operator|title }}</td>
           <td class="text-orange fw-bold">&#8358;{{ o.user_price|floatformat:2 }}</td>
@@ -245,7 +246,7 @@
           </td>
         </tr>
         {% empty %}
-        <tr><td colspan="8" class="text-muted text-sm" style="text-align:center;padding:18px">No orders yet. <a href="services.html" style="color:var(--orange)">Buy your first number</a>.</td></tr>
+        <tr><td colspan="9" class="text-muted text-sm" style="text-align:center;padding:18px">No orders yet. <a href="services.html" style="color:var(--orange)">Buy your first number</a>.</td></tr>
         {% endfor %}
       </tbody>
     </table>

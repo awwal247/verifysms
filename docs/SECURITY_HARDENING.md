@@ -24,6 +24,10 @@ No live site, DNS zone or hosting dashboard was accessible, so TLS and email ite
 | `templates/user/sms.html`, `templates/user/cart.html` | Removed `onclick="copyText('…')"` built from SMS code (apostrophe broke out of the JS string → XSS) |
 | `.gitignore`, `.env.example` | Ignore DB/pyc/venv; document all new variables |
 | `core/tests/test_security.py`, `scripts/security_check.py` (new) | Regression tests; live header/TLS/DNS checker |
+| `core/views.py` (later) | A failed wallet debit after a provider purchase now rolls the unpaid `Order` back and releases the number upstream; unknown `/admin/<page>.html` returns 404 instead of a 500 |
+| `core/tests/test_verification.py`, `core/tests/test_dependencies.py` (new) | Unit/functional/black-box/white-box/smoke suite and dependency-backed settings, database, migration, middleware and admin-action tests |
+| `tests_standalone/` (new), `scripts/run_tests.py` (new) | Dependency-free static suite; runner that writes `TEST_REPORT.txt` |
+| `.env.example` | Added `CSRF_TRUSTED_ORIGINS`, `SESSION_COOKIE_AGE`, `SECURE_SSL_REDIRECT`, `TRUST_PROXY_SSL_HEADER` (previously read by code but undocumented) |
 
 ## 3. Headers – CSP rationale
 Enforced policy: `default-src 'self'`; scripts `'self' 'unsafe-inline'` + cdnjs + js.paystack.co; styles `'self' 'unsafe-inline'` + cdnjs;
@@ -59,5 +63,12 @@ renewal ≥ 14 days out, add a **CAA** record (`0 issue "letsencrypt.org"` – m
 (no routing config in repo; Django had no route so it could only 404). It is now an explicit route; if the live site still redirects, the cause is outside this code (Vercel redirect/rewrite rule, domain-level redirect www↔apex, or Cloudflare rule) – check `curl -sI https://DOMAIN/robots.txt`.
 
 ## 7. Tests
-* `DJANGO_DEBUG=1 python manage.py test core` – 40-ish assertions (headers, HSTS/redirect, security.txt/robots, open redirect, throttling, password change, ban enforcement, CSRF, deploy-setup, URL sanitising, XSS regressions, single top-up credit).
-* `python scripts/security_check.py https://YOURDOMAIN` – live checks (read-only).
+Full guide: `docs/TESTING.md`. Latest results are in `TEST_REPORT.txt` (regenerate with `python scripts/run_tests.py`).
+* `python scripts/run_tests.py --standalone` - no dependencies: source/template/JS/settings/migration/route checks, secret scan, analysers of the live checker.
+* `python scripts/run_tests.py --full` (or `DJANGO_DEBUG=1 python manage.py test core`) - security regressions (headers, HSTS/redirect, security.txt/robots, open redirect, throttling, password change, ban enforcement, CSRF, deploy-setup, URL sanitising, XSS, single top-up credit) plus wallet, routing, coupons, Paystack, settings per environment, Postgres URL parsing, migrations on a blank DB and `check --deploy`.
+* `python scripts/run_tests.py --live https://YOURDOMAIN` (or `python scripts/security_check.py …`) - live checks (read-only).
+
+## 8. Open items
+* Tutorial media referenced by `templates/user/tutorials.html` is not in the repo (tracked by `KNOWN_MISSING_MEDIA` in `tests_standalone/test_frontend_static.py`).
+* `'unsafe-inline'` in CSP (section 3).
+* TLS ciphers, OCSP stapling and DNS email records can only be verified against the deployed site (section 4-5).

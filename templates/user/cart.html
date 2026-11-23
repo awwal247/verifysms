@@ -234,7 +234,7 @@
 
   <div class="onum-row">
     <div class="onum" id="phone-{{ o.id }}">{{ o.phone }}</div>
-    <span class="copy-pill" onclick="copyText('{{ o.phone }}',this)">
+    <span class="copy-pill" data-copy="{{ o.phone }}">
       <i class="fa-regular fa-copy"></i> Copy
     </span>
   </div>

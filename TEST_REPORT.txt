@@ -1,0 +1,108 @@
+==============================================================================
+VerifySMS  -  TEST REPORT
+==============================================================================
+Generated : 2026-11-23 22:09:44
+Python    : 3.13.18  (Linux-6.18.44-fc-v726-x86_64-with-glibc2.39)
+Django    : 5.2.19
+Command   : python scripts/run_tests.py 
+
+SUMMARY
+------------------------------------------------------------------------------
+Suite         Result      Tests  Passed  Failed  Errors  Skipped     Time
+------------------------------------------------------------------------------
+standalone    PASS           90      90       0       0        0     0.3s
+full          PASS          176     176       0       0        0    32.7s
+------------------------------------------------------------------------------
+TOTAL         PASS          266     266
+
+DEPENDENCY MODES
+------------------------------------------------------------------------------
+standalone : needs only Python. Run it anywhere (fresh clone, CI before `pip install`, locked-down box).
+full       : needs `pip install -r requirements.txt` (Django, dj-database-url, psycopg).
+live       : optional, needs network access to a deployed site (scripts/security_check.py).
+
+SUITE: standalone
+------------------------------------------------------------------------------
+tests_standalone.test_config_static  [19 tests, all passed]
+    needs/proves: stdlib | settings + middleware + views security posture read from source
+    MiddlewareSource                         5
+    SettingsDefaults                         8
+    ViewsSecurityStatic                      6
+tests_standalone.test_frontend_static  [16 tests, all passed]
+    needs/proves: stdlib | JS/template XSS sinks, CSRF tokens, external hosts, referenced assets
+    AssetsAndDocs                            4
+    JavaScriptHygiene                        6
+    TemplateHygiene                          6
+tests_standalone.test_project_integrity  [21 tests, all passed]
+    needs/proves: stdlib | syntax of every .py, secrets scan, .gitignore/.env.example, migrations chain, routes, docs
+    Migrations                               3
+    ProjectDocs                              2
+    RepoHygiene                              6
+    RoutingAndViews                          5
+    SourceFiles                              5
+tests_standalone.test_runner  [13 tests, all passed]
+    needs/proves: stdlib | this runner's parser and report writer
+    Dependencies                             3
+    Parser                                   7
+    Report                                   3
+tests_standalone.test_security_check_script  [21 tests, all passed]
+    needs/proves: stdlib | CSP/SPF/DMARC analysers, CLI hygiene of scripts/security_check.py
+    CspAnalyser                              5
+    DmarcAnalyser                            5
+    ReportingAndCli                          3
+    SpfAnalyser                              8
+
+SUITE: full
+------------------------------------------------------------------------------
+core.tests.test_dependencies  [54 tests, all passed]
+    needs/proves: Django+deps | settings per environment, Postgres URL, migrations on blank DB, check --deploy, models, middleware, admin actions
+    AdminActionTests                        10
+    DeploymentChecks                         4
+    MaintenanceAndErrorPages                 4
+    MiddlewareAndHeadersTests                8
+    ModelTests                               7
+    ServiceHelperTests                       6
+    SettingsEnvironments                    13
+    StaticAssetsServed                       2
+core.tests.test_security  [37 tests, all passed]
+    needs/proves: Django | headers, HSTS, security.txt, auth, throttling, CSRF, XSS regressions, seed_demo
+    AuthTests                                9
+    DeploySetupTests                         3
+    HeaderTests                              7
+    InjectionTests                           5
+    SecurityFilesTests                       6
+    SeedDemoTests                            6
+    WalletTests                              1
+core.tests.test_verification  [85 tests, all passed]
+    needs/proves: Django | unit, functional, black-box, white-box, sanity: wallet, routing, coupons, Paystack, visibility
+    AuthFunctional                           6
+    AuthorizationBlackBox                    6
+    CouponUnit                               5
+    ErrorMappingUnit                         3
+    MoneyAndPricingUnit                      5
+    NumberAndCodeVisibility                  6
+    PaystackFunctional                       9
+    PaystackUnit                             5
+    ProviderApiBlackBox                      4
+    PurchaseAndRefundFunctional             10
+    RoutingUnit                              6
+    SanitySmoke                              5
+    SmsBusClientUnit                         6
+    WalletUnit                               5
+    WhiteBoxPaths                            4
+
+KNOWN OPEN ITEMS (found while building the suites)
+------------------------------------------------------------------------------
+1. templates/user/tutorials.html references assets/video/*.mp4 and *.jpg that are not in the repository.
+   The tutorial videos will 404. Add the files or remove the <video> blocks, then empty
+   KNOWN_MISSING_MEDIA in tests_standalone/test_frontend_static.py (a test fails when the list goes stale).
+2. CSP still allows 'unsafe-inline' (templates use inline on*= handlers and style= attributes).
+   See docs/SECURITY_HARDENING.md section 3 for the removal path.
+3. Live TLS / DNS (SPF, DKIM, DMARC, OCSP) cannot be proven offline: use --live after deploying.
+
+NOT COVERED BY AUTOMATED TESTS
+------------------------------------------------------------------------------
+Real SMS-BUS / 5SIM / Paystack calls (mocked on purpose), browser rendering and JS behaviour,
+Postgres-specific locking (tests run on SQLite), load/performance, and the Vercel edge.
+
+==============================================================================

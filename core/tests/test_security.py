@@ -3,7 +3,7 @@
 (DJANGO_DEBUG=1 or a DJANGO_SECRET_KEY must be set, otherwise settings refuse to load.)
 """
 import re
-from datetime import timedelta
+from datetime import timedelta, timezone as dt_timezone
 from decimal import Decimal
 from io import StringIO
 from pathlib import Path
@@ -104,7 +104,7 @@ class SecurityFilesTests(TestCase):
         body = build_security_txt()
         expires = re.search(r"Expires: (\S+)", body).group(1)
         from datetime import datetime
-        dt = datetime.strptime(expires, "%Y-%m-%dT%H:%M:%S.000Z").replace(tzinfo=timezone.utc)
+        dt = datetime.strptime(expires, "%Y-%m-%dT%H:%M:%S.000Z").replace(tzinfo=dt_timezone.utc)
         self.assertGreater(dt, timezone.now())
         self.assertLess(dt, timezone.now() + timedelta(days=366))   # RFC 9116 recommends < 1 year
 

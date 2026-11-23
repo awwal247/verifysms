@@ -26,8 +26,9 @@ from django.views.decorators.http import require_http_methods
 
 from .models import Broadcast, Coupon, CouponUse, Notification, Order, Setting, SmsMessage, Topup, Transaction, User
 from .services import (
-    Paystack, buy_number, catalog_countries, catalog_operators, catalog_products,
-    catalog_servers, catalog_services, check_order, credit_balance, debit_balance,
+    Paystack, buy_number, cancel_provider_order, catalog_countries, catalog_operators,
+    catalog_products, catalog_servers, catalog_services, check_order, credit_balance,
+    debit_balance,
     demo_mode, format_ngn, friendly_provider_error, get_cheap_price, money,
     order_action, provider_configured, provider_to_user_ngn, server_price_board,
     server_provider,
@@ -301,6 +302,8 @@ def admin_page(request, page):
         return redirect("/user/dashboard.html")
     if request.method == "POST":
         return admin_action(request)
+    if page not in ADMIN_PAGES:
+        return render(request, "404.html", status=404)
     context = _page_context(request, page)
     if page == "dashboard":
         context.update(
@@ -636,10 +639,16 @@ def orders_api(request):
                 status=str(provider_order.get("status", "PENDING")).upper(),
                 expires_at=timezone.now() + timedelta(minutes=20),
             )
-            if not debit_balance(request.user.id, final_price, f"Purchase: {product.title()} number", order):
-                return _json({"success": False, "message": "Your balance changed before checkout. Please try again."}, 409)
-            if coupon_result:
+            paid = debit_balance(request.user.id, final_price, f"Purchase: {product.title()} number", order)
+            if not paid:
+                # A bare ``return`` inside atomic() would COMMIT the unpaid Order.
+                transaction.set_rollback(True)
+            elif coupon_result:
                 _coupon_check(request.user, request.POST["coupon_code"], user_price, consume=True, order=order)
+        if not paid:
+            # The number was already bought upstream: hand it back (best effort).
+            cancel_provider_order(provider_order.get("provider"), provider_order.get("id"))
+            return _json({"success": False, "message": "Your balance changed before checkout. Please try again."}, 409)
         return _json({"success": True, "message": f"Number purchased for {format_ngn(final_price)}.", "order_id": order.id, "phone": order.phone, "status": order.status})
     order = get_object_or_404(Order, pk=request.POST.get("order_id"), user=request.user)
     if action not in {"cancel", "finish", "ban"}:
