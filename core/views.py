@@ -630,21 +630,31 @@ def orders_api(request):
         if "error" in provider_order:
             return _json({"success": False, "message": friendly_provider_error(provider_order["error"])})
         provider_cost = Decimal(str(provider_order.get("provider_cost") or quoted_cost))
-        with transaction.atomic():
-            order = Order.objects.create(
-                user=request.user, provider=str(provider_order.get("provider", "smsbus")),
-                provider_order_id=int(str(provider_order.get("id") or uuid.uuid4().int % 900000)),
-                phone=str(provider_order.get("phone", "+2348000000000")), country=country, operator=operator,
-                product=product, provider_cost=provider_cost, user_price=final_price,
-                status=str(provider_order.get("status", "PENDING")).upper(),
-                expires_at=timezone.now() + timedelta(minutes=20),
-            )
-            paid = debit_balance(request.user.id, final_price, f"Purchase: {product.title()} number", order)
-            if not paid:
-                # A bare ``return`` inside atomic() would COMMIT the unpaid Order.
-                transaction.set_rollback(True)
-            elif coupon_result:
-                _coupon_check(request.user, request.POST["coupon_code"], user_price, consume=True, order=order)
+        try:
+            provider_order_id = int(str(provider_order.get("id") or uuid.uuid4().int % 900000))
+            with transaction.atomic():
+                order = Order.objects.create(
+                    user=request.user, provider=str(provider_order.get("provider", "smsbus")),
+                    provider_order_id=provider_order_id,
+                    phone=str(provider_order.get("phone", "+2348000000000")), country=country, operator=operator,
+                    product=product, provider_cost=provider_cost, user_price=final_price,
+                    status=str(provider_order.get("status", "PENDING")).upper(),
+                    expires_at=timezone.now() + timedelta(minutes=20),
+                )
+                paid = debit_balance(request.user.id, final_price, f"Purchase: {product.title()} number", order)
+                if not paid:
+                    # A bare ``return`` inside atomic() would COMMIT the unpaid Order.
+                    transaction.set_rollback(True)
+                elif coupon_result:
+                    _coupon_check(request.user, request.POST["coupon_code"], user_price, consume=True, order=order)
+        except Exception:
+            # Anything unexpected after the upstream purchase (e.g. a provider id that is not
+            # numeric, a database error): nothing was charged (the transaction rolled back),
+            # so hand the number back and answer with JSON, never an HTML 500 page.
+            logger.exception("purchase failed after provider order provider=%s id=%r",
+                             provider_order.get("provider"), provider_order.get("id"))
+            cancel_provider_order(provider_order.get("provider"), provider_order.get("id"))
+            return _json({"success": False, "message": "We could not complete this purchase. You were not charged. Please try again or use the other server."}, 500)
         if not paid:
             # The number was already bought upstream: hand it back (best effort).
             cancel_provider_order(provider_order.get("provider"), provider_order.get("id"))

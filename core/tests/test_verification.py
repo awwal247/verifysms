@@ -694,6 +694,39 @@ class WhiteBoxPaths(TestCase):
         adapter.order_action.assert_called_once()
         self.assertEqual(adapter.order_action.call_args[0][0], "cancel")
 
+    def _buy_with_provider_reply(self, reply, **patches):
+        u = make_user(balance="5000")
+        c = login()
+        adapter = mock.Mock()
+        with mock.patch("core.views.catalog_products", return_value={"wa": {"Price": 0.5}}), \
+             mock.patch("core.views.get_cheap_price", return_value={"cost": 0.5, "count": 10}), \
+             mock.patch("core.views.buy_number", return_value=reply), \
+             mock.patch.dict(services._PROVIDERS, {"smsbus": adapter}):
+            r = c.post("/api/orders/", {"action": "buy", "country": "ng", "product": "wa", "server": "1"})
+        u.refresh_from_db()
+        return r, u, adapter
+
+    def test_non_numeric_provider_id_returns_json_error_not_html_500(self):
+        """Regression: 'Purchase request failed.' in the browser. A provider order id that is not
+        an integer crashed int() inside orders_api -> HTML 500 -> the page's r.json() threw."""
+        r, u, adapter = self._buy_with_provider_reply({"id": "abc-123", "phone": "2347", "status": "PENDING",
+                                                       "provider": "smsbus", "provider_cost": 0.5})
+        self.assertEqual(r.status_code, 500)
+        self.assertFalse(r.json()["success"])
+        self.assertIn("not charged", r.json()["message"])
+        self.assertEqual(u.balance, Decimal("5000"))
+        self.assertEqual(Order.objects.count(), 0)
+        adapter.order_action.assert_called_once()          # the number is handed back upstream
+
+    def test_unexpected_database_error_after_purchase_is_json_and_not_charged(self):
+        with mock.patch("core.views.Order.objects.create", side_effect=RuntimeError("db down")):
+            r, u, adapter = self._buy_with_provider_reply({"id": "5", "phone": "2347", "status": "PENDING",
+                                                           "provider": "smsbus", "provider_cost": 0.5})
+        self.assertEqual(r.status_code, 500)
+        self.assertEqual(r["Content-Type"].split(";")[0], "application/json")
+        self.assertEqual(u.balance, Decimal("5000"))
+        adapter.order_action.assert_called_once()
+
 
 # ───────────────────────────── SANITY / SMOKE ───────────────────────────────
 

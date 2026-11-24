@@ -1001,7 +1001,7 @@ function doBuy() {
     action:'buy', product:S.service, country:S.country, server:S.server,
     operator:S.operator, coupon_code:(appliedCoupon && appliedCoupon.code) || '',
   });
-  fetch('/api/orders/',{method:'POST',body}).then(r=>r.json()).then(d=>{
+  fetch('/api/orders/',{method:'POST',body}).then(r=>r.json().catch(()=>({success:false, message:'Purchase failed (server error '+r.status+'). You were not charged. Please try again.'}))).then(d=>{
     if (!d.success) {
       err.textContent = d.message || 'Purchase failed.';
       err.style.display = 'block';
