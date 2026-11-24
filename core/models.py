@@ -75,7 +75,7 @@ class Order(models.Model):
     )
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="orders")
     provider = models.CharField(max_length=20, default="smsbus")
-    provider_order_id = models.BigIntegerField()
+    provider_order_id = models.CharField(max_length=64)  # provider ids can exceed bigint (SMS-BUS ids are 21 digits)
     phone = models.CharField(max_length=30)
     country = models.CharField(max_length=80)
     operator = models.CharField(max_length=80, default="any")

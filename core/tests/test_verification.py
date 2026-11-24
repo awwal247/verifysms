@@ -706,10 +706,29 @@ class WhiteBoxPaths(TestCase):
         u.refresh_from_db()
         return r, u, adapter
 
-    def test_non_numeric_provider_id_returns_json_error_not_html_500(self):
+    def test_21_digit_sms_bus_id_is_stored_and_purchase_succeeds(self):
+        """Production bug: SMS-BUS request id '261124193349150430464' overflowed the bigint column
+        (psycopg NumericValueOutOfRange) so every Server-1 purchase failed."""
+        big = "261124193349150430464"
+        r, u, adapter = self._buy_with_provider_reply({"id": big, "phone": "2347", "status": "PENDING",
+                                                       "provider": "smsbus", "provider_cost": 0.5})
+        self.assertEqual(r.status_code, 200, r.content)
+        self.assertTrue(r.json()["success"])
+        order = Order.objects.get()
+        self.assertEqual(order.provider_order_id, big)
+        self.assertLess(u.balance, Decimal("5000"))
+        adapter.order_action.assert_not_called()
+
+    def test_non_numeric_provider_id_is_now_accepted_and_stored_verbatim(self):
+        r, u, _ = self._buy_with_provider_reply({"id": "abc-123", "phone": "2347", "status": "PENDING",
+                                                 "provider": "smsbus", "provider_cost": 0.5})
+        self.assertTrue(r.json()["success"], r.content)
+        self.assertEqual(Order.objects.get().provider_order_id, "abc-123")
+
+    def test_unusable_provider_id_returns_json_error_not_html_500(self):
         """Regression: 'Purchase request failed.' in the browser. A provider order id that is not
         an integer crashed int() inside orders_api -> HTML 500 -> the page's r.json() threw."""
-        r, u, adapter = self._buy_with_provider_reply({"id": "abc-123", "phone": "2347", "status": "PENDING",
+        r, u, adapter = self._buy_with_provider_reply({"id": "x" * 200, "phone": "2347", "status": "PENDING",
                                                        "provider": "smsbus", "provider_cost": 0.5})
         self.assertEqual(r.status_code, 500)
         self.assertFalse(r.json()["success"])

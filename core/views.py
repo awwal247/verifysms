@@ -631,7 +631,9 @@ def orders_api(request):
             return _json({"success": False, "message": friendly_provider_error(provider_order["error"])})
         provider_cost = Decimal(str(provider_order.get("provider_cost") or quoted_cost))
         try:
-            provider_order_id = int(str(provider_order.get("id") or uuid.uuid4().int % 900000))
+            provider_order_id = str(provider_order.get("id") or uuid.uuid4().int % 900000)
+            if len(provider_order_id) > 64:   # never truncate: a cut id could not be polled or cancelled
+                raise ValueError("provider order id longer than 64 characters")
             with transaction.atomic():
                 order = Order.objects.create(
                     user=request.user, provider=str(provider_order.get("provider", "smsbus")),
