@@ -89,6 +89,13 @@ class AssetsAndDocs(unittest.TestCase):
         self.assertEqual(KNOWN_MISSING_MEDIA - _missing_assets(), set(),
                          "these files now exist - remove them from KNOWN_MISSING_MEDIA")
 
+    def test_404_page_uses_absolute_asset_paths(self):
+        """The 404 template is served from any URL (e.g. /user/nothing.html), so relative
+        assets/... paths resolved to /user/assets/... and returned 404 for CSS, JS and favicon."""
+        text = read("templates/404.html")
+        self.assertIsNone(re.search(r"""(?:src|href)=["']assets/""", text))
+        self.assertIn('href="/assets/css/style.css"', text)
+
     def test_core_assets_present_and_non_empty(self):
         for rel in ("assets/css/style.css", "assets/js/app.js", "assets/img/favicon.svg"):
             self.assertGreater((ROOT / rel).stat().st_size, 0, rel)

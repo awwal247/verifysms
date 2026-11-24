@@ -396,6 +396,12 @@ class MaintenanceAndErrorPages(TestCase):
         c = Client(); c.force_login(self.user)
         self.assertTemplateUsed(c.get("/user/nothing.html"), "404.html")
 
+    def test_404_page_links_assets_from_the_site_root(self):
+        c = Client(); c.force_login(self.user)
+        body = c.get("/user/nothing.html").content.decode()
+        self.assertIn('href="/assets/css/style.css"', body)
+        self.assertNotIn('href="assets/', body)
+
     def test_unknown_admin_page_is_404_not_500(self):
         """Regression: admin_page used to raise TemplateDoesNotExist (HTTP 500) for unknown pages."""
         a = Client(); a.force_login(self.admin)
